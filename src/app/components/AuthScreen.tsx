@@ -39,6 +39,18 @@ const brandStats = [
   { label: 'AI Accuracy Score', value: '97.3%', icon: ShieldCheck, color: 'text-warning' },
 ];
 
+const getSafeRedirectPath = (next: string | null) => {
+  if (!next) return '/main-dashboard';
+
+  try {
+    const parsed = new URL(next, window.location.origin);
+    if (parsed.origin !== window.location.origin) return '/main-dashboard';
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return '/main-dashboard';
+  }
+};
+
 export default function AuthScreen() {
   const router = useRouter();
   const supabase = createClient();
@@ -70,8 +82,8 @@ export default function AuthScreen() {
         return;
       }
 
-      const nextPath = new URLSearchParams(window.location.search).get('next');
-      router.push(nextPath || '/main-dashboard');
+      const nextPath = getSafeRedirectPath(new URLSearchParams(window.location.search).get('next'));
+      router.push(nextPath);
       router.refresh();
     } finally {
       setIsLoading(false);
@@ -141,7 +153,7 @@ export default function AuthScreen() {
       return;
     }
 
-    const nextPath = new URLSearchParams(window.location.search).get('next') || '/main-dashboard';
+    const nextPath = getSafeRedirectPath(new URLSearchParams(window.location.search).get('next'));
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {

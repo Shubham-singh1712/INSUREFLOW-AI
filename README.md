@@ -93,6 +93,13 @@ The repository includes a root-level `render.yaml` blueprint with two services:
 
 For the backend, set `MONGO_URI` to a hosted MongoDB connection string such as MongoDB Atlas. Set `CLIENT_URL` to the deployed frontend URL so CORS allows browser requests.
 
+After deployment, open the Render/Vercel frontend URL, not `localhost:4028`. `localhost` only works on your own computer while `npm run dev` is running.
+
+If Supabase authentication redirects to localhost, update Supabase Dashboard > Authentication > URL Configuration:
+
+- **Site URL**: your deployed frontend URL
+- **Redirect URLs**: `https://your-frontend-domain/auth/callback`
+
 ## 📚 Learn More
 
 To learn more about Next.js, take a look at the following resources:
