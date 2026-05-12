@@ -1,0 +1,20 @@
+import { NextResponse } from 'next/server';
+import { createClient } from './supabase/server';
+
+export const jsonOk = <T>(data: T, init?: ResponseInit) => NextResponse.json({ ok: true, data }, init);
+
+export const jsonError = (message: string, status = 400) =>
+  NextResponse.json({ ok: false, error: message }, { status });
+
+export const requireUser = async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { user: null, response: jsonError('Authentication required.', 401) };
+  }
+
+  return { user, response: null };
+};
