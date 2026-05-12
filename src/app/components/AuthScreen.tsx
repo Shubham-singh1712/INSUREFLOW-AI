@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 import { createClient } from '@/lib/supabase/client';
 import { hasUsableSupabaseConfig } from '@/lib/supabase/env';
+import { getSiteOrigin } from '@/lib/siteUrl';
 
 type AuthMode = 'login' | 'signup' | 'forgot';
 
@@ -52,14 +53,7 @@ const getSafeRedirectPath = (next: string | null) => {
 };
 
 const getAuthOrigin = () => {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!siteUrl) return window.location.origin;
-
-  try {
-    return new URL(siteUrl).origin;
-  } catch {
-    return window.location.origin;
-  }
+  return getSiteOrigin();
 };
 
 const getAuthCallbackUrl = (nextPath?: string) => {
