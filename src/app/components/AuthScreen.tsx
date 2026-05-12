@@ -43,12 +43,29 @@ const getSafeRedirectPath = (next: string | null) => {
   if (!next) return '/main-dashboard';
 
   try {
-    const parsed = new URL(next, window.location.origin);
-    if (parsed.origin !== window.location.origin) return '/main-dashboard';
+    const parsed = new URL(next, getAuthOrigin());
+    if (parsed.origin !== getAuthOrigin()) return '/main-dashboard';
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return '/main-dashboard';
   }
+};
+
+const getAuthOrigin = () => {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!siteUrl) return window.location.origin;
+
+  try {
+    return new URL(siteUrl).origin;
+  } catch {
+    return window.location.origin;
+  }
+};
+
+const getAuthCallbackUrl = (nextPath?: string) => {
+  const callbackUrl = new URL('/auth/callback', getAuthOrigin());
+  if (nextPath) callbackUrl.searchParams.set('next', nextPath);
+  return callbackUrl.toString();
 };
 
 export default function AuthScreen() {
@@ -102,7 +119,7 @@ export default function AuthScreen() {
         email: data.email,
         password: data.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: getAuthCallbackUrl(),
           data: {
             full_name: data.fullName,
             organization: data.organization,
@@ -133,7 +150,7 @@ export default function AuthScreen() {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: getAuthCallbackUrl(),
       });
 
       if (error) {
@@ -157,7 +174,7 @@ export default function AuthScreen() {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
+        redirectTo: getAuthCallbackUrl(nextPath),
       },
     });
   };
