@@ -31,13 +31,25 @@ const navGroups = [
       { href: '/main-dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
       { href: '/claim-intake-document-upload', label: 'New Claim', icon: Upload, badge: null },
       { href: '/all-claims', label: 'All Claims', icon: FileText, badge: '3', demoOnly: true },
-      { href: '/validation-queue', label: 'Validation Queue', icon: ShieldCheck, badge: '5', demoOnly: true },
+      {
+        href: '/validation-queue',
+        label: 'Validation Queue',
+        icon: ShieldCheck,
+        badge: '5',
+        demoOnly: true,
+      },
     ],
   },
   {
     label: 'Submissions',
     items: [
-      { href: '/submission-queue', label: 'Submission Queue', icon: FileOutput, badge: '2', demoOnly: true },
+      {
+        href: '/submission-queue',
+        label: 'Submission Queue',
+        icon: FileOutput,
+        badge: '2',
+        demoOnly: true,
+      },
       { href: '/pdf-generation', label: 'PDF Generation', icon: FileText, badge: null },
     ],
   },
@@ -57,7 +69,12 @@ const navGroups = [
   },
 ];
 
-export default function Sidebar({ collapsed, mobileOpen, onMobileClose, currentPath }: SidebarProps) {
+export default function Sidebar({
+  collapsed,
+  mobileOpen,
+  onMobileClose,
+  currentPath,
+}: SidebarProps) {
   const isActive = (href: string) => {
     return href === currentPath;
   };
@@ -89,7 +106,10 @@ export default function Sidebar({ collapsed, mobileOpen, onMobileClose, currentP
             <AppLogo size={28} />
             <span className="font-bold text-white text-sm">InsureFlow AI</span>
           </div>
-          <button onClick={onMobileClose} className="p-1.5 rounded-lg text-sidebar-fg hover:text-white hover:bg-sidebar-hover-bg transition-colors">
+          <button
+            onClick={onMobileClose}
+            className="p-1.5 rounded-lg text-sidebar-fg hover:text-white hover:bg-sidebar-hover-bg transition-colors"
+          >
             <ChevronRight size={16} />
           </button>
         </div>
@@ -131,7 +151,9 @@ function SidebarContent({
   return (
     <>
       {/* Logo */}
-      <div className={`flex items-center gap-3 p-4 border-b border-white/15 ${collapsed ? 'justify-center px-0' : ''}`}>
+      <div
+        className={`flex items-center gap-3 p-4 border-b border-white/15 ${collapsed ? 'justify-center px-0' : ''}`}
+      >
         <AppLogo size={28} />
         {!collapsed && (
           <div className="min-w-0">
@@ -170,20 +192,27 @@ function SidebarContent({
                   className={`
                     flex items-center gap-3 px-2.5 py-2 rounded-xl mb-0.5
                     transition-all duration-150 group relative
-                    ${active
-                      ? 'bg-sidebar-active-bg text-sidebar-active-fg shadow-sm' :'text-slate-200 hover:bg-sidebar-hover-bg hover:text-white'
+                    ${
+                      active
+                        ? 'bg-sidebar-active-bg text-sidebar-active-fg shadow-sm'
+                        : 'text-slate-200 hover:bg-sidebar-hover-bg hover:text-white'
                     }
                     ${collapsed ? 'justify-center px-0 py-2.5' : ''}
                   `}
                 >
-                  <item.icon size={16} className={`shrink-0 ${active ? 'text-white' : 'text-slate-200 group-hover:text-white'}`} />
+                  <item.icon
+                    size={16}
+                    className={`shrink-0 ${active ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}
+                  />
                   {!collapsed && (
                     <>
                       <span className="text-sm font-semibold leading-none">{item.label}</span>
                       {badge && (
-                        <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
-                          active ? 'bg-white/20 text-white' : 'bg-blue-500/20 text-blue-200'
-                        }`}>
+                        <span
+                          className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                            active ? 'bg-white/20 text-white' : 'bg-blue-500/20 text-blue-200'
+                          }`}
+                        >
                           {badge}
                         </span>
                       )}

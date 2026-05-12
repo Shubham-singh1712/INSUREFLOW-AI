@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import {
   FileText,
   Download,
@@ -64,23 +64,6 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
   const [submitting, setSubmitting] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState<'ub04' | 'edi'>('ub04');
-  const persistedSubmissionRef = useRef(false);
-
-  const persistSubmission = async () => {
-    if (!confirmedData) return;
-
-    await fetch('/api/claims/submit', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ claimId, confirmedData }),
-    });
-  };
-
-  useEffect(() => {
-    if (!submitted || persistedSubmissionRef.current) return;
-    persistedSubmissionRef.current = true;
-    void persistSubmission();
-  }, [submitted]);
 
   const handleDownloadPdf = async () => {
     setDownloadingPdf(true);

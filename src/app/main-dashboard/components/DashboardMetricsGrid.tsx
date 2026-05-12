@@ -1,5 +1,14 @@
 import React from 'react';
-import { ShieldCheck, AlertTriangle, Clock, TrendingDown, ScanLine, FileCheck, ArrowUpRight, ArrowDownRight,  } from 'lucide-react';
+import {
+  ShieldCheck,
+  AlertTriangle,
+  Clock,
+  TrendingDown,
+  ScanLine,
+  FileCheck,
+  ArrowUpRight,
+  ArrowDownRight,
+} from 'lucide-react';
 import type { DashboardMetric } from '@/lib/demoData';
 
 const metricIcons = {
@@ -40,19 +49,20 @@ export default function DashboardMetricsGrid({ metrics }: { metrics: DashboardMe
               <div className={`w-9 h-9 rounded-xl ${tone.iconBg} flex items-center justify-center`}>
                 <Icon size={16} className={tone.iconColor} />
               </div>
-              <div className={`flex items-center gap-1 text-xs font-semibold ${
-                m?.changeDir === 'up' ? 'text-success' : 'text-danger'
-              }`}>
-                {m?.changeDir === 'up'
-                  ? <ArrowUpRight size={13} />
-                  : <ArrowDownRight size={13} />
-                }
+              <div
+                className={`flex items-center gap-1 text-xs font-semibold ${
+                  m?.changeDir === 'up' ? 'text-success' : 'text-danger'
+                }`}
+              >
+                {m?.changeDir === 'up' ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
                 {m?.change}
               </div>
             </div>
 
             <div className="mb-1">
-              <span className={`font-bold font-tabular text-foreground ${m?.highlight ? 'text-4xl' : 'text-2xl'}`}>
+              <span
+                className={`font-bold font-tabular text-foreground ${m?.highlight ? 'text-4xl' : 'text-2xl'}`}
+              >
                 {m?.value}
               </span>
             </div>

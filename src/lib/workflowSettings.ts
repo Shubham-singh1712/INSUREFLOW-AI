@@ -26,12 +26,23 @@ const clampNumber = (value: unknown, min: number, max: number, fallback: number)
   return Math.min(max, Math.max(min, Math.round(numberValue)));
 };
 
-export const normalizeWorkflowSettings = (value: Partial<WorkflowSettings> | null | undefined): WorkflowSettings => ({
+export const normalizeWorkflowSettings = (
+  value: Partial<WorkflowSettings> | null | undefined
+): WorkflowSettings => ({
   aiThreshold: clampNumber(value?.aiThreshold, 1, 100, defaultWorkflowSettings.aiThreshold),
   maxUploadMb: clampNumber(value?.maxUploadMb, 1, 100, defaultWorkflowSettings.maxUploadMb),
-  signatureDetection: typeof value?.signatureDetection === 'boolean' ? value.signatureDetection : defaultWorkflowSettings.signatureDetection,
-  blurDetection: typeof value?.blurDetection === 'boolean' ? value.blurDetection : defaultWorkflowSettings.blurDetection,
-  cloudinaryStorage: typeof value?.cloudinaryStorage === 'boolean' ? value.cloudinaryStorage : defaultWorkflowSettings.cloudinaryStorage,
+  signatureDetection:
+    typeof value?.signatureDetection === 'boolean'
+      ? value.signatureDetection
+      : defaultWorkflowSettings.signatureDetection,
+  blurDetection:
+    typeof value?.blurDetection === 'boolean'
+      ? value.blurDetection
+      : defaultWorkflowSettings.blurDetection,
+  cloudinaryStorage:
+    typeof value?.cloudinaryStorage === 'boolean'
+      ? value.cloudinaryStorage
+      : defaultWorkflowSettings.cloudinaryStorage,
   jwtSessionDays: clampNumber(value?.jwtSessionDays, 1, 30, defaultWorkflowSettings.jwtSessionDays),
 });
 

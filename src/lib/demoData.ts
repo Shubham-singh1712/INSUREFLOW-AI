@@ -26,7 +26,14 @@ export type DashboardClaim = {
   submissionScore: number;
   amount: string;
   admissionDate: string;
-  status: 'ai_processing' | 'validation_complete' | 'repairs_pending' | 'ready' | 'submitted' | 'approved' | 'rejected';
+  status:
+    | 'ai_processing'
+    | 'validation_complete'
+    | 'repairs_pending'
+    | 'ready'
+    | 'submitted'
+    | 'approved'
+    | 'rejected';
 };
 
 export type ClaimRegisterRow = {
@@ -261,11 +268,46 @@ export const demoDashboardClaims: DashboardClaim[] = [
 ];
 
 export const demoClaimRegisterRows: ClaimRegisterRow[] = [
-  { id: 'CLM-2847', patient: 'Arjun Mehta', tpa: 'Apollo Munich', issue: 'Missing signature', score: '62', status: 'Needs Repair' },
-  { id: 'CLM-2848', patient: 'Priya Nair', tpa: 'Star Health', issue: 'Clean packet', score: '94', status: 'Ready' },
-  { id: 'CLM-2849', patient: 'Ramesh Iyer', tpa: 'HDFC ERGO', issue: 'AI verified', score: '98', status: 'Ready' },
-  { id: 'CLM-2851', patient: 'Venkat Reddy', tpa: 'Apollo Munich', issue: 'OCR failed', score: '28', status: 'Blocked' },
-  { id: 'CLM-2843', patient: 'Ananya Bose', tpa: 'Max Bupa', issue: 'Queued for dispatch', score: '89', status: 'Queued' },
+  {
+    id: 'CLM-2847',
+    patient: 'Arjun Mehta',
+    tpa: 'Apollo Munich',
+    issue: 'Missing signature',
+    score: '62',
+    status: 'Needs Repair',
+  },
+  {
+    id: 'CLM-2848',
+    patient: 'Priya Nair',
+    tpa: 'Star Health',
+    issue: 'Clean packet',
+    score: '94',
+    status: 'Ready',
+  },
+  {
+    id: 'CLM-2849',
+    patient: 'Ramesh Iyer',
+    tpa: 'HDFC ERGO',
+    issue: 'AI verified',
+    score: '98',
+    status: 'Ready',
+  },
+  {
+    id: 'CLM-2851',
+    patient: 'Venkat Reddy',
+    tpa: 'Apollo Munich',
+    issue: 'OCR failed',
+    score: '28',
+    status: 'Blocked',
+  },
+  {
+    id: 'CLM-2843',
+    patient: 'Ananya Bose',
+    tpa: 'Max Bupa',
+    issue: 'Queued for dispatch',
+    score: '89',
+    status: 'Queued',
+  },
 ];
 
 export const emptyExtractedClaimData: ExtractedClaimData = {

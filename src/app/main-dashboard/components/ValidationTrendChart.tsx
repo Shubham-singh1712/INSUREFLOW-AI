@@ -1,8 +1,14 @@
 'use client';
 import React from 'react';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
 } from 'recharts';
 import { TrendingUp } from 'lucide-react';
 
@@ -23,7 +29,15 @@ const data = [
   { date: 'May 7', successRate: 91.4, rejectionRate: 4.7 },
 ];
 
-const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
+const CustomTooltip = ({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number; color: string }>;
+  label?: string;
+}) => {
   if (!active || !payload) return null;
   return (
     <div className="bg-white border border-border rounded-xl shadow-card-md px-4 py-3 text-sm">
@@ -45,7 +59,9 @@ export default function ValidationTrendChart() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h3 className="section-header">Validation Trend — 14 Days</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Success rate vs. TPA rejection rate</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Success rate vs. TPA rejection rate
+          </p>
         </div>
         <div className="flex items-center gap-1.5 text-xs font-semibold text-success">
           <TrendingUp size={13} />

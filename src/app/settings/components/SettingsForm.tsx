@@ -22,7 +22,9 @@ const Toggle = ({
     aria-pressed={checked}
     aria-label={label}
   >
-    <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+    <span
+      className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`}
+    />
   </button>
 );
 
@@ -33,8 +35,15 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Wor
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const dirty = useMemo(() => JSON.stringify(settings) !== JSON.stringify(savedSettings), [settings, savedSettings]);
-  const enabledCount = [settings.signatureDetection, settings.blurDetection, settings.cloudinaryStorage].filter(Boolean).length;
+  const dirty = useMemo(
+    () => JSON.stringify(settings) !== JSON.stringify(savedSettings),
+    [settings, savedSettings]
+  );
+  const enabledCount = [
+    settings.signatureDetection,
+    settings.blurDetection,
+    settings.cloudinaryStorage,
+  ].filter(Boolean).length;
 
   const updateSetting = <K extends keyof WorkflowSettings>(key: K, value: WorkflowSettings[K]) => {
     setSettings((current) => ({ ...current, [key]: value }));
@@ -73,23 +82,44 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Wor
       title="Settings"
       subtitle="Configure AI thresholds, upload rules, security, integrations, and enterprise workflow defaults."
       action={
-        <button onClick={saveSettings} disabled={saving || !dirty} className="btn-primary gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+        <button
+          onClick={saveSettings}
+          disabled={saving || !dirty}
+          className="btn-primary gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
           Save Changes
         </button>
       }
     >
       {(message || error || dirty) && (
-        <div className={`card px-5 py-3 text-sm ${error ? 'text-danger-foreground bg-danger-bg/30 border-danger/20' : 'text-muted-foreground'}`}>
+        <div
+          className={`card px-5 py-3 text-sm ${error ? 'text-danger-foreground bg-danger-bg/30 border-danger/20' : 'text-muted-foreground'}`}
+        >
           {error || message || 'You have unsaved changes.'}
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard label="AI Threshold" value={`${settings.aiThreshold}%`} helper="Manual review cutoff" tone="info" />
+        <MetricCard
+          label="AI Threshold"
+          value={`${settings.aiThreshold}%`}
+          helper="Manual review cutoff"
+          tone="info"
+        />
         <MetricCard label="Max Upload" value={`${settings.maxUploadMb}MB`} helper="Per document" />
-        <MetricCard label="Rules On" value={`${enabledCount}/3`} helper="Active workflow controls" tone="success" />
-        <MetricCard label="Session" value={`${settings.jwtSessionDays}d`} helper="JWT expiry policy" tone="warning" />
+        <MetricCard
+          label="Rules On"
+          value={`${enabledCount}/3`}
+          helper="Active workflow controls"
+          tone="success"
+        />
+        <MetricCard
+          label="Session"
+          value={`${settings.jwtSessionDays}d`}
+          helper="JWT expiry policy"
+          tone="warning"
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
@@ -100,7 +130,9 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Wor
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">AI validation threshold</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Claims below this readiness score require manual review</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Claims below this readiness score require manual review
+              </p>
             </div>
             <div className="w-48">
               <input
@@ -129,10 +161,18 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Wor
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">Signature detection</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Flag missing signatures on discharge summaries and invoices</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Flag missing signatures on discharge summaries and invoices
+              </p>
             </div>
-            <Toggle checked={settings.signatureDetection} onChange={(value) => updateSetting('signatureDetection', value)} label="Toggle signature detection" />
-            <StatusPill tone={settings.signatureDetection ? 'success' : 'muted'}>{settings.signatureDetection ? 'Enabled' : 'Disabled'}</StatusPill>
+            <Toggle
+              checked={settings.signatureDetection}
+              onChange={(value) => updateSetting('signatureDetection', value)}
+              label="Toggle signature detection"
+            />
+            <StatusPill tone={settings.signatureDetection ? 'success' : 'muted'}>
+              {settings.signatureDetection ? 'Enabled' : 'Disabled'}
+            </StatusPill>
           </div>
 
           <div className="p-5 flex items-center gap-4">
@@ -141,10 +181,18 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Wor
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">Blur detection</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Warn users before low-quality scans enter OCR</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Warn users before low-quality scans enter OCR
+              </p>
             </div>
-            <Toggle checked={settings.blurDetection} onChange={(value) => updateSetting('blurDetection', value)} label="Toggle blur detection" />
-            <StatusPill tone={settings.blurDetection ? 'success' : 'muted'}>{settings.blurDetection ? 'Enabled' : 'Disabled'}</StatusPill>
+            <Toggle
+              checked={settings.blurDetection}
+              onChange={(value) => updateSetting('blurDetection', value)}
+              label="Toggle blur detection"
+            />
+            <StatusPill tone={settings.blurDetection ? 'success' : 'muted'}>
+              {settings.blurDetection ? 'Enabled' : 'Disabled'}
+            </StatusPill>
           </div>
 
           <div className="p-5 flex items-center gap-4">
@@ -153,10 +201,18 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Wor
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">Cloudinary storage</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Store uploaded claim documents securely in cloud object storage</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Store uploaded claim documents securely in cloud object storage
+              </p>
             </div>
-            <Toggle checked={settings.cloudinaryStorage} onChange={(value) => updateSetting('cloudinaryStorage', value)} label="Toggle Cloudinary storage" />
-            <StatusPill tone={settings.cloudinaryStorage ? 'success' : 'muted'}>{settings.cloudinaryStorage ? 'Configured' : 'Disabled'}</StatusPill>
+            <Toggle
+              checked={settings.cloudinaryStorage}
+              onChange={(value) => updateSetting('cloudinaryStorage', value)}
+              label="Toggle Cloudinary storage"
+            />
+            <StatusPill tone={settings.cloudinaryStorage ? 'success' : 'muted'}>
+              {settings.cloudinaryStorage ? 'Configured' : 'Disabled'}
+            </StatusPill>
           </div>
 
           <div className="p-5 flex items-center gap-4">
@@ -165,7 +221,9 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Wor
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">JWT session policy</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Role-protected API access with expiring tokens</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Role-protected API access with expiring tokens
+              </p>
             </div>
             <input
               type="number"
@@ -185,7 +243,9 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Wor
             </div>
             <div className="flex-1">
               <p className="font-semibold text-foreground">Max upload size</p>
-              <p className="text-sm text-muted-foreground mt-0.5">Maximum accepted document size per uploaded file</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Maximum accepted document size per uploaded file
+              </p>
             </div>
             <input
               type="number"
@@ -204,7 +264,10 @@ export default function SettingsForm({ initialSettings }: { initialSettings: Wor
           <div className="card p-5">
             <Lock size={20} className="text-primary mb-3" />
             <h2 className="section-header mb-2">Security</h2>
-            <p className="text-sm text-muted-foreground">Protected routes, password hashing, JWT auth, role checks, upload validation, and rate limiting are enabled in the backend.</p>
+            <p className="text-sm text-muted-foreground">
+              Protected routes, password hashing, JWT auth, role checks, upload validation, and rate
+              limiting are enabled in the backend.
+            </p>
           </div>
           <DemoModeCard />
         </div>

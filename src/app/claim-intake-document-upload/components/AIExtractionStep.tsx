@@ -74,7 +74,7 @@ const extractionPhases = [
   },
 ];
 
-const mockExtractedData: ExtractedClaimData = {
+const _mockExtractedData: ExtractedClaimData = {
   patient: {
     full_name: 'Ramesh Kumar Iyer',
     date_of_birth: '1958-03-14',

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
 
@@ -19,13 +19,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshSession = async () => {
+  const refreshSession = useCallback(async () => {
     const {
       data: { session: currentSession },
     } = await supabase.auth.getSession();
     setSession(currentSession);
     setUser(currentSession?.user ?? null);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     refreshSession().finally(() => setLoading(false));
@@ -39,13 +39,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase]);
+  }, [refreshSession, supabase]);
 
-  return (
-    <AuthContext.Provider value={{ user, session, loading, refreshSession }}>
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, session, loading, refreshSession }),
+    [user, session, loading, refreshSession]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {

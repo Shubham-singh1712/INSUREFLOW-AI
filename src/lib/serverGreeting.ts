@@ -20,7 +20,9 @@ export const getTimeOfDayGreeting = (date = new Date(), timeZone = APP_TIME_ZONE
   return 'Good night';
 };
 
-export const getUserDisplayName = (user: { email?: string; user_metadata?: Record<string, unknown> } | null | undefined) => {
+export const getUserDisplayName = (
+  user: { email?: string; user_metadata?: Record<string, unknown> } | null | undefined
+) => {
   const metadata = user?.user_metadata || {};
   const metadataName = metadata.full_name || metadata.name || metadata.display_name;
 

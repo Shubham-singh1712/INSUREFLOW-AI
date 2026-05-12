@@ -68,14 +68,18 @@ export default function ActivityTimeline() {
       <div className="space-y-3">
         {activities?.map((act) => (
           <div key={act?.id} className="flex items-start gap-3">
-            <div className={`w-7 h-7 rounded-xl ${act?.bgClass} flex items-center justify-center shrink-0 mt-0.5`}>
+            <div
+              className={`w-7 h-7 rounded-xl ${act?.bgClass} flex items-center justify-center shrink-0 mt-0.5`}
+            >
               <act.icon size={13} className={act?.iconClass} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs text-foreground leading-snug font-medium">{act?.message}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{act?.sub}</p>
             </div>
-            <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">{act?.time}</span>
+            <span className="text-xs text-muted-foreground shrink-0 whitespace-nowrap">
+              {act?.time}
+            </span>
           </div>
         ))}
       </div>

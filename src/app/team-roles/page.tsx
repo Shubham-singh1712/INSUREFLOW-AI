@@ -18,16 +18,41 @@ export default async function TeamRolesPage() {
     <SectionShell
       currentPath="/team-roles"
       title="Team & Roles"
-      subtitle={demoMode.enabled
-        ? 'Demo workspace members and role assignments.'
-        : 'Live team workspace. Demo members are hidden because Demo Mode is off.'}
-      action={<button className="btn-primary gap-2"><UserPlus size={15} /> Invite User</button>}
+      subtitle={
+        demoMode.enabled
+          ? 'Demo workspace members and role assignments.'
+          : 'Live team workspace. Demo members are hidden because Demo Mode is off.'
+      }
+      action={
+        <button className="btn-primary gap-2">
+          <UserPlus size={15} /> Invite User
+        </button>
+      }
     >
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard label="Active Users" value={demoMode.enabled ? '24' : '0'} helper="In this hospital workspace" tone="success" />
-        <MetricCard label="Admins" value={demoMode.enabled ? '3' : '0'} helper="Can manage settings and roles" tone="info" />
-        <MetricCard label="Reviewers" value={demoMode.enabled ? '6' : '0'} helper="Compliance and validation users" tone="warning" />
-        <MetricCard label="Invites" value={demoMode.enabled ? '2' : '0'} helper="Pending acceptance" />
+        <MetricCard
+          label="Active Users"
+          value={demoMode.enabled ? '24' : '0'}
+          helper="In this hospital workspace"
+          tone="success"
+        />
+        <MetricCard
+          label="Admins"
+          value={demoMode.enabled ? '3' : '0'}
+          helper="Can manage settings and roles"
+          tone="info"
+        />
+        <MetricCard
+          label="Reviewers"
+          value={demoMode.enabled ? '6' : '0'}
+          helper="Compliance and validation users"
+          tone="warning"
+        />
+        <MetricCard
+          label="Invites"
+          value={demoMode.enabled ? '2' : '0'}
+          helper="Pending acceptance"
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-5">
@@ -39,18 +64,29 @@ export default async function TeamRolesPage() {
             {visibleTeam.map(([name, role, status, helper]) => (
               <div key={name} className="p-5 flex items-center gap-4 hover:bg-muted/40">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  {role === 'Hospital Admin' ? <Crown size={17} className="text-primary" /> : <Users size={17} className="text-primary" />}
+                  {role === 'Hospital Admin' ? (
+                    <Crown size={17} className="text-primary" />
+                  ) : (
+                    <Users size={17} className="text-primary" />
+                  )}
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold text-foreground">{name}</p>
-                  <p className="text-sm text-muted-foreground">{role} - {helper}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {role} - {helper}
+                  </p>
                 </div>
-                <StatusPill tone={status === 'Review' ? 'warning' : status === 'Admin' ? 'info' : 'success'}>{status}</StatusPill>
+                <StatusPill
+                  tone={status === 'Review' ? 'warning' : status === 'Admin' ? 'info' : 'success'}
+                >
+                  {status}
+                </StatusPill>
               </div>
             ))}
             {visibleTeam.length === 0 && (
               <div className="p-8 text-center text-muted-foreground">
-                No live workspace members are loaded yet. Turn on Demo Mode in Settings to view mock team data.
+                No live workspace members are loaded yet. Turn on Demo Mode in Settings to view mock
+                team data.
               </div>
             )}
           </div>

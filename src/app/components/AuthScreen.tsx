@@ -2,9 +2,20 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import {
-  Eye, EyeOff, ShieldCheck, ArrowRight, ChevronRight,
-  Mail, Lock, User, Building2, Briefcase, CheckCircle2,
-  Zap, TrendingUp, FileCheck,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  ArrowRight,
+  ChevronRight,
+  Mail,
+  Lock,
+  User,
+  Building2,
+  Briefcase,
+  CheckCircle2,
+  Zap,
+  TrendingUp,
+  FileCheck,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
@@ -77,7 +88,10 @@ export default function AuthScreen() {
 
   const onLoginSubmit = async (data: LoginFormData) => {
     if (!hasUsableSupabaseConfig()) {
-      loginForm.setError('email', { message: 'Supabase is still using placeholder credentials. Add your real Supabase URL and anon key in .env.' });
+      loginForm.setError('email', {
+        message:
+          'Supabase is still using placeholder credentials. Add your real Supabase URL and anon key in .env.',
+      });
       return;
     }
 
@@ -103,7 +117,10 @@ export default function AuthScreen() {
 
   const onSignupSubmit = async (data: SignupFormData) => {
     if (!hasUsableSupabaseConfig()) {
-      signupForm.setError('email', { message: 'Supabase is still using placeholder credentials. Add your real Supabase URL and anon key in .env.' });
+      signupForm.setError('email', {
+        message:
+          'Supabase is still using placeholder credentials. Add your real Supabase URL and anon key in .env.',
+      });
       return;
     }
 
@@ -129,7 +146,9 @@ export default function AuthScreen() {
 
       setMode('login');
       loginForm.setValue('email', data.email);
-      loginForm.setError('email', { message: 'Account created. Check your email if confirmation is enabled, then sign in.' });
+      loginForm.setError('email', {
+        message: 'Account created. Check your email if confirmation is enabled, then sign in.',
+      });
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +156,10 @@ export default function AuthScreen() {
 
   const onForgotSubmit = async (data: ForgotFormData) => {
     if (!hasUsableSupabaseConfig()) {
-      forgotForm.setError('email', { message: 'Supabase is still using placeholder credentials. Add your real Supabase URL and anon key in .env.' });
+      forgotForm.setError('email', {
+        message:
+          'Supabase is still using placeholder credentials. Add your real Supabase URL and anon key in .env.',
+      });
       return;
     }
 
@@ -160,7 +182,10 @@ export default function AuthScreen() {
 
   const onGoogleLogin = async () => {
     if (!hasUsableSupabaseConfig()) {
-      loginForm.setError('email', { message: 'Google login needs a real Supabase project. Replace dummy.supabase.co and dummykey in .env first.' });
+      loginForm.setError('email', {
+        message:
+          'Google login needs a real Supabase project. Replace dummy.supabase.co and dummykey in .env first.',
+      });
       return;
     }
 
@@ -188,8 +213,12 @@ export default function AuthScreen() {
           <div className="flex items-center gap-3 mb-16">
             <AppLogo size={36} />
             <div>
-              <span className="font-bold text-white text-xl leading-tight block">InsureFlow AI</span>
-              <span className="text-xs text-slate-300 font-medium">Enterprise Healthcare Claims Platform</span>
+              <span className="font-bold text-white text-xl leading-tight block">
+                InsureFlow AI
+              </span>
+              <span className="text-xs text-slate-300 font-medium">
+                Enterprise Healthcare Claims Platform
+              </span>
             </div>
           </div>
 
@@ -201,16 +230,20 @@ export default function AuthScreen() {
               </span>
             </div>
             <h1 className="text-4xl font-bold text-white leading-tight mb-4 text-balance">
-              Repair, Don't Reject.
+              Repair, Do Not Reject.
             </h1>
             <p className="text-slate-200 text-base leading-relaxed max-w-sm mb-10">
-              AI-powered insurance claim validation that catches issues before submission — reducing rejections by up to 68% across hospital networks.
+              AI-powered insurance claim validation that catches issues before submission — reducing
+              rejections by up to 68% across hospital networks.
             </p>
 
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 mb-10">
               {brandStats.map((stat) => (
-                <div key={`stat-${stat.label}`} className="bg-white/10 border border-white/15 rounded-2xl p-4">
+                <div
+                  key={`stat-${stat.label}`}
+                  className="bg-white/10 border border-white/15 rounded-2xl p-4"
+                >
                   <stat.icon size={18} className={`${stat.color} mb-2`} />
                   <p className="text-xl font-bold text-white font-tabular">{stat.value}</p>
                   <p className="text-xs text-slate-200 leading-tight mt-0.5">{stat.label}</p>
@@ -288,7 +321,10 @@ export default function AuthScreen() {
               onSubmit={onForgotSubmit}
               isLoading={isLoading}
               success={forgotSuccess}
-              onBack={() => { setMode('login'); setForgotSuccess(false); }}
+              onBack={() => {
+                setMode('login');
+                setForgotSuccess(false);
+              }}
             />
           )}
         </div>
@@ -299,8 +335,14 @@ export default function AuthScreen() {
 
 // ─── Login Form ───────────────────────────────────────────────────────────────
 function LoginForm({
-  form, onSubmit, isLoading, showPassword, setShowPassword,
-  onForgot, onSignup, onGoogleLogin,
+  form,
+  onSubmit,
+  isLoading,
+  showPassword,
+  setShowPassword,
+  onForgot,
+  onSignup,
+  onGoogleLogin,
 }: {
   form: ReturnType<typeof useForm<LoginFormData>>;
   onSubmit: (d: LoginFormData) => void;
@@ -311,7 +353,11 @@ function LoginForm({
   onSignup: () => void;
   onGoogleLogin: () => void;
 }) {
-  const { register, handleSubmit, formState: { errors } } = form;
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = form;
 
   const handleFormSubmit = async (data: LoginFormData) => {
     onSubmit(data);
@@ -328,11 +374,17 @@ function LoginForm({
         <div>
           <label className="label">Work Email</label>
           <div className="relative">
-            <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Mail
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               {...register('email', {
                 required: 'Email is required',
-                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address' },
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: 'Enter a valid email address',
+                },
               })}
               type="email"
               placeholder="you@hospital.in"
@@ -345,7 +397,10 @@ function LoginForm({
         <div>
           <label className="label">Password</label>
           <div className="relative">
-            <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Lock
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               {...register('password', { required: 'Password is required' })}
               type={showPassword ? 'text' : 'password'}
@@ -365,26 +420,32 @@ function LoginForm({
 
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 cursor-pointer">
-            <input {...register('rememberMe')} type="checkbox" className="w-4 h-4 rounded border-border text-primary" />
+            <input
+              {...register('rememberMe')}
+              type="checkbox"
+              className="w-4 h-4 rounded border-border text-primary"
+            />
             <span className="text-sm text-muted-foreground">Remember me</span>
           </label>
-          <button type="button" onClick={onForgot} className="text-sm text-primary font-medium hover:underline">
+          <button
+            type="button"
+            onClick={onForgot}
+            className="text-sm text-primary font-medium hover:underline"
+          >
             Forgot password?
           </button>
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn-primary w-full py-3 text-base"
-        >
+        <button type="submit" disabled={isLoading} className="btn-primary w-full py-3 text-base">
           {isLoading ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Signing in...
             </>
           ) : (
-            <>Sign In <ArrowRight size={16} /></>
+            <>
+              Sign In <ArrowRight size={16} />
+            </>
           )}
         </button>
       </form>
@@ -401,7 +462,7 @@ function LoginForm({
 
       <div className="mt-4 text-center">
         <p className="text-sm text-muted-foreground">
-          Don't have an account?{' '}
+          Do not have an account?{' '}
           <button onClick={onSignup} className="text-primary font-semibold hover:underline">
             Create account
           </button>
@@ -413,8 +474,14 @@ function LoginForm({
 
 // ─── Signup Form ──────────────────────────────────────────────────────────────
 function SignupForm({
-  form, onSubmit, isLoading, showPassword, setShowPassword,
-  showConfirmPassword, setShowConfirmPassword, onLogin,
+  form,
+  onSubmit,
+  isLoading,
+  showPassword,
+  setShowPassword,
+  showConfirmPassword,
+  setShowConfirmPassword,
+  onLogin,
 }: {
   form: ReturnType<typeof useForm<SignupFormData>>;
   onSubmit: (d: SignupFormData) => void;
@@ -425,21 +492,31 @@ function SignupForm({
   setShowConfirmPassword: (v: boolean) => void;
   onLogin: () => void;
 }) {
-  const { register, handleSubmit, watch, formState: { errors } } = form;
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = form;
   const password = watch('password');
 
   return (
     <div>
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-foreground mb-1.5">Create your account</h2>
-        <p className="text-sm text-muted-foreground">Set up InsureFlow AI for your hospital or clinic</p>
+        <p className="text-sm text-muted-foreground">
+          Set up InsureFlow AI for your hospital or clinic
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <label className="label">Full Name</label>
           <div className="relative">
-            <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <User
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               {...register('fullName', { required: 'Full name is required' })}
               type="text"
@@ -453,7 +530,10 @@ function SignupForm({
         <div>
           <label className="label">Hospital / Organization</label>
           <div className="relative">
-            <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Building2
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               {...register('organization', { required: 'Organization is required' })}
               type="text"
@@ -462,13 +542,18 @@ function SignupForm({
             />
           </div>
           {errors.organization && <p className="error-text">{errors.organization.message}</p>}
-          <p className="helper-text">Enter the full name of your hospital or healthcare organization</p>
+          <p className="helper-text">
+            Enter the full name of your hospital or healthcare organization
+          </p>
         </div>
 
         <div>
           <label className="label">Your Role</label>
           <div className="relative">
-            <Briefcase size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Briefcase
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <select
               {...register('role', { required: 'Role is required' })}
               className="input-field pl-10 appearance-none bg-white"
@@ -480,7 +565,10 @@ function SignupForm({
               <option value="compliance_officer">Compliance Officer</option>
               <option value="medical_records">Medical Records Officer</option>
             </select>
-            <ChevronRight size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground rotate-90 pointer-events-none" />
+            <ChevronRight
+              size={14}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground rotate-90 pointer-events-none"
+            />
           </div>
           {errors.role && <p className="error-text">{errors.role.message}</p>}
         </div>
@@ -488,11 +576,17 @@ function SignupForm({
         <div>
           <label className="label">Work Email</label>
           <div className="relative">
-            <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Mail
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               {...register('email', {
                 required: 'Email is required',
-                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address' },
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: 'Enter a valid email address',
+                },
               })}
               type="email"
               placeholder="you@hospital.in"
@@ -505,7 +599,10 @@ function SignupForm({
         <div>
           <label className="label">Password</label>
           <div className="relative">
-            <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Lock
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               {...register('password', {
                 required: 'Password is required',
@@ -529,11 +626,14 @@ function SignupForm({
         <div>
           <label className="label">Confirm Password</label>
           <div className="relative">
-            <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Lock
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               {...register('confirmPassword', {
                 required: 'Please confirm your password',
-                validate: v => v === password || 'Passwords do not match',
+                validate: (v) => v === password || 'Passwords do not match',
               })}
               type={showConfirmPassword ? 'text' : 'password'}
               placeholder="Repeat your password"
@@ -559,26 +659,28 @@ function SignupForm({
             />
             <span className="text-sm text-muted-foreground">
               I agree to the{' '}
-              <a href="#" className="text-primary hover:underline font-medium">Terms of Service</a>
-              {' '}and{' '}
-              <a href="#" className="text-primary hover:underline font-medium">Privacy Policy</a>
+              <a href="#" className="text-primary hover:underline font-medium">
+                Terms of Service
+              </a>{' '}
+              and{' '}
+              <a href="#" className="text-primary hover:underline font-medium">
+                Privacy Policy
+              </a>
             </span>
           </label>
           {errors.agreeTerms && <p className="error-text">{errors.agreeTerms.message}</p>}
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn-primary w-full py-3 text-base"
-        >
+        <button type="submit" disabled={isLoading} className="btn-primary w-full py-3 text-base">
           {isLoading ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Creating account...
             </>
           ) : (
-            <>Create Account <ArrowRight size={16} /></>
+            <>
+              Create Account <ArrowRight size={16} />
+            </>
           )}
         </button>
       </form>
@@ -597,7 +699,11 @@ function SignupForm({
 
 // ─── Forgot Password Form ─────────────────────────────────────────────────────
 function ForgotForm({
-  form, onSubmit, isLoading, success, onBack,
+  form,
+  onSubmit,
+  isLoading,
+  success,
+  onBack,
 }: {
   form: ReturnType<typeof useForm<ForgotFormData>>;
   onSubmit: (d: ForgotFormData) => void;
@@ -605,7 +711,11 @@ function ForgotForm({
   success: boolean;
   onBack: () => void;
 }) {
-  const { register, handleSubmit, formState: { errors } } = form;
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = form;
 
   if (success) {
     return (
@@ -615,7 +725,7 @@ function ForgotForm({
         </div>
         <h2 className="text-xl font-bold text-foreground mb-2">Check your inbox</h2>
         <p className="text-sm text-muted-foreground mb-6">
-          We've sent a password reset link to your work email. The link expires in 30 minutes.
+          We have sent a password reset link to your work email. The link expires in 30 minutes.
         </p>
         <button onClick={onBack} className="btn-primary w-full">
           Back to Sign In
@@ -626,24 +736,35 @@ function ForgotForm({
 
   return (
     <div>
-      <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
+      >
         <ChevronRight size={14} className="rotate-180" /> Back to Sign In
       </button>
 
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-foreground mb-1.5">Reset your password</h2>
-        <p className="text-sm text-muted-foreground">Enter your work email and we'll send you a reset link</p>
+        <p className="text-sm text-muted-foreground">
+          Enter your work email and we will send you a reset link
+        </p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div>
           <label className="label">Work Email</label>
           <div className="relative">
-            <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Mail
+              size={14}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               {...register('email', {
                 required: 'Email is required',
-                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email address' },
+                pattern: {
+                  value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                  message: 'Enter a valid email address',
+                },
               })}
               type="email"
               placeholder="you@hospital.in"
@@ -653,18 +774,16 @@ function ForgotForm({
           {errors.email && <p className="error-text">{errors.email.message}</p>}
         </div>
 
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn-primary w-full py-3 text-base"
-        >
+        <button type="submit" disabled={isLoading} className="btn-primary w-full py-3 text-base">
           {isLoading ? (
             <>
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               Sending link...
             </>
           ) : (
-            <>Send Reset Link <ArrowRight size={16} /></>
+            <>
+              Send Reset Link <ArrowRight size={16} />
+            </>
           )}
         </button>
       </form>

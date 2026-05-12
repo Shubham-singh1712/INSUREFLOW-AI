@@ -21,7 +21,8 @@ export default function DemoModeCard() {
     fetch('/api/settings/demo-mode', { cache: 'no-store' })
       .then(async (response) => ({ response, payload: await response.json() }))
       .then(({ response, payload }) => {
-        if (!response.ok || !payload.ok) throw new Error(payload.error || 'Unable to load demo mode.');
+        if (!response.ok || !payload.ok)
+          throw new Error(payload.error || 'Unable to load demo mode.');
         setState(payload.data);
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Unable to load demo mode.'));
@@ -39,7 +40,8 @@ export default function DemoModeCard() {
       });
       const payload = await response.json();
 
-      if (!response.ok || !payload.ok) throw new Error(payload.error || 'Unable to save demo mode.');
+      if (!response.ok || !payload.ok)
+        throw new Error(payload.error || 'Unable to save demo mode.');
 
       setState(payload.data);
       router.refresh();
@@ -53,7 +55,9 @@ export default function DemoModeCard() {
   const enabled = Boolean(state?.enabled);
 
   return (
-    <div className={`card p-5 ${enabled ? 'border-success/30 bg-success-bg/10' : 'border-info/20'}`}>
+    <div
+      className={`card p-5 ${enabled ? 'border-success/30 bg-success-bg/10' : 'border-info/20'}`}
+    >
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           {enabled ? (
@@ -63,7 +67,9 @@ export default function DemoModeCard() {
           )}
           <h2 className="section-header mb-2">Demo Mode</h2>
         </div>
-        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${enabled ? 'bg-success-bg text-success-foreground' : 'bg-info-bg text-info'}`}>
+        <span
+          className={`text-xs font-bold px-2.5 py-1 rounded-full ${enabled ? 'bg-success-bg text-success-foreground' : 'bg-info-bg text-info'}`}
+        >
           {enabled ? 'Demo On' : 'Live On'}
         </span>
       </div>
@@ -80,7 +86,9 @@ export default function DemoModeCard() {
           onClick={() => setDemoMode(false)}
           disabled={!state || saving || !enabled}
           className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
-            !enabled ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            !enabled
+              ? 'bg-white text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           } disabled:cursor-not-allowed disabled:opacity-70`}
         >
           <RadioTower size={15} />
@@ -92,7 +100,9 @@ export default function DemoModeCard() {
           onClick={() => setDemoMode(true)}
           disabled={!state || saving || enabled}
           className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all ${
-            enabled ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            enabled
+              ? 'bg-white text-foreground shadow-sm'
+              : 'text-muted-foreground hover:text-foreground'
           } disabled:cursor-not-allowed disabled:opacity-70`}
         >
           <Database size={15} />
@@ -102,7 +112,9 @@ export default function DemoModeCard() {
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
-        <span className={state?.hasLiveProvider ? 'text-success-foreground' : 'text-warning-foreground'}>
+        <span
+          className={state?.hasLiveProvider ? 'text-success-foreground' : 'text-warning-foreground'}
+        >
           Provider: {state?.providerLabel || 'Checking...'}
         </span>
         {saving && <Loader2 size={13} className="animate-spin text-muted-foreground" />}

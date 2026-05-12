@@ -79,9 +79,24 @@ export default async function ProfilePage() {
         <div className="xl:col-span-3 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <MetricCard label="Claims Today" value="42" helper="Handled by Sneha" tone="info" />
-            <MetricCard label="Ready Packets" value="9" helper="Generated for submission" tone="success" />
-            <MetricCard label="Open Repairs" value="5" helper="Needs manual review" tone="warning" />
-            <MetricCard label="Accuracy" value="96%" helper="Review acceptance rate" tone="success" />
+            <MetricCard
+              label="Ready Packets"
+              value="9"
+              helper="Generated for submission"
+              tone="success"
+            />
+            <MetricCard
+              label="Open Repairs"
+              value="5"
+              helper="Needs manual review"
+              tone="warning"
+            />
+            <MetricCard
+              label="Accuracy"
+              value="96%"
+              helper="Review acceptance rate"
+              tone="success"
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -111,7 +126,10 @@ export default async function ProfilePage() {
                   ['Access level', 'Hospital workspace scoped access', 'Scoped'],
                   ['API role', `Supabase role: ${profileRole}`, 'Enabled'],
                 ].map(([label, helper, status]) => (
-                  <div key={label} className="flex items-center gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
+                  <div
+                    key={label}
+                    className="flex items-center gap-3 pb-3 border-b border-border last:border-0 last:pb-0"
+                  >
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-foreground">{label}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{helper}</p>
@@ -130,8 +148,13 @@ export default async function ProfilePage() {
             </div>
             <div className="divide-y divide-border">
               {activity.map(([time, item]) => (
-                <div key={`${time}-${item}`} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/40 transition-colors">
-                  <span className="text-xs font-bold text-muted-foreground font-tabular w-20">{time}</span>
+                <div
+                  key={`${time}-${item}`}
+                  className="px-5 py-4 flex items-center gap-4 hover:bg-muted/40 transition-colors"
+                >
+                  <span className="text-xs font-bold text-muted-foreground font-tabular w-20">
+                    {time}
+                  </span>
                   <p className="text-sm text-foreground">{item}</p>
                 </div>
               ))}

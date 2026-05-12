@@ -1,6 +1,16 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { Menu, Search, Bell, ChevronDown, Settings, LogOut, User, SidebarClose, SidebarOpen } from 'lucide-react';
+import {
+  Menu,
+  Search,
+  Bell,
+  ChevronDown,
+  Settings,
+  LogOut,
+  User,
+  SidebarClose,
+  SidebarOpen,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -13,11 +23,36 @@ interface TopbarProps {
 }
 
 const notifications = [
-  { id: 'notif-001', type: 'warning', message: 'Claim CLM-2847 has missing signature on discharge summary', time: '4m ago' },
-  { id: 'notif-002', type: 'danger', message: 'OCR extraction failed for Claim CLM-2851 — insurance card unreadable', time: '12m ago' },
-  { id: 'notif-003', type: 'success', message: 'Claim CLM-2839 passed all validations — ready for submission', time: '28m ago' },
-  { id: 'notif-004', type: 'info', message: 'TPA Apollo Munich: 3 claims approved in last batch', time: '1h ago' },
-  { id: 'notif-005', type: 'warning', message: 'Blur score too low on lab report for Claim CLM-2845', time: '2h ago' },
+  {
+    id: 'notif-001',
+    type: 'warning',
+    message: 'Claim CLM-2847 has missing signature on discharge summary',
+    time: '4m ago',
+  },
+  {
+    id: 'notif-002',
+    type: 'danger',
+    message: 'OCR extraction failed for Claim CLM-2851 — insurance card unreadable',
+    time: '12m ago',
+  },
+  {
+    id: 'notif-003',
+    type: 'success',
+    message: 'Claim CLM-2839 passed all validations — ready for submission',
+    time: '28m ago',
+  },
+  {
+    id: 'notif-004',
+    type: 'info',
+    message: 'TPA Apollo Munich: 3 claims approved in last batch',
+    time: '1h ago',
+  },
+  {
+    id: 'notif-005',
+    type: 'warning',
+    message: 'Blur score too low on lab report for Claim CLM-2845',
+    time: '2h ago',
+  },
 ];
 
 export default function Topbar({ onMenuClick, onSidebarToggle, sidebarCollapsed }: TopbarProps) {
@@ -65,14 +100,21 @@ export default function Topbar({ onMenuClick, onSidebarToggle, sidebarCollapsed 
       </button>
 
       {/* Sidebar toggle (desktop) */}
-      <button onClick={onSidebarToggle} className="hidden lg:flex btn-ghost p-2" title="Toggle sidebar">
+      <button
+        onClick={onSidebarToggle}
+        className="hidden lg:flex btn-ghost p-2"
+        title="Toggle sidebar"
+      >
         {sidebarCollapsed ? <SidebarOpen size={18} /> : <SidebarClose size={18} />}
       </button>
 
       {/* Search */}
       <div className="flex-1 max-w-md">
         <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={14}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <input
             type="text"
             placeholder="Search claims, patients, TPAs... (⌘K)"
@@ -93,7 +135,10 @@ export default function Topbar({ onMenuClick, onSidebarToggle, sidebarCollapsed 
         {/* Notifications */}
         <div className="relative">
           <button
-            onClick={() => { setShowNotifications(!showNotifications); setShowProfile(false); }}
+            onClick={() => {
+              setShowNotifications(!showNotifications);
+              setShowProfile(false);
+            }}
             className="relative btn-ghost p-2"
           >
             <Bell size={18} />
@@ -112,12 +157,21 @@ export default function Topbar({ onMenuClick, onSidebarToggle, sidebarCollapsed 
               </div>
               <div className="max-h-80 overflow-y-auto scrollbar-thin">
                 {visibleNotifications.map((n) => (
-                  <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer border-b border-border last:border-0">
-                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
-                      n.type === 'danger' ? 'bg-danger' :
-                      n.type === 'warning' ? 'bg-warning' :
-                      n.type === 'success' ? 'bg-success' : 'bg-info'
-                    }`} />
+                  <div
+                    key={n.id}
+                    className="flex items-start gap-3 px-4 py-3 hover:bg-muted transition-colors cursor-pointer border-b border-border last:border-0"
+                  >
+                    <div
+                      className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                        n.type === 'danger'
+                          ? 'bg-danger'
+                          : n.type === 'warning'
+                            ? 'bg-warning'
+                            : n.type === 'success'
+                              ? 'bg-success'
+                              : 'bg-info'
+                      }`}
+                    />
                     <div className="min-w-0">
                       <p className="text-xs text-foreground leading-relaxed">{n.message}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{n.time}</p>
@@ -126,12 +180,16 @@ export default function Topbar({ onMenuClick, onSidebarToggle, sidebarCollapsed 
                 ))}
                 {visibleNotifications.length === 0 && (
                   <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-                    No live notifications are loaded yet. Turn on Demo Mode in Settings to view mock alerts.
+                    No live notifications are loaded yet. Turn on Demo Mode in Settings to view mock
+                    alerts.
                   </div>
                 )}
               </div>
               <div className="px-4 py-2.5 border-t border-border">
-                <Link href="/notifications" className="text-xs text-primary font-semibold hover:underline">
+                <Link
+                  href="/notifications"
+                  className="text-xs text-primary font-semibold hover:underline"
+                >
                   View all notifications
                 </Link>
               </div>
@@ -142,14 +200,19 @@ export default function Topbar({ onMenuClick, onSidebarToggle, sidebarCollapsed 
         {/* Profile */}
         <div className="relative">
           <button
-            onClick={() => { setShowProfile(!showProfile); setShowNotifications(false); }}
+            onClick={() => {
+              setShowProfile(!showProfile);
+              setShowNotifications(false);
+            }}
             className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-muted transition-colors"
           >
             <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
               <span className="text-xs font-bold text-white">{initials || 'U'}</span>
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-xs font-semibold text-foreground leading-tight capitalize">{profileName}</p>
+              <p className="text-xs font-semibold text-foreground leading-tight capitalize">
+                {profileName}
+              </p>
               <p className="text-xs text-muted-foreground capitalize">{profileRole}</p>
             </div>
             <ChevronDown size={14} className="text-muted-foreground hidden sm:block" />
@@ -162,14 +225,20 @@ export default function Topbar({ onMenuClick, onSidebarToggle, sidebarCollapsed 
                 <p className="text-xs text-muted-foreground">{profileEmail}</p>
               </div>
               <div className="p-1.5">
-                <Link href="/profile" className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted rounded-xl transition-colors">
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted rounded-xl transition-colors"
+                >
                   <User size={14} className="text-muted-foreground" /> My Profile
                 </Link>
                 <button className="flex items-center gap-2 w-full px-3 py-2 text-sm text-foreground hover:bg-muted rounded-xl transition-colors">
                   <Settings size={14} className="text-muted-foreground" /> Settings
                 </button>
                 <div className="border-t border-border my-1" />
-                <button onClick={handleSignOut} className="flex items-center gap-2 w-full px-3 py-2 text-sm text-danger hover:bg-danger-bg rounded-xl transition-colors">
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-danger hover:bg-danger-bg rounded-xl transition-colors"
+                >
                   <LogOut size={14} /> Sign Out
                 </button>
               </div>

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getWorkflowSettings, normalizeWorkflowSettings, WORKFLOW_SETTINGS_COOKIE } from '@/lib/workflowSettings';
+import {
+  getWorkflowSettings,
+  normalizeWorkflowSettings,
+  WORKFLOW_SETTINGS_COOKIE,
+} from '@/lib/workflowSettings';
 
 export async function GET() {
   return NextResponse.json({ ok: true, data: await getWorkflowSettings() });

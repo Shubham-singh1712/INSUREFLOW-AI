@@ -117,7 +117,6 @@ export default function GatekeeperStep({ uploadedDocs, onPass, onBack }: Gatekee
           {checkItems.map((check, idx) => {
             const isCompleted = completedChecks.has(idx);
             const isActive = currentCheck === idx && status === 'scanning';
-            const isPending = idx > currentCheck && status === 'scanning';
 
             return (
               <div

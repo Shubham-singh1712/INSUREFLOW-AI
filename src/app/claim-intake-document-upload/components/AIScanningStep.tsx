@@ -1,9 +1,19 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import {
-  ShieldCheck, ScanLine, FileSearch, PenLine, Eye,
-  AlertTriangle, CheckCircle2, Clock, Zap, ArrowLeft,
-  ArrowRight, BarChart2, FileWarning,
+  ShieldCheck,
+  ScanLine,
+  FileSearch,
+  PenLine,
+  Eye,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Zap,
+  ArrowLeft,
+  ArrowRight,
+  BarChart2,
+  FileWarning,
 } from 'lucide-react';
 
 interface AIScanningStepProps {
@@ -67,7 +77,7 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
       }
       setCurrentPhase(phaseIndex);
       setTimeout(() => {
-        setCompletedPhases(prev => new Set([...prev, phaseIndex]));
+        setCompletedPhases((prev) => new Set([...prev, phaseIndex]));
         phaseIndex++;
         runPhase();
       }, scanPhases[phaseIndex]?.duration || 1500);
@@ -86,13 +96,16 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
         {/* AI Engine card */}
         <div className="card p-5">
           <div className="flex items-center gap-3 mb-4">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              scanComplete ? 'bg-success-bg' : 'bg-primary/10'
-            }`}>
-              {scanComplete
-                ? <CheckCircle2 size={20} className="text-success" />
-                : <Zap size={20} className="text-primary validation-pulse" />
-              }
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                scanComplete ? 'bg-success-bg' : 'bg-primary/10'
+              }`}
+            >
+              {scanComplete ? (
+                <CheckCircle2 size={20} className="text-success" />
+              ) : (
+                <Zap size={20} className="text-primary validation-pulse" />
+              )}
             </div>
             <div>
               <h3 className="font-semibold text-foreground text-sm">
@@ -101,8 +114,7 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
               <p className="text-xs text-muted-foreground">
                 {scanComplete
                   ? `${docEntries.length} documents processed`
-                  : `Processing ${scanPhases[currentPhase]?.label.toLowerCase()}...`
-                }
+                  : `Processing ${scanPhases[currentPhase]?.label.toLowerCase()}...`}
               </p>
             </div>
           </div>
@@ -112,32 +124,46 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
             {scanPhases.map((phase, idx) => {
               const isCompleted = completedPhases.has(idx);
               const isActive = currentPhase === idx && !isCompleted;
-              const isPending = idx > currentPhase;
 
               return (
                 <div
                   key={phase.id}
                   className={`flex items-center gap-3 p-2.5 rounded-xl transition-all duration-300 ${
-                    isActive ? 'bg-primary/5 border border-primary/10' :
-                    isCompleted ? 'opacity-70' : 'opacity-40'
+                    isActive
+                      ? 'bg-primary/5 border border-primary/10'
+                      : isCompleted
+                        ? 'opacity-70'
+                        : 'opacity-40'
                   }`}
                 >
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                    isCompleted ? 'bg-success-bg' : isActive ?'bg-primary/10' : 'bg-muted'
-                  }`}>
-                    {isCompleted
-                      ? <CheckCircle2 size={14} className="text-success" />
-                      : isActive
-                      ? <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                      : <phase.icon size={14} className="text-muted-foreground" />
-                    }
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                      isCompleted ? 'bg-success-bg' : isActive ? 'bg-primary/10' : 'bg-muted'
+                    }`}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle2 size={14} className="text-success" />
+                    ) : isActive ? (
+                      <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    ) : (
+                      <phase.icon size={14} className="text-muted-foreground" />
+                    )}
                   </div>
-                  <span className={`text-xs font-medium ${
-                    isCompleted ? 'text-success-foreground' :
-                    isActive ? 'text-primary' : 'text-muted-foreground'
-                  }`}>{phase.label}</span>
+                  <span
+                    className={`text-xs font-medium ${
+                      isCompleted
+                        ? 'text-success-foreground'
+                        : isActive
+                          ? 'text-primary'
+                          : 'text-muted-foreground'
+                    }`}
+                  >
+                    {phase.label}
+                  </span>
                   {isActive && (
-                    <span className="ml-auto text-xs text-primary font-medium validation-pulse">Running...</span>
+                    <span className="ml-auto text-xs text-primary font-medium validation-pulse">
+                      Running...
+                    </span>
                   )}
                   {isCompleted && (
                     <span className="ml-auto text-xs text-success font-medium">Done</span>
@@ -157,20 +183,36 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
             ) : (
               docEntries.map(([docId, doc]) => (
                 <div key={`dstat-${docId}`} className="flex items-center gap-2.5 py-1.5">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${
-                    doc.status === 'passed' ? 'bg-success' :
-                    doc.status === 'warning' ? 'bg-warning' :
-                    doc.status === 'failed' ? 'bg-danger' : 'bg-muted-foreground'
-                  }`} />
+                  <div
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      doc.status === 'passed'
+                        ? 'bg-success'
+                        : doc.status === 'warning'
+                          ? 'bg-warning'
+                          : doc.status === 'failed'
+                            ? 'bg-danger'
+                            : 'bg-muted-foreground'
+                    }`}
+                  />
                   <span className="text-xs text-foreground truncate flex-1">{doc.name}</span>
-                  <span className={`text-xs font-medium ${
-                    doc.status === 'passed' ? 'text-success-foreground' :
-                    doc.status === 'warning' ? 'text-warning-foreground' :
-                    doc.status === 'failed' ? 'text-danger-foreground' : 'text-muted-foreground'
-                  }`}>
-                    {doc.status === 'passed' ? 'OCR OK' :
-                     doc.status === 'warning' ? 'Low Quality' :
-                     doc.status === 'failed' ? 'Failed' : 'Processing'}
+                  <span
+                    className={`text-xs font-medium ${
+                      doc.status === 'passed'
+                        ? 'text-success-foreground'
+                        : doc.status === 'warning'
+                          ? 'text-warning-foreground'
+                          : doc.status === 'failed'
+                            ? 'text-danger-foreground'
+                            : 'text-muted-foreground'
+                    }`}
+                  >
+                    {doc.status === 'passed'
+                      ? 'OCR OK'
+                      : doc.status === 'warning'
+                        ? 'Low Quality'
+                        : doc.status === 'failed'
+                          ? 'Failed'
+                          : 'Processing'}
                   </span>
                 </div>
               ))
@@ -197,18 +239,30 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="font-semibold text-foreground text-sm">Overall AI Confidence</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">Composite validation score across all documents</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Composite validation score across all documents
+              </p>
             </div>
-            <span className={`text-3xl font-bold font-tabular ${
-              overallConfidence >= 85 ? 'text-success-foreground' :
-              overallConfidence >= 65 ? 'text-warning-foreground' : 'text-danger-foreground'
-            }`}>{overallConfidence}%</span>
+            <span
+              className={`text-3xl font-bold font-tabular ${
+                overallConfidence >= 85
+                  ? 'text-success-foreground'
+                  : overallConfidence >= 65
+                    ? 'text-warning-foreground'
+                    : 'text-danger-foreground'
+              }`}
+            >
+              {overallConfidence}%
+            </span>
           </div>
           <div className="h-3 bg-muted rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full confidence-fill ${
-                overallConfidence >= 85 ? 'bg-success' :
-                overallConfidence >= 65 ? 'bg-warning' : 'bg-danger'
+                overallConfidence >= 85
+                  ? 'bg-success'
+                  : overallConfidence >= 65
+                    ? 'bg-warning'
+                    : 'bg-danger'
               }`}
               style={{ width: `${scanComplete ? overallConfidence : 0}%` }}
             />
@@ -216,8 +270,11 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
           <div className="flex items-center justify-between mt-2">
             <span className="text-xs text-muted-foreground">0%</span>
             <span className="text-xs text-muted-foreground font-medium">
-              {overallConfidence >= 85 ? 'High confidence — minor fixes needed' :
-               overallConfidence >= 65 ? 'Moderate confidence — repairs recommended': 'Low confidence — significant repairs required'}
+              {overallConfidence >= 85
+                ? 'High confidence — minor fixes needed'
+                : overallConfidence >= 65
+                  ? 'Moderate confidence — repairs recommended'
+                  : 'Low confidence — significant repairs required'}
             </span>
             <span className="text-xs text-muted-foreground">100%</span>
           </div>
@@ -237,31 +294,49 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
               <div
                 key={issue.id}
                 className={`rounded-xl border p-4 ${
-                  issue.severity === 'critical' ? 'border-danger/20 bg-danger-bg/40' :
-                  issue.severity === 'warning'? 'border-warning/20 bg-warning-bg/40' : 'border-border bg-muted/30'
+                  issue.severity === 'critical'
+                    ? 'border-danger/20 bg-danger-bg/40'
+                    : issue.severity === 'warning'
+                      ? 'border-warning/20 bg-warning-bg/40'
+                      : 'border-border bg-muted/30'
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                    issue.severity === 'critical' ? 'bg-danger-bg' :
-                    issue.severity === 'warning' ? 'bg-warning-bg' : 'bg-info-bg'
-                  }`}>
-                    {issue.severity === 'critical'
-                      ? <AlertTriangle size={13} className="text-danger" />
-                      : issue.severity === 'warning'
-                      ? <FileWarning size={13} className="text-warning" />
-                      : <Clock size={13} className="text-info" />
-                    }
+                  <div
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
+                      issue.severity === 'critical'
+                        ? 'bg-danger-bg'
+                        : issue.severity === 'warning'
+                          ? 'bg-warning-bg'
+                          : 'bg-info-bg'
+                    }`}
+                  >
+                    {issue.severity === 'critical' ? (
+                      <AlertTriangle size={13} className="text-danger" />
+                    ) : issue.severity === 'warning' ? (
+                      <FileWarning size={13} className="text-warning" />
+                    ) : (
+                      <Clock size={13} className="text-info" />
+                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-semibold text-foreground">{issue.title}</p>
-                      <span className={`text-xs font-semibold font-tabular shrink-0 ${
-                        issue.severity === 'critical' ? 'text-danger-foreground' :
-                        issue.severity === 'warning' ? 'text-warning-foreground' : 'text-info-foreground'
-                      }`}>{issue.confidence}% conf.</span>
+                      <span
+                        className={`text-xs font-semibold font-tabular shrink-0 ${
+                          issue.severity === 'critical'
+                            ? 'text-danger-foreground'
+                            : issue.severity === 'warning'
+                              ? 'text-warning-foreground'
+                              : 'text-info-foreground'
+                        }`}
+                      >
+                        {issue.confidence}% conf.
+                      </span>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{issue.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                      {issue.description}
+                    </p>
                     <div className="flex items-center gap-1.5 mt-2">
                       <span className="badge-muted">{issue.document}</span>
                     </div>
@@ -269,7 +344,9 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
                       <p className="text-xs font-semibold text-foreground mb-0.5 flex items-center gap-1.5">
                         <Zap size={11} className="text-primary" /> AI Repair Suggestion
                       </p>
-                      <p className="text-xs text-muted-foreground leading-snug">{issue.repairAction}</p>
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        {issue.repairAction}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2 mt-3">
                       <button className="px-3 py-1.5 text-xs font-semibold bg-primary text-white rounded-lg hover:opacity-90 transition-opacity">
@@ -297,9 +374,12 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
                 <AlertTriangle size={16} className="text-warning" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">Submission Readiness: 62/100</p>
+                <p className="text-sm font-semibold text-foreground">
+                  Submission Readiness: 62/100
+                </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  This claim has 3 open issues that may cause TPA rejection. Apply the AI repair suggestions above before submitting, or proceed and accept the risk.
+                  This claim has 3 open issues that may cause TPA rejection. Apply the AI repair
+                  suggestions above before submitting, or proceed and accept the risk.
                 </p>
               </div>
             </div>
