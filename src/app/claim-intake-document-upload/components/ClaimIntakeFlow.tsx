@@ -61,7 +61,7 @@ export default function ClaimIntakeFlow() {
   const [flowState, setFlowState] = useState<FlowState>('empty');
   const [packet, setPacket] = useState<Packet | null>(null);
   const [progress, setProgress] = useState(0);
-  const [claimFields, setClaimFields] = useState(initialClaimFields);
+  const [claimFields, setClaimFields] = useState<ClaimField[]>(initialClaimFields);
 
   useEffect(() => {
     const reviewClaimId = searchParams.get('claimId');
@@ -72,30 +72,52 @@ export default function ClaimIntakeFlow() {
     }
   }, [searchParams]);
 
-  useEffect(() => {
-    if (flowState !== 'processing') return;
-    const timer = window.setInterval(() => {
-      setProgress((cur) => {
-        const next = Math.min(cur + 3 + Math.floor(Math.random() * 5), 100);
-        if (next >= 100) {
-          window.clearInterval(timer);
-          window.setTimeout(() => setFlowState('ready'), 600);
-        }
-        return next;
-      });
-    }, 380);
-    return () => window.clearInterval(timer);
-  }, [flowState]);
-
-  const handlePacket = (file?: File) => {
+  const handlePacket = async (file?: File) => {
     setPacket({
       name: file?.name || 'combined-claim-packet-ramesh-iyer.pdf',
       size: file ? formatFileSize(file.size) : '8.4 MB',
-      pages: 12,
+      pages: file ? 1 : 12, // Hardcode 12 if it's the demo run
       uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     });
-    setProgress(2);
+    setProgress(5);
     setFlowState('processing');
+
+    // Simulate progress while waiting for the API
+    const timer = setInterval(() => {
+      setProgress((cur) => (cur < 90 ? cur + Math.floor(Math.random() * 5) : cur));
+    }, 400);
+
+    try {
+      if (file) {
+        // Send actual PDF file to the backend
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const res = await fetch('/api/extract-claim', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.fields && data.fields.length > 0) {
+            setClaimFields(data.fields);
+          }
+        } else {
+          console.error("AI Extraction failed");
+        }
+      } else {
+        // If they click "Run AI demo" without a file, just wait 3 seconds and use mock data
+        await new Promise(r => setTimeout(r, 3000));
+        setClaimFields(initialClaimFields);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      clearInterval(timer);
+      setProgress(100);
+      setTimeout(() => setFlowState('ready'), 500);
+    }
   };
 
   const resetFlow = () => {
