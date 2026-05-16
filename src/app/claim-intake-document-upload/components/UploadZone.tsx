@@ -2,13 +2,13 @@
 
 import React, { useRef, useState } from 'react';
 import {
-  Upload, Zap, Sparkles, FileText, ShieldCheck, Brain,
+  Upload, Sparkles, FileText, ShieldCheck, Brain,
   ScanLine, Fingerprint, Layers3, ArrowRight,
 } from 'lucide-react';
 
 interface UploadZoneProps {
   claimId: string;
-  onUpload: (file?: File) => void;
+  onUpload: (file: File) => void;
 }
 
 const capabilities = [
@@ -125,13 +125,6 @@ export default function UploadZone({ claimId, onUpload }: UploadZoneProps) {
               className="btn-primary px-6 py-3 text-base rounded-2xl shadow-card-md"
             >
               <Upload size={17} /> Choose PDF packet
-            </button>
-            <button
-              type="button"
-              onClick={() => onUpload()}
-              className="btn-secondary px-6 py-3 text-base rounded-2xl"
-            >
-              <Zap size={17} className="text-warning" /> Run AI demo
             </button>
           </div>
 

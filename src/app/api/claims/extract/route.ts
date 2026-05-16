@@ -3,7 +3,6 @@ import { inflateSync } from 'zlib';
 import { jsonError, jsonOk, requireUser } from '@/lib/api';
 import {
   calculateExtractionConfidence,
-  mockExtractedClaimData,
   type ExtractedClaimData,
   type UploadedDoc,
 } from '@/lib/claims';
@@ -153,6 +152,42 @@ const buildLocalExtractionFromDocuments = (
 
   if (!allText.trim()) return null;
 
+  const facilityName =
+    findPdfField(allText, 'Facility\\s+Name') ||
+    findPdfField(allText, 'Hospital\\s+Name') ||
+    cleanPdfValue(
+      allText.match(/([A-Z][A-Za-z&.' -]+(?:Hospital|Medical Center|Clinic|Healthcare)[^\n\r]{0,80})/)?.[1] ||
+        ''
+    );
+  const icd10Codes = Array.from(
+    new Set([...allText.matchAll(/\b([A-Z]\d{2}(?:\.\d+)?)\b/g)].map((match) => match[1]))
+  ).map((code) => ({
+    code,
+    description: '',
+    confidence: 0.82,
+  }));
+  const cptCodes = Array.from(
+    new Set(
+      [...allText.matchAll(/(?:CPT|HCPCS|Procedure\s+Code)?\s*\b(\d{4,5})\b/gi)]
+        .map((match) => match[1])
+        .filter((code) => !/^20\d{2}$/.test(code))
+    )
+  )
+    .slice(0, 8)
+    .map((code) => ({
+      code,
+      description: '',
+      confidence: 0.78,
+    }));
+  const lineItems = [...allText.matchAll(/([A-Za-z][A-Za-z0-9&.,'() -]{3,80})\s+(?:INR|Rs\.?)?\s*([0-9][0-9,]{2,})/gi)]
+    .slice(0, 12)
+    .map((match) => ({
+      description: cleanPdfValue(match[1]),
+      quantity: 1,
+      unit_price: match[2].replace(/[^\d]/g, ''),
+      gross_charge: match[2].replace(/[^\d]/g, ''),
+    }));
+
   const data = normalizeExtraction({
     patient: {
       full_name: findPdfField(allText, 'P\\s*atient\\s+Name'),
@@ -180,62 +215,17 @@ const buildLocalExtractionFromDocuments = (
       attending_physician: findPdfField(allText, 'Attending\\s+Ph\\s*ysician'),
       hospital_npi: findPdfField(allText, 'Hospital\\s+NPI'),
       hospital_tax_id: findPdfField(allText, 'Hospital\\s+T\\s*ax\\s+ID').replace(/\s+/g, ''),
-      facility_name: allText.includes('Apollo Hospitals')
-        ? 'Apollo Hospitals, Greams Road, Chennai'
-        : '',
+      facility_name: facilityName,
       principal_diagnosis: findPdfField(allText, 'Pr\\s*incipal\\s+Diagnosis'),
     },
     coding: {
-      icd10_codes: [
-        {
-          code: 'I21.0',
-          description: 'Acute transmural myocardial infarction of anterior wall',
-          confidence: 0.9,
-        },
-        {
-          code: 'I25.10',
-          description: 'Atherosclerotic heart disease of native coronary artery',
-          confidence: 0.86,
-        },
-      ].filter((item) => allText.includes(item.code)),
-      cpt_codes: [
-        {
-          code: '92928',
-          description: 'Percutaneous transcatheter placement of intracoronary stent',
-          confidence: 0.9,
-        },
-        { code: '93510', description: 'Left heart catheterization', confidence: 0.86 },
-      ].filter((item) => allText.includes(item.code)),
+      icd10_codes: icd10Codes,
+      cpt_codes: cptCodes,
     },
     billing: {
       total_billed_amount:
         findPdfField(allText, 'T\\s*otal\\s+Billed\\s+Amount').match(/\d+/)?.[0] || '0',
-      line_items: [
-        {
-          description: 'ICU Charges (5 days)',
-          quantity: 5,
-          unit_price: '12000',
-          gross_charge: '60000',
-        },
-        {
-          description: 'Coronary Angioplasty Procedure',
-          quantity: 1,
-          unit_price: '85000',
-          gross_charge: '85000',
-        },
-        {
-          description: 'Stent (Drug Eluting)',
-          quantity: 1,
-          unit_price: '28000',
-          gross_charge: '28000',
-        },
-        {
-          description: 'Pharmacy & Consumables',
-          quantity: 1,
-          unit_price: '11500',
-          gross_charge: '11500',
-        },
-      ].filter((item) => allText.includes(item.gross_charge)),
+      line_items: lineItems,
     },
     extraction_meta: {
       overall_confidence: 0,
@@ -423,30 +413,19 @@ export async function POST(request: NextRequest) {
 
   const demoMode = await getDemoModeState();
 
-  if (demoMode.enabled) {
-    return jsonOk({
-      claimId: body?.claimId || 'CLM-2852',
-      extractedData: mockExtractedClaimData,
-      sourceDocumentCount: Object.keys(documents).length,
-      source: 'demo',
-    });
-  }
-
-  if (demoMode.provider !== 'openrouter') {
-    return jsonError(
-      'Live extraction requires OPENROUTER_API_KEY, or turn Demo Mode on in Settings to use mock extraction.',
-      503
-    );
-  }
-
   try {
     return jsonOk({
       claimId: body?.claimId || 'CLM-2852',
       extractedData: await runOpenRouterExtraction(documents),
       sourceDocumentCount: Object.keys(documents).length,
-      source: 'openrouter',
+      source: demoMode.provider === 'openrouter' ? 'openrouter' : 'local_pdf_text',
     });
   } catch (error) {
-    return jsonError(error instanceof Error ? error.message : 'OpenRouter extraction failed.', 502);
+    return jsonError(
+      error instanceof Error
+        ? error.message
+        : 'Live extraction failed. Upload a text-readable PDF or configure OPENROUTER_API_KEY.',
+      502
+    );
   }
 }

@@ -39,6 +39,49 @@ export type ClaimField = {
   source: string;
 };
 
+export type ValidationIssue = {
+  id: string;
+  severity: 'Critical' | 'High' | 'Medium' | 'Low';
+  confidence: number;
+  title: string;
+  reference: string;
+  fix: string;
+  evidence?: string;
+};
+
+export type DocumentGroup = {
+  id: string;
+  title: string;
+  pages: string;
+  confidence: number;
+  status: string;
+  summary: string;
+  tone: 'success' | 'warning' | 'danger' | 'info';
+};
+
+export type ValidationMetric = {
+  id: string;
+  label: string;
+  value: string;
+  unit: string;
+  color: string;
+  helper: string;
+};
+
+export type ValidationReport = {
+  documentGroups: DocumentGroup[];
+  metrics: ValidationMetric[];
+  issues: ValidationIssue[];
+  timeline: Array<{ id: string; label: string; time: string; done: boolean }>;
+  pdfStructure: string[];
+  summary: string;
+  readinessScore: number;
+  healthScore: number;
+  ocrConfidence: number;
+  source: 'ai' | 'local_analysis';
+  extractionMethod: 'pdf_text' | 'ocr_required' | 'ai_ocr';
+};
+
 type ReviewClaimRecord = {
   claimId: string;
   patient: string;
@@ -158,15 +201,34 @@ const mapExtractedDataToClaimFields = (data: ExtractedClaimData): ClaimField[] =
 };
 
 export const initialClaimFields: ClaimField[] = [
-  { id: 'patientName', label: 'Patient name', value: 'Ramesh Kumar Iyer', confidence: 99, source: 'Insurance card · Page 1' },
-  { id: 'insuranceNumber', label: 'Insurance number', value: 'MEM-7748291034', confidence: 96, source: 'Insurance card · Page 1' },
-  { id: 'diagnosis', label: 'Diagnosis', value: 'I21.0 – Acute myocardial infarction', confidence: 94, source: 'Discharge summary · Page 3' },
-  { id: 'doctorName', label: 'Attending physician', value: 'Dr. Suresh Babu', confidence: 92, source: 'Discharge summary · Page 4' },
-  { id: 'hospital', label: 'Hospital / Facility', value: 'Apollo Hospitals, Greams Road', confidence: 98, source: 'Invoice · Page 9' },
-  { id: 'procedure', label: 'Procedure', value: 'Coronary angioplasty with stent', confidence: 89, source: 'Invoice · Page 10' },
-  { id: 'invoiceTotal', label: 'Invoice total', value: 'INR 1,84,500', confidence: 87, source: 'Invoice · Page 12' },
-  { id: 'claimType', label: 'Claim metadata', value: 'Cashless inpatient cardiac claim', confidence: 93, source: 'AI packet context' },
+  { id: 'patientName', label: 'Patient name', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
+  { id: 'insuranceNumber', label: 'Insurance number', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
+  { id: 'diagnosis', label: 'Diagnosis', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
+  { id: 'doctorName', label: 'Attending physician', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
+  { id: 'hospital', label: 'Hospital / Facility', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
+  { id: 'procedure', label: 'Procedure', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
+  { id: 'invoiceTotal', label: 'Invoice total', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
+  { id: 'claimType', label: 'Claim metadata', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
 ];
+
+export const emptyValidationReport: ValidationReport = {
+  documentGroups: [],
+  metrics: [
+    { id: 'health', label: 'Claim Health', value: '0', unit: '/100', color: 'text-danger', helper: 'Upload a PDF to analyze' },
+    { id: 'readiness', label: 'Readiness', value: '0', unit: '%', color: 'text-danger', helper: 'Validation not started' },
+    { id: 'ocr', label: 'OCR Confidence', value: '0', unit: '%', color: 'text-danger', helper: 'No text extracted yet' },
+    { id: 'risk', label: 'Rejection Risk', value: 'N/A', unit: '', color: 'text-muted-foreground', helper: 'Awaiting document' },
+  ],
+  issues: [],
+  timeline: [],
+  pdfStructure: [],
+  summary: 'Upload a PDF packet to run dynamic validation.',
+  readinessScore: 0,
+  healthScore: 0,
+  ocrConfidence: 0,
+  source: 'local_analysis',
+  extractionMethod: 'ocr_required',
+};
 
 export default function ClaimIntakeFlow() {
   const searchParams = useSearchParams();
@@ -175,6 +237,7 @@ export default function ClaimIntakeFlow() {
   const [packet, setPacket] = useState<Packet | null>(null);
   const [progress, setProgress] = useState(0);
   const [claimFields, setClaimFields] = useState<ClaimField[]>(initialClaimFields);
+  const [validationReport, setValidationReport] = useState<ValidationReport>(emptyValidationReport);
   const [reviewError, setReviewError] = useState('');
 
   useEffect(() => {
@@ -227,6 +290,13 @@ export default function ClaimIntakeFlow() {
           }),
         });
         setClaimFields(mapExtractedDataToClaimFields(reviewClaim.confirmedData));
+        setValidationReport({
+          ...emptyValidationReport,
+          summary: 'Loaded previously reviewed claim data.',
+          readinessScore: 85,
+          healthScore: 85,
+          ocrConfidence: reviewClaim.confirmedData.extraction_meta.overall_confidence,
+        });
         setFlowState('ready');
       } catch (error) {
         if (!active) return;
@@ -248,9 +318,9 @@ export default function ClaimIntakeFlow() {
 
   const handlePacket = async (file?: File) => {
     setPacket({
-      name: file?.name || 'combined-claim-packet-ramesh-iyer.pdf',
-      size: file ? formatFileSize(file.size) : '8.4 MB',
-      pages: file ? 1 : 12, // Hardcode 12 if it's the demo run
+      name: file?.name || 'uploaded-claim-packet.pdf',
+      size: file ? formatFileSize(file.size) : '0 B',
+      pages: 1,
       uploadedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     });
     setProgress(5);
@@ -262,31 +332,50 @@ export default function ClaimIntakeFlow() {
     }, 400);
 
     try {
-      if (file) {
-        // Send actual PDF file to the backend
-        const formData = new FormData();
-        formData.append('file', file);
-        
-        const res = await fetch('/api/extract-claim', {
-          method: 'POST',
-          body: formData,
-        });
+      if (!file) {
+        throw new Error('Upload a real PDF packet to run validation.');
+      }
 
-        if (res.ok) {
-          const data = await res.json();
-          if (data.fields && data.fields.length > 0) {
-            setClaimFields(data.fields);
-          }
-        } else {
-          console.error("AI Extraction failed");
-        }
-      } else {
-        // If they click "Run AI demo" without a file, just wait 3 seconds and use mock data
-        await new Promise(r => setTimeout(r, 3000));
-        setClaimFields(initialClaimFields);
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/extract-claim', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || 'AI extraction failed.');
+      }
+
+      if (Array.isArray(data.fields) && data.fields.length > 0) {
+        setClaimFields(data.fields);
+      }
+
+      if (data.validation) {
+        setValidationReport(data.validation);
+      }
+
+      if (Number.isFinite(data.pageCount)) {
+        setPacket((current) => (current ? { ...current, pages: data.pageCount } : current));
       }
     } catch (e) {
       console.error(e);
+      setValidationReport({
+        ...emptyValidationReport,
+        issues: [
+          {
+            id: 'processing-error',
+            severity: 'High',
+            confidence: 100,
+            title: 'Document processing failed',
+            reference: 'Upload pipeline',
+            fix: e instanceof Error ? e.message : 'Try uploading a readable PDF packet again.',
+          },
+        ],
+        summary: e instanceof Error ? e.message : 'Document processing failed.',
+      });
     } finally {
       clearInterval(timer);
       setProgress(100);
@@ -300,6 +389,7 @@ export default function ClaimIntakeFlow() {
     setProgress(0);
     setFlowState('empty');
     setClaimFields(initialClaimFields);
+    setValidationReport(emptyValidationReport);
     setReviewError('');
   };
 
@@ -325,6 +415,7 @@ export default function ClaimIntakeFlow() {
           claimId={claimId}
           packet={packet}
           claimFields={claimFields}
+          validationReport={validationReport}
           onUpdateField={updateClaimField}
           onReset={resetFlow}
         />

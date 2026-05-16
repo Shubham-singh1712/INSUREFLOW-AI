@@ -110,94 +110,6 @@ export const classifyUploadedDocument = (file: File, documentType: string): Uplo
   };
 };
 
-export const mockExtractedClaimData: ExtractedClaimData = {
-  patient: {
-    full_name: 'Ramesh Kumar Iyer',
-    date_of_birth: '1958-03-14',
-    gender: 'M',
-    address: '14, Poes Garden, Chennai - 600086, Tamil Nadu',
-    contact_phone: '+91 98765 43210',
-    contact_email: 'ramesh.iyer@email.com',
-  },
-  insurance: {
-    policyholder_name: 'Ramesh Kumar Iyer',
-    group_number: 'GRP-APM-2024-0048',
-    member_id: 'MEM-7748291034',
-    payer_id: 'APMH-PAYER-001',
-    plan_name: 'Apollo Munich Optima Restore',
-  },
-  pre_authorization: {
-    approval_code: 'PA-2026-00847',
-    authorized_from: '2026-05-01',
-    authorized_to: '2026-05-10',
-  },
-  clinical: {
-    admission_date: '2026-05-01',
-    discharge_date: '2026-05-06',
-    attending_physician: 'Dr. Suresh Babu, Cardiologist',
-    hospital_npi: '1234567890',
-    hospital_tax_id: '33-AAACH1234C1Z5',
-    facility_name: 'Apollo Hospitals, Greams Road, Chennai',
-    principal_diagnosis: 'I21.0',
-  },
-  coding: {
-    icd10_codes: [
-      {
-        code: 'I21.0',
-        description: 'Acute transmural myocardial infarction of anterior wall',
-        confidence: 0.97,
-      },
-      {
-        code: 'I25.10',
-        description: 'Atherosclerotic heart disease of native coronary artery',
-        confidence: 0.89,
-      },
-    ],
-    cpt_codes: [
-      {
-        code: '92928',
-        description: 'Percutaneous transcatheter placement of intracoronary stent',
-        confidence: 0.94,
-      },
-      { code: '93510', description: 'Left heart catheterization', confidence: 0.78 },
-    ],
-  },
-  billing: {
-    total_billed_amount: '184500',
-    line_items: [
-      {
-        description: 'ICU Charges (5 days)',
-        quantity: 5,
-        unit_price: '12000',
-        gross_charge: '60000',
-      },
-      {
-        description: 'Coronary Angioplasty Procedure',
-        quantity: 1,
-        unit_price: '85000',
-        gross_charge: '85000',
-      },
-      {
-        description: 'Stent (Drug Eluting)',
-        quantity: 1,
-        unit_price: '28000',
-        gross_charge: '28000',
-      },
-      {
-        description: 'Pharmacy & Consumables',
-        quantity: 1,
-        unit_price: '11500',
-        gross_charge: '11500',
-      },
-    ],
-  },
-  extraction_meta: {
-    overall_confidence: 88,
-    low_confidence_fields: ['insurance.payer_id', 'coding.cpt_codes[1].code'],
-    requires_manual_review: true,
-  },
-};
-
 export const runGatekeeper = (documents: Record<string, UploadedDoc>) => {
   const docs = Object.values(documents);
   const hasReadableDocument = docs.some(
@@ -206,11 +118,11 @@ export const runGatekeeper = (documents: Record<string, UploadedDoc>) => {
 
   return {
     passed: hasReadableDocument,
-    detectedName: hasReadableDocument ? mockExtractedClaimData.patient.full_name : null,
-    confidence: hasReadableDocument ? 96 : 0,
+    detectedName: null,
+    confidence: hasReadableDocument ? 70 : 0,
     checks: [
       { id: 'ocr-pass', status: hasReadableDocument ? 'passed' : 'failed' },
-      { id: 'patient-name', status: hasReadableDocument ? 'passed' : 'failed' },
+      { id: 'patient-name', status: 'pending' },
       { id: 'doc-type', status: docs.length > 0 ? 'passed' : 'failed' },
       { id: 'readability', status: hasReadableDocument ? 'passed' : 'failed' },
     ],

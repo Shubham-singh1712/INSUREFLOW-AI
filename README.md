@@ -25,7 +25,7 @@ Create a local environment file:
 cp .env.example .env
 ```
 
-For local demo work, the app can run with `AI_PROVIDER=mock`. Add Supabase values when testing real authentication.
+For local work, the app can run with `AI_PROVIDER=local` for deterministic extraction-based validation. Add `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, or `GEMINI_API_KEY` to enable LLM review over the extracted document text.
 
 Start the frontend:
 
