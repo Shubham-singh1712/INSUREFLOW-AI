@@ -45,7 +45,9 @@ export default function AIScanningStep({ uploadedDocs, onComplete, onBack }: AIS
           id: `issue-${docId}`,
           severity: doc.status === 'failed' ? ('critical' as const) : ('warning' as const),
           title:
-            doc.status === 'failed' ? 'Document processing failed' : 'Document quality needs review',
+            doc.status === 'failed'
+              ? 'Document processing failed'
+              : 'Document quality needs review',
           description:
             doc.status === 'failed'
               ? `${doc.name} could not be processed by the extraction pipeline.`

@@ -2,9 +2,20 @@
 
 import React, { useEffect, useState } from 'react';
 import {
-  Bot, CheckCircle2, RefreshCw, FileSearch, Layers3,
-  Fingerprint, ScanLine, PenLine, Eye, ShieldCheck,
-  ShieldAlert, Wand2, FileText, Sparkles,
+  Bot,
+  CheckCircle2,
+  RefreshCw,
+  FileSearch,
+  Layers3,
+  Fingerprint,
+  ScanLine,
+  PenLine,
+  Eye,
+  ShieldCheck,
+  ShieldAlert,
+  Wand2,
+  FileText,
+  Sparkles,
 } from 'lucide-react';
 import { Packet } from './ClaimIntakeFlow';
 
@@ -14,15 +25,60 @@ interface ProcessingScreenProps {
 }
 
 const steps = [
-  { id: 'detect', label: 'Detecting documents', detail: 'AI locating document boundaries across the packet', icon: FileSearch },
-  { id: 'split', label: 'Splitting pages', detail: 'Pages grouped by document type and context signals', icon: Layers3 },
-  { id: 'patient', label: 'Extracting patient details', detail: 'Names, identifiers, demographics and payer data mapped', icon: Fingerprint },
-  { id: 'prescriptions', label: 'Reading prescriptions', detail: 'Clinical orders, medicines and supporting notes parsed', icon: ScanLine },
-  { id: 'signatures', label: 'Identifying signatures', detail: 'Signature blocks, stamps and authorization marks checked', icon: PenLine },
-  { id: 'ocr', label: 'Running OCR', detail: 'Low-contrast scans enhanced before extraction', icon: Eye },
-  { id: 'compliance', label: 'Validating compliance', detail: 'TPA rules and required claim evidence evaluated', icon: ShieldCheck },
-  { id: 'missing', label: 'Detecting missing info', detail: 'AI scanning for gaps that can trigger rejection', icon: ShieldAlert },
-  { id: 'repair', label: 'Generating repair suggestions', detail: 'Actionable fixes prepared for the intake team', icon: Wand2 },
+  {
+    id: 'detect',
+    label: 'Detecting documents',
+    detail: 'AI locating document boundaries across the packet',
+    icon: FileSearch,
+  },
+  {
+    id: 'split',
+    label: 'Splitting pages',
+    detail: 'Pages grouped by document type and context signals',
+    icon: Layers3,
+  },
+  {
+    id: 'patient',
+    label: 'Extracting patient details',
+    detail: 'Names, identifiers, demographics and payer data mapped',
+    icon: Fingerprint,
+  },
+  {
+    id: 'prescriptions',
+    label: 'Reading prescriptions',
+    detail: 'Clinical orders, medicines and supporting notes parsed',
+    icon: ScanLine,
+  },
+  {
+    id: 'signatures',
+    label: 'Identifying signatures',
+    detail: 'Signature blocks, stamps and authorization marks checked',
+    icon: PenLine,
+  },
+  {
+    id: 'ocr',
+    label: 'Running OCR',
+    detail: 'Low-contrast scans enhanced before extraction',
+    icon: Eye,
+  },
+  {
+    id: 'compliance',
+    label: 'Validating compliance',
+    detail: 'TPA rules and required claim evidence evaluated',
+    icon: ShieldCheck,
+  },
+  {
+    id: 'missing',
+    label: 'Detecting missing info',
+    detail: 'AI scanning for gaps that can trigger rejection',
+    icon: ShieldAlert,
+  },
+  {
+    id: 'repair',
+    label: 'Generating repair suggestions',
+    detail: 'Actionable fixes prepared for the intake team',
+    icon: Wand2,
+  },
 ];
 
 const aiMessages = [
@@ -53,8 +109,14 @@ export default function ProcessingScreen({ packet, progress }: ProcessingScreenP
       {/* Central AI orb */}
       <div className="relative flex items-center justify-center">
         {/* Outer pulse rings */}
-        <div className="absolute w-48 h-48 rounded-full border border-primary/20 animate-ping" style={{ animationDuration: '2s' }} />
-        <div className="absolute w-36 h-36 rounded-full border border-primary/30 animate-ping" style={{ animationDuration: '2.5s', animationDelay: '0.3s' }} />
+        <div
+          className="absolute w-48 h-48 rounded-full border border-primary/20 animate-ping"
+          style={{ animationDuration: '2s' }}
+        />
+        <div
+          className="absolute w-36 h-36 rounded-full border border-primary/30 animate-ping"
+          style={{ animationDuration: '2.5s', animationDelay: '0.3s' }}
+        />
         {/* Glow */}
         <div className="absolute w-32 h-32 rounded-full bg-primary/10 blur-2xl" />
         {/* Core */}
@@ -72,7 +134,9 @@ export default function ProcessingScreen({ packet, progress }: ProcessingScreenP
             {aiMessages[msgIdx]}
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">{packet.name} · {packet.size} · {packet.pages} pages</p>
+        <p className="text-xs text-muted-foreground">
+          {packet.name} · {packet.size} · {packet.pages} pages
+        </p>
       </div>
 
       {/* Progress bar */}
@@ -108,12 +172,20 @@ export default function ProcessingScreen({ packet, progress }: ProcessingScreenP
               `}
             >
               <div className="flex items-center gap-3 mb-2">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${done ? 'bg-success-bg' : active ? 'bg-primary/10' : 'bg-muted'}`}>
-                  {done ? <CheckCircle2 size={16} className="text-success" /> :
-                   active ? <RefreshCw size={16} className="text-primary animate-spin" /> :
-                   <Icon size={16} className="text-muted-foreground" />}
+                <div
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${done ? 'bg-success-bg' : active ? 'bg-primary/10' : 'bg-muted'}`}
+                >
+                  {done ? (
+                    <CheckCircle2 size={16} className="text-success" />
+                  ) : active ? (
+                    <RefreshCw size={16} className="text-primary animate-spin" />
+                  ) : (
+                    <Icon size={16} className="text-muted-foreground" />
+                  )}
                 </div>
-                <p className={`text-xs font-semibold leading-tight ${active ? 'text-primary' : done ? 'text-success-foreground' : 'text-muted-foreground'}`}>
+                <p
+                  className={`text-xs font-semibold leading-tight ${active ? 'text-primary' : done ? 'text-success-foreground' : 'text-muted-foreground'}`}
+                >
                   {step.label}
                 </p>
               </div>

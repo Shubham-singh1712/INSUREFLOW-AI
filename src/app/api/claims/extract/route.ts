@@ -9,6 +9,20 @@ import {
 import { emptyExtractedClaimData } from '@/lib/demoData';
 import { getDemoModeState } from '@/lib/demoMode';
 
+export const runtime = 'nodejs';
+
+type PdfParseModule = {
+  PDFParse: new (options: { data: Buffer }) => {
+    getText: () => Promise<{ text?: string; total?: number }>;
+    destroy: () => Promise<void>;
+  };
+};
+
+const loadPdfParse = () => {
+  const nodeRequire = eval('require') as NodeRequire;
+  return nodeRequire('pdf-parse') as PdfParseModule;
+};
+
 const parseJsonObject = (text: string) => {
   try {
     return JSON.parse(text);
@@ -83,7 +97,7 @@ const decodePdfLiteralText = (value: string) =>
     .replace(/\\\)/g, ')')
     .replace(/\\\\/g, '\\');
 
-const extractTextFromPdfBuffer = (buffer: Buffer) => {
+const extractTextFromPdfBufferFallback = (buffer: Buffer) => {
   const pdf = buffer.toString('latin1');
   const streamPattern = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
   const textChunks: string[] = [];
@@ -117,7 +131,26 @@ const extractTextFromPdfBuffer = (buffer: Buffer) => {
     .trim();
 };
 
-const getPdfTextFromDoc = (doc: UploadedDoc) => {
+const extractTextFromPdfBuffer = async (buffer: Buffer) => {
+  try {
+    const { PDFParse } = loadPdfParse();
+    const parser = new PDFParse({ data: buffer });
+    try {
+      const parsed = await parser.getText();
+
+      return (parsed.text || '')
+        .replace(/\s+/g, ' ')
+        .replace(/\s+([,.:;])/g, '$1')
+        .trim();
+    } finally {
+      await parser.destroy();
+    }
+  } catch {
+    return extractTextFromPdfBufferFallback(buffer);
+  }
+};
+
+const getPdfTextFromDoc = async (doc: UploadedDoc) => {
   if (!doc.dataUrl) return '';
   if (!(doc.mimeType || '').includes('pdf') && !doc.dataUrl.startsWith('data:application/pdf'))
     return '';
@@ -142,12 +175,16 @@ const findPdfField = (text: string, labelPattern: string) => {
   return cleanPdfValue(match?.[1] || '');
 };
 
-const buildLocalExtractionFromDocuments = (
+const buildLocalExtractionFromDocuments = async (
   documents: Record<string, UploadedDoc>
-): ExtractedClaimData | null => {
-  const textByType = Object.fromEntries(
-    Object.entries(documents).map(([key, doc]) => [doc.documentType || key, getPdfTextFromDoc(doc)])
+): Promise<ExtractedClaimData | null> => {
+  const textByTypeEntries = await Promise.all(
+    Object.entries(documents).map(async ([key, doc]) => [
+      doc.documentType || key,
+      await getPdfTextFromDoc(doc),
+    ])
   );
+  const textByType = Object.fromEntries(textByTypeEntries);
   const allText = Object.values(textByType).join('\n');
 
   if (!allText.trim()) return null;
@@ -156,8 +193,9 @@ const buildLocalExtractionFromDocuments = (
     findPdfField(allText, 'Facility\\s+Name') ||
     findPdfField(allText, 'Hospital\\s+Name') ||
     cleanPdfValue(
-      allText.match(/([A-Z][A-Za-z&.' -]+(?:Hospital|Medical Center|Clinic|Healthcare)[^\n\r]{0,80})/)?.[1] ||
-        ''
+      allText.match(
+        /([A-Z][A-Za-z&.' -]+(?:Hospital|Medical Center|Clinic|Healthcare)[^\n\r]{0,80})/
+      )?.[1] || ''
     );
   const icd10Codes = Array.from(
     new Set([...allText.matchAll(/\b([A-Z]\d{2}(?:\.\d+)?)\b/g)].map((match) => match[1]))
@@ -179,7 +217,11 @@ const buildLocalExtractionFromDocuments = (
       description: '',
       confidence: 0.78,
     }));
-  const lineItems = [...allText.matchAll(/([A-Za-z][A-Za-z0-9&.,'() -]{3,80})\s+(?:INR|Rs\.?)?\s*([0-9][0-9,]{2,})/gi)]
+  const lineItems = [
+    ...allText.matchAll(
+      /([A-Za-z][A-Za-z0-9&.,'() -]{3,80})\s+(?:INR|Rs\.?)?\s*([0-9][0-9,]{2,})/gi
+    ),
+  ]
     .slice(0, 12)
     .map((match) => ({
       description: cleanPdfValue(match[1]),
@@ -297,7 +339,7 @@ const normalizeExtraction = (value: Partial<ExtractedClaimData> | null): Extract
   return normalized;
 };
 
-const buildDocumentContent = (documents: Record<string, UploadedDoc>) => {
+const buildDocumentContent = async (documents: Record<string, UploadedDoc>) => {
   const parts: Array<
     { type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }
   > = [
@@ -340,7 +382,7 @@ const buildDocumentContent = (documents: Record<string, UploadedDoc>) => {
     }
 
     if ((doc.mimeType || '').includes('pdf') || doc.dataUrl.startsWith('data:application/pdf')) {
-      const pdfText = getPdfTextFromDoc(doc);
+      const pdfText = await getPdfTextFromDoc(doc);
 
       parts.push({
         type: 'text',
@@ -357,7 +399,7 @@ const buildDocumentContent = (documents: Record<string, UploadedDoc>) => {
 };
 
 const runOpenRouterExtraction = async (documents: Record<string, UploadedDoc>) => {
-  const localExtraction = buildLocalExtractionFromDocuments(documents);
+  const localExtraction = await buildLocalExtractionFromDocuments(documents);
   if (localExtraction) return localExtraction;
 
   const apiKey = process.env.OPENROUTER_API_KEY;
@@ -381,7 +423,7 @@ const runOpenRouterExtraction = async (documents: Record<string, UploadedDoc>) =
         },
         {
           role: 'user',
-          content: buildDocumentContent(documents),
+          content: await buildDocumentContent(documents),
         },
       ],
       response_format: { type: 'json_object' },

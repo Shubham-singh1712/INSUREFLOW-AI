@@ -419,8 +419,8 @@ export default function AnalysisResults({
                 No repair workflow required
               </p>
               <p className="text-xs text-muted-foreground mt-1.5 leading-5">
-                Keep a human reviewer in the loop for final payer submission, but this packet has
-                no detected validation blockers.
+                Keep a human reviewer in the loop for final payer submission, but this packet has no
+                detected validation blockers.
               </p>
             </div>
           ) : (

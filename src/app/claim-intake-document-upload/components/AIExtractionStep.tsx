@@ -25,11 +25,36 @@ interface AIExtractionStepProps {
 
 const extractionPhases = [
   { id: 'phase-ocr', label: 'Deep OCR Text Extraction', icon: ScanLine, target: 'All documents' },
-  { id: 'phase-nlp', label: 'Entity Recognition', icon: FileSearch, target: 'Patient and payer fields' },
-  { id: 'phase-codes', label: 'Medical Code Extraction', icon: PenLine, target: 'ICD-10 and CPT codes' },
-  { id: 'phase-billing', label: 'Billing Line Item Parsing', icon: Eye, target: 'Itemized bill charges' },
-  { id: 'phase-clinical', label: 'Clinical Data Mapping', icon: ShieldCheck, target: 'Discharge summary' },
-  { id: 'phase-confidence', label: 'Confidence Scoring', icon: BarChart2, target: 'All extracted fields' },
+  {
+    id: 'phase-nlp',
+    label: 'Entity Recognition',
+    icon: FileSearch,
+    target: 'Patient and payer fields',
+  },
+  {
+    id: 'phase-codes',
+    label: 'Medical Code Extraction',
+    icon: PenLine,
+    target: 'ICD-10 and CPT codes',
+  },
+  {
+    id: 'phase-billing',
+    label: 'Billing Line Item Parsing',
+    icon: Eye,
+    target: 'Itemized bill charges',
+  },
+  {
+    id: 'phase-clinical',
+    label: 'Clinical Data Mapping',
+    icon: ShieldCheck,
+    target: 'Discharge summary',
+  },
+  {
+    id: 'phase-confidence',
+    label: 'Confidence Scoring',
+    icon: BarChart2,
+    target: 'All extracted fields',
+  },
 ];
 
 export default function AIExtractionStep({
@@ -195,8 +220,8 @@ export default function AIExtractionStep({
               />
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              {extractedData.extraction_meta.low_confidence_fields.length} fields flagged for
-              manual review
+              {extractedData.extraction_meta.low_confidence_fields.length} fields flagged for manual
+              review
             </p>
           </div>
         )}
@@ -215,9 +240,7 @@ export default function AIExtractionStep({
           </div>
         ) : extractedData ? (
           <div className="card p-5 fade-in">
-            <h4 className="text-sm font-semibold text-foreground mb-4">
-              Extracted Claim Summary
-            </h4>
+            <h4 className="text-sm font-semibold text-foreground mb-4">Extracted Claim Summary</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {[
                 ['Patient', extractedData.patient.full_name],

@@ -101,11 +101,7 @@ const formatCurrency = (value: string) => {
   return Number.isFinite(amount) && amount > 0 ? `INR ${amount.toLocaleString('en-IN')}` : value;
 };
 
-const confidenceFromPaths = (
-  data: ExtractedClaimData,
-  fallback: number,
-  ...paths: string[]
-) => {
+const confidenceFromPaths = (data: ExtractedClaimData, fallback: number, ...paths: string[]) => {
   const lowConfidence = new Set(data.extraction_meta.low_confidence_fields);
   return paths.some((path) => lowConfidence.has(path))
     ? Math.max(72, fallback - 12)
@@ -201,23 +197,99 @@ const mapExtractedDataToClaimFields = (data: ExtractedClaimData): ClaimField[] =
 };
 
 export const initialClaimFields: ClaimField[] = [
-  { id: 'patientName', label: 'Patient name', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
-  { id: 'insuranceNumber', label: 'Insurance number', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
-  { id: 'diagnosis', label: 'Diagnosis', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
-  { id: 'doctorName', label: 'Attending physician', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
-  { id: 'hospital', label: 'Hospital / Facility', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
-  { id: 'procedure', label: 'Procedure', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
-  { id: 'invoiceTotal', label: 'Invoice total', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
-  { id: 'claimType', label: 'Claim metadata', value: 'Not found', confidence: 0, source: 'Awaiting PDF extraction' },
+  {
+    id: 'patientName',
+    label: 'Patient name',
+    value: 'Not found',
+    confidence: 0,
+    source: 'Awaiting PDF extraction',
+  },
+  {
+    id: 'insuranceNumber',
+    label: 'Insurance number',
+    value: 'Not found',
+    confidence: 0,
+    source: 'Awaiting PDF extraction',
+  },
+  {
+    id: 'diagnosis',
+    label: 'Diagnosis',
+    value: 'Not found',
+    confidence: 0,
+    source: 'Awaiting PDF extraction',
+  },
+  {
+    id: 'doctorName',
+    label: 'Attending physician',
+    value: 'Not found',
+    confidence: 0,
+    source: 'Awaiting PDF extraction',
+  },
+  {
+    id: 'hospital',
+    label: 'Hospital / Facility',
+    value: 'Not found',
+    confidence: 0,
+    source: 'Awaiting PDF extraction',
+  },
+  {
+    id: 'procedure',
+    label: 'Procedure',
+    value: 'Not found',
+    confidence: 0,
+    source: 'Awaiting PDF extraction',
+  },
+  {
+    id: 'invoiceTotal',
+    label: 'Invoice total',
+    value: 'Not found',
+    confidence: 0,
+    source: 'Awaiting PDF extraction',
+  },
+  {
+    id: 'claimType',
+    label: 'Claim metadata',
+    value: 'Not found',
+    confidence: 0,
+    source: 'Awaiting PDF extraction',
+  },
 ];
 
 export const emptyValidationReport: ValidationReport = {
   documentGroups: [],
   metrics: [
-    { id: 'health', label: 'Claim Health', value: '0', unit: '/100', color: 'text-danger', helper: 'Upload a PDF to analyze' },
-    { id: 'readiness', label: 'Readiness', value: '0', unit: '%', color: 'text-danger', helper: 'Validation not started' },
-    { id: 'ocr', label: 'OCR Confidence', value: '0', unit: '%', color: 'text-danger', helper: 'No text extracted yet' },
-    { id: 'risk', label: 'Rejection Risk', value: 'N/A', unit: '', color: 'text-muted-foreground', helper: 'Awaiting document' },
+    {
+      id: 'health',
+      label: 'Claim Health',
+      value: '0',
+      unit: '/100',
+      color: 'text-danger',
+      helper: 'Upload a PDF to analyze',
+    },
+    {
+      id: 'readiness',
+      label: 'Readiness',
+      value: '0',
+      unit: '%',
+      color: 'text-danger',
+      helper: 'Validation not started',
+    },
+    {
+      id: 'ocr',
+      label: 'OCR Confidence',
+      value: '0',
+      unit: '%',
+      color: 'text-danger',
+      helper: 'No text extracted yet',
+    },
+    {
+      id: 'risk',
+      label: 'Rejection Risk',
+      value: 'N/A',
+      unit: '',
+      color: 'text-muted-foreground',
+      helper: 'Awaiting document',
+    },
   ],
   issues: [],
   timeline: [],
@@ -262,9 +334,11 @@ export default function ClaimIntakeFlow() {
         const res = await fetch(`/api/claims/review?claimId=${encodeURIComponent(reviewClaimId)}`, {
           cache: 'no-store',
         });
-        const payload = (await res.json().catch(() => null)) as
-          | { ok?: boolean; data?: ReviewClaimRecord; error?: string }
-          | null;
+        const payload = (await res.json().catch(() => null)) as {
+          ok?: boolean;
+          data?: ReviewClaimRecord;
+          error?: string;
+        } | null;
 
         if (!res.ok || !payload?.ok || !payload.data) {
           throw new Error(payload?.error || 'Unable to load the reviewed claim.');
@@ -404,9 +478,7 @@ export default function ClaimIntakeFlow() {
           {reviewError}
         </div>
       )}
-      {flowState === 'empty' && (
-        <UploadZone claimId={claimId} onUpload={handlePacket} />
-      )}
+      {flowState === 'empty' && <UploadZone claimId={claimId} onUpload={handlePacket} />}
       {flowState === 'processing' && packet && (
         <ProcessingScreen packet={packet} progress={progress} />
       )}

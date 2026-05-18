@@ -2,8 +2,15 @@
 
 import React, { useRef, useState } from 'react';
 import {
-  Upload, Sparkles, FileText, ShieldCheck, Brain,
-  ScanLine, Fingerprint, Layers3, ArrowRight,
+  Upload,
+  Sparkles,
+  FileText,
+  ShieldCheck,
+  Brain,
+  ScanLine,
+  Fingerprint,
+  Layers3,
+  ArrowRight,
 } from 'lucide-react';
 
 interface UploadZoneProps {
@@ -20,8 +27,12 @@ const capabilities = [
 ];
 
 const acceptedDocs = [
-  'Discharge Summary', 'Insurance Card', 'Lab Reports',
-  'Invoices', 'Prescriptions', 'IDs & Forms',
+  'Discharge Summary',
+  'Insurance Card',
+  'Lab Reports',
+  'Invoices',
+  'Prescriptions',
+  'IDs & Forms',
 ];
 
 export default function UploadZone({ claimId, onUpload }: UploadZoneProps) {
@@ -41,12 +52,15 @@ export default function UploadZone({ claimId, onUpload }: UploadZoneProps) {
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className="badge-info"><Sparkles size={11} /> AI-first intake</span>
+            <span className="badge-info">
+              <Sparkles size={11} /> AI-first intake
+            </span>
             <span className="badge-success">Automation enabled</span>
             <span className="badge-muted font-tabular">{claimId}</span>
           </div>
           <h1 className="text-3xl lg:text-4xl font-bold text-foreground leading-tight">
-            Upload one claim packet.<br />
+            Upload one claim packet.
+            <br />
             <span className="text-primary">AI organizes the rest.</span>
           </h1>
           <p className="text-muted-foreground mt-3 text-sm max-w-xl leading-relaxed">
@@ -66,14 +80,18 @@ export default function UploadZone({ claimId, onUpload }: UploadZoneProps) {
 
       {/* Drop Zone */}
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragActive(true);
+        }}
         onDragLeave={() => setDragActive(false)}
         onDrop={handleDrop}
         className={`
           relative rounded-3xl border-2 border-dashed transition-all duration-300 overflow-hidden
-          ${dragActive
-            ? 'border-primary bg-primary/5 shadow-[0_0_40px_rgba(37,99,235,0.15)]'
-            : 'border-primary/25 bg-gradient-to-br from-white via-blue-50/30 to-cyan-50/20 hover:border-primary/50 hover:shadow-card-md'
+          ${
+            dragActive
+              ? 'border-primary bg-primary/5 shadow-[0_0_40px_rgba(37,99,235,0.15)]'
+              : 'border-primary/25 bg-gradient-to-br from-white via-blue-50/30 to-cyan-50/20 hover:border-primary/50 hover:shadow-card-md'
           }
         `}
         style={{ minHeight: 360 }}
@@ -82,7 +100,8 @@ export default function UploadZone({ claimId, onUpload }: UploadZoneProps) {
         <div
           className="absolute inset-0 opacity-[0.04] pointer-events-none"
           style={{
-            backgroundImage: 'linear-gradient(var(--primary) 1px, transparent 1px), linear-gradient(90deg, var(--primary) 1px, transparent 1px)',
+            backgroundImage:
+              'linear-gradient(var(--primary) 1px, transparent 1px), linear-gradient(90deg, var(--primary) 1px, transparent 1px)',
             backgroundSize: '40px 40px',
           }}
         />
@@ -102,7 +121,9 @@ export default function UploadZone({ claimId, onUpload }: UploadZoneProps) {
           </div>
 
           <div>
-            <h2 className="text-xl font-bold text-foreground">Drop your combined claim packet here</h2>
+            <h2 className="text-xl font-bold text-foreground">
+              Drop your combined claim packet here
+            </h2>
             <p className="text-sm text-muted-foreground mt-1.5">
               One PDF with everything inside — no sorting, no manual categories
             </p>
@@ -111,7 +132,10 @@ export default function UploadZone({ claimId, onUpload }: UploadZoneProps) {
           {/* Accepted doc chips */}
           <div className="flex flex-wrap justify-center gap-2">
             {acceptedDocs.map((doc) => (
-              <span key={doc} className="flex items-center gap-1.5 text-xs bg-white border border-border rounded-full px-3 py-1 text-muted-foreground shadow-sm">
+              <span
+                key={doc}
+                className="flex items-center gap-1.5 text-xs bg-white border border-border rounded-full px-3 py-1 text-muted-foreground shadow-sm"
+              >
                 <FileText size={11} className="text-primary" /> {doc}
               </span>
             ))}
@@ -128,7 +152,9 @@ export default function UploadZone({ claimId, onUpload }: UploadZoneProps) {
             </button>
           </div>
 
-          <p className="text-xs text-muted-foreground">PDF only · Max 50 MB · All pages processed automatically</p>
+          <p className="text-xs text-muted-foreground">
+            PDF only · Max 50 MB · All pages processed automatically
+          </p>
         </div>
 
         <input
@@ -136,13 +162,18 @@ export default function UploadZone({ claimId, onUpload }: UploadZoneProps) {
           type="file"
           accept=".pdf,application/pdf"
           className="hidden"
-          onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onUpload(f);
+          }}
         />
       </div>
 
       {/* How it works strip */}
       <div className="card p-5">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">How InsureFlow AI processes your packet</p>
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">
+          How InsureFlow AI processes your packet
+        </p>
         <div className="flex flex-wrap gap-0">
           {[
             'Upload one PDF',
