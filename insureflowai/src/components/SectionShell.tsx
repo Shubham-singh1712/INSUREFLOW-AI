@@ -9,7 +9,13 @@ interface SectionShellProps {
   children: React.ReactNode;
 }
 
-export default function SectionShell({ currentPath, title, subtitle, action, children }: SectionShellProps) {
+export default function SectionShell({
+  currentPath,
+  title,
+  subtitle,
+  action,
+  children,
+}: SectionShellProps) {
   return (
     <AppLayout currentPath={currentPath}>
       <div className="space-y-6">
@@ -55,7 +61,13 @@ export function MetricCard({
   );
 }
 
-export function StatusPill({ children, tone = 'info' }: { children: React.ReactNode; tone?: 'success' | 'warning' | 'danger' | 'info' | 'muted' }) {
+export function StatusPill({
+  children,
+  tone = 'info',
+}: {
+  children: React.ReactNode;
+  tone?: 'success' | 'warning' | 'danger' | 'info' | 'muted';
+}) {
   const classMap = {
     success: 'badge-success',
     warning: 'badge-warning',

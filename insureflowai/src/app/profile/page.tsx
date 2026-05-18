@@ -10,6 +10,9 @@ import {
   UserRound,
 } from 'lucide-react';
 import SectionShell, { MetricCard, StatusPill } from '@/components/SectionShell';
+import { createClient } from '@/lib/supabase/server';
+
+export const dynamic = 'force-dynamic';
 
 const permissions = [
   'Create and manage claim intake flows',
@@ -26,7 +29,25 @@ const activity = [
   ['12:22 PM', 'Submitted Star Health batch queue'],
 ];
 
-export default function ProfilePage() {
+export default async function ProfilePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const profileName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Profile';
+  const profileEmail = user?.email || '';
+  const profileRole = user?.user_metadata?.role
+    ? String(user.user_metadata.role).replace(/_/g, ' ')
+    : 'Insurance Desk';
+  const hospitalName = user?.user_metadata?.organization || 'Hospital workspace';
+  const initials = profileName
+    .split(' ')
+    .map((part: string) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <SectionShell
       currentPath="/profile"
@@ -38,19 +59,19 @@ export default function ProfilePage() {
         <div className="xl:col-span-1 space-y-5">
           <div className="card p-6 text-center">
             <div className="w-20 h-20 rounded-3xl bg-primary mx-auto mb-4 flex items-center justify-center shadow-card-md">
-              <span className="text-2xl font-bold text-white">SR</span>
+              <span className="text-2xl font-bold text-white">{initials || 'U'}</span>
             </div>
-            <h2 className="text-xl font-bold text-foreground">Sneha Rajan</h2>
-            <p className="text-sm text-muted-foreground mt-1">Insurance Desk Operator</p>
+            <h2 className="text-xl font-bold text-foreground capitalize">{profileName}</h2>
+            <p className="text-sm text-muted-foreground mt-1 capitalize">{profileRole}</p>
             <div className="mt-4 flex justify-center">
               <StatusPill tone="success">Active</StatusPill>
             </div>
           </div>
 
           <div className="card p-5 space-y-4">
-            <ProfileLine icon={Mail} label="Email" value="sneha.rajan@apollohospitals.in" />
-            <ProfileLine icon={Building2} label="Hospital" value="Apollo Hospitals, Chennai" />
-            <ProfileLine icon={UserRound} label="Role" value="Insurance Desk" />
+            <ProfileLine icon={Mail} label="Email" value={profileEmail} />
+            <ProfileLine icon={Building2} label="Hospital" value={hospitalName} />
+            <ProfileLine icon={UserRound} label="Role" value={profileRole} />
             <ProfileLine icon={Clock} label="Shift" value="09:00 AM - 05:00 PM" />
           </div>
         </div>
@@ -58,9 +79,24 @@ export default function ProfilePage() {
         <div className="xl:col-span-3 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <MetricCard label="Claims Today" value="42" helper="Handled by Sneha" tone="info" />
-            <MetricCard label="Ready Packets" value="9" helper="Generated for submission" tone="success" />
-            <MetricCard label="Open Repairs" value="5" helper="Needs manual review" tone="warning" />
-            <MetricCard label="Accuracy" value="96%" helper="Review acceptance rate" tone="success" />
+            <MetricCard
+              label="Ready Packets"
+              value="9"
+              helper="Generated for submission"
+              tone="success"
+            />
+            <MetricCard
+              label="Open Repairs"
+              value="5"
+              helper="Needs manual review"
+              tone="warning"
+            />
+            <MetricCard
+              label="Accuracy"
+              value="96%"
+              helper="Review acceptance rate"
+              tone="success"
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -88,9 +124,12 @@ export default function ProfilePage() {
                 {[
                   ['Session status', 'Signed in with active secure session', 'Active'],
                   ['Access level', 'Hospital workspace scoped access', 'Scoped'],
-                  ['API role', 'JWT role: insurance_desk', 'Enabled'],
+                  ['API role', `Supabase role: ${profileRole}`, 'Enabled'],
                 ].map(([label, helper, status]) => (
-                  <div key={label} className="flex items-center gap-3 pb-3 border-b border-border last:border-0 last:pb-0">
+                  <div
+                    key={label}
+                    className="flex items-center gap-3 pb-3 border-b border-border last:border-0 last:pb-0"
+                  >
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-foreground">{label}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{helper}</p>
@@ -109,8 +148,13 @@ export default function ProfilePage() {
             </div>
             <div className="divide-y divide-border">
               {activity.map(([time, item]) => (
-                <div key={`${time}-${item}`} className="px-5 py-4 flex items-center gap-4 hover:bg-muted/40 transition-colors">
-                  <span className="text-xs font-bold text-muted-foreground font-tabular w-20">{time}</span>
+                <div
+                  key={`${time}-${item}`}
+                  className="px-5 py-4 flex items-center gap-4 hover:bg-muted/40 transition-colors"
+                >
+                  <span className="text-xs font-bold text-muted-foreground font-tabular w-20">
+                    {time}
+                  </span>
                   <p className="text-sm text-foreground">{item}</p>
                 </div>
               ))}

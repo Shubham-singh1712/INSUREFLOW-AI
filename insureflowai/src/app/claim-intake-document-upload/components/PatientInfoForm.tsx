@@ -1,7 +1,15 @@
 'use client';
 import React from 'react';
 import { useForm } from 'react-hook-form';
-import { User, Building2, Calendar, Stethoscope, CreditCard, FileText, ArrowRight } from 'lucide-react';
+import {
+  User,
+  Building2,
+  Calendar,
+  Stethoscope,
+  CreditCard,
+  FileText,
+  ArrowRight,
+} from 'lucide-react';
 
 interface PatientFormData {
   patientName: string;
@@ -31,7 +39,11 @@ interface PatientInfoFormProps {
 }
 
 export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
-  const { register, handleSubmit, formState: { errors } } = useForm<PatientFormData>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<PatientFormData>();
 
   const onSubmit = (data: PatientFormData) => {
     onNext(data as unknown as Record<string, string>);
@@ -48,13 +60,17 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
             </div>
             <div>
               <h3 className="font-semibold text-foreground text-sm">Patient Demographics</h3>
-              <p className="text-xs text-muted-foreground">Personal and medical admission details</p>
+              <p className="text-xs text-muted-foreground">
+                Personal and medical admission details
+              </p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="label">Full Patient Name <span className="text-danger">*</span></label>
+              <label className="label">
+                Full Patient Name <span className="text-danger">*</span>
+              </label>
               <input
                 {...register('patientName', { required: 'Patient name is required' })}
                 type="text"
@@ -66,7 +82,9 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Date of Birth <span className="text-danger">*</span></label>
+                <label className="label">
+                  Date of Birth <span className="text-danger">*</span>
+                </label>
                 <input
                   {...register('dateOfBirth', { required: 'Date of birth is required' })}
                   type="date"
@@ -75,7 +93,9 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
                 {errors.dateOfBirth && <p className="error-text">{errors.dateOfBirth.message}</p>}
               </div>
               <div>
-                <label className="label">Gender <span className="text-danger">*</span></label>
+                <label className="label">
+                  Gender <span className="text-danger">*</span>
+                </label>
                 <select
                   {...register('gender', { required: 'Gender is required' })}
                   className="input-field appearance-none bg-white"
@@ -101,9 +121,14 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
             </div>
 
             <div>
-              <label className="label">Hospital / Facility Name <span className="text-danger">*</span></label>
+              <label className="label">
+                Hospital / Facility Name <span className="text-danger">*</span>
+              </label>
               <div className="relative">
-                <Building2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Building2
+                  size={14}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
                 <input
                   {...register('hospitalName', { required: 'Hospital name is required' })}
                   type="text"
@@ -128,51 +153,79 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">Admission Date <span className="text-danger">*</span></label>
+                <label className="label">
+                  Admission Date <span className="text-danger">*</span>
+                </label>
                 <div className="relative">
-                  <Calendar size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Calendar
+                    size={13}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
                   <input
                     {...register('admissionDate', { required: 'Admission date is required' })}
                     type="date"
                     className="input-field pl-9"
                   />
                 </div>
-                {errors.admissionDate && <p className="error-text">{errors.admissionDate.message}</p>}
+                {errors.admissionDate && (
+                  <p className="error-text">{errors.admissionDate.message}</p>
+                )}
               </div>
               <div>
-                <label className="label">Discharge Date <span className="text-danger">*</span></label>
+                <label className="label">
+                  Discharge Date <span className="text-danger">*</span>
+                </label>
                 <div className="relative">
-                  <Calendar size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <Calendar
+                    size={13}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  />
                   <input
                     {...register('dischargeDate', { required: 'Discharge date is required' })}
                     type="date"
                     className="input-field pl-9"
                   />
                 </div>
-                {errors.dischargeDate && <p className="error-text">{errors.dischargeDate.message}</p>}
+                {errors.dischargeDate && (
+                  <p className="error-text">{errors.dischargeDate.message}</p>
+                )}
               </div>
             </div>
 
             <div>
-              <label className="label">Attending Physician <span className="text-danger">*</span></label>
+              <label className="label">
+                Attending Physician <span className="text-danger">*</span>
+              </label>
               <div className="relative">
-                <Stethoscope size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Stethoscope
+                  size={14}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
                 <input
-                  {...register('attendingPhysician', { required: 'Attending physician is required' })}
+                  {...register('attendingPhysician', {
+                    required: 'Attending physician is required',
+                  })}
                   type="text"
                   placeholder="Dr. Suresh Babu, Cardiologist"
                   className="input-field pl-10"
                 />
               </div>
-              {errors.attendingPhysician && <p className="error-text">{errors.attendingPhysician.message}</p>}
+              {errors.attendingPhysician && (
+                <p className="error-text">{errors.attendingPhysician.message}</p>
+              )}
             </div>
 
             <div>
-              <label className="label">Primary Diagnosis Code (ICD-10) <span className="text-danger">*</span></label>
+              <label className="label">
+                Primary Diagnosis Code (ICD-10) <span className="text-danger">*</span>
+              </label>
               <input
                 {...register('diagnosisCode', {
                   required: 'Diagnosis code is required',
-                  pattern: { value: /^[A-Z]\d{2}(\.\d{1,4})?$/, message: 'Enter a valid ICD-10 code (e.g. I21.0)' },
+                  pattern: {
+                    value: /^[A-Z]\d{2}(\.\d{1,4})?$/,
+                    message: 'Enter a valid ICD-10 code (e.g. I21.0)',
+                  },
                 })}
                 type="text"
                 placeholder="e.g. I21.0 — Acute transmural MI"
@@ -213,13 +266,17 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
             </div>
             <div>
               <h3 className="font-semibold text-foreground text-sm">Insurance & Policy Details</h3>
-              <p className="text-xs text-muted-foreground">TPA and policy information for claim routing</p>
+              <p className="text-xs text-muted-foreground">
+                TPA and policy information for claim routing
+              </p>
             </div>
           </div>
 
           <div className="space-y-4">
             <div>
-              <label className="label">TPA / Insurance Provider <span className="text-danger">*</span></label>
+              <label className="label">
+                TPA / Insurance Provider <span className="text-danger">*</span>
+              </label>
               <select
                 {...register('tpaName', { required: 'TPA is required' })}
                 className="input-field appearance-none bg-white"
@@ -240,9 +297,14 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
             </div>
 
             <div>
-              <label className="label">Policy Number <span className="text-danger">*</span></label>
+              <label className="label">
+                Policy Number <span className="text-danger">*</span>
+              </label>
               <div className="relative">
-                <FileText size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <FileText
+                  size={14}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
                 <input
                   {...register('policyNumber', { required: 'Policy number is required' })}
                   type="text"
@@ -265,14 +327,20 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
                 <p className="helper-text">For corporate / group health policies</p>
               </div>
               <div>
-                <label className="label">Insurance Card Number <span className="text-danger">*</span></label>
+                <label className="label">
+                  Insurance Card Number <span className="text-danger">*</span>
+                </label>
                 <input
-                  {...register('insuranceCardNumber', { required: 'Insurance card number is required' })}
+                  {...register('insuranceCardNumber', {
+                    required: 'Insurance card number is required',
+                  })}
                   type="text"
                   placeholder="IC-7748291034"
                   className="input-field font-tabular"
                 />
-                {errors.insuranceCardNumber && <p className="error-text">{errors.insuranceCardNumber.message}</p>}
+                {errors.insuranceCardNumber && (
+                  <p className="error-text">{errors.insuranceCardNumber.message}</p>
+                )}
               </div>
             </div>
 
@@ -288,19 +356,25 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
             </div>
 
             <div>
-              <label className="label">Policy Holder Name <span className="text-danger">*</span></label>
+              <label className="label">
+                Policy Holder Name <span className="text-danger">*</span>
+              </label>
               <input
                 {...register('policyHolderName', { required: 'Policy holder name is required' })}
                 type="text"
                 placeholder="Name as on insurance policy"
                 className="input-field"
               />
-              {errors.policyHolderName && <p className="error-text">{errors.policyHolderName.message}</p>}
+              {errors.policyHolderName && (
+                <p className="error-text">{errors.policyHolderName.message}</p>
+              )}
               <p className="helper-text">May differ from patient name (e.g. spouse or parent)</p>
             </div>
 
             <div>
-              <label className="label">Claim Type <span className="text-danger">*</span></label>
+              <label className="label">
+                Claim Type <span className="text-danger">*</span>
+              </label>
               <select
                 {...register('claimType', { required: 'Claim type is required' })}
                 className="input-field appearance-none bg-white"
@@ -317,9 +391,13 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
             </div>
 
             <div>
-              <label className="label">Estimated Claim Amount (INR) <span className="text-danger">*</span></label>
+              <label className="label">
+                Estimated Claim Amount (INR) <span className="text-danger">*</span>
+              </label>
               <div className="relative">
-                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">₹</span>
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm font-medium">
+                  ₹
+                </span>
                 <input
                   {...register('estimatedAmount', {
                     required: 'Estimated amount is required',
@@ -330,14 +408,17 @@ export default function PatientInfoForm({ onNext }: PatientInfoFormProps) {
                   className="input-field pl-7 font-tabular"
                 />
               </div>
-              {errors.estimatedAmount && <p className="error-text">{errors.estimatedAmount.message}</p>}
+              {errors.estimatedAmount && (
+                <p className="error-text">{errors.estimatedAmount.message}</p>
+              )}
               <p className="helper-text">Total hospital bill amount before insurance deductions</p>
             </div>
 
             {/* Required fields note */}
             <div className="rounded-xl bg-info-bg border border-info/20 px-4 py-3 mt-2">
               <p className="text-xs text-info-foreground font-medium">
-                Fields marked <span className="text-danger font-bold">*</span> are required for AI validation. Missing fields will reduce your submission readiness score.
+                Fields marked <span className="text-danger font-bold">*</span> are required for AI
+                validation. Missing fields will reduce your submission readiness score.
               </p>
             </div>
           </div>

@@ -1,8 +1,17 @@
 'use client';
 import React, { useState } from 'react';
 import {
-  CheckCircle2, FileText, User, CreditCard, ShieldCheck,
-  AlertTriangle, ArrowRight, Download, Send, Zap, Clock,
+  CheckCircle2,
+  FileText,
+  User,
+  CreditCard,
+  ShieldCheck,
+  AlertTriangle,
+  ArrowRight,
+  Download,
+  Send,
+  Zap,
+  Clock,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -12,14 +21,18 @@ interface ClaimConfirmationProps {
   uploadedDocs: Record<string, { name: string; size: string; status: string }>;
 }
 
-export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }: ClaimConfirmationProps) {
+export default function ClaimConfirmation({
+  claimId,
+  patientData,
+  uploadedDocs,
+}: ClaimConfirmationProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async () => {
     setSubmitting(true);
     // TODO: Backend integration — POST /api/claims/submit with { claimId, patientData, documents }
-    await new Promise(r => setTimeout(r, 1800));
+    await new Promise((r) => setTimeout(r, 1800));
     setSubmitting(false);
     setSubmitted(true);
   };
@@ -32,14 +45,18 @@ export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success-bg border border-success/20 mb-4">
           <Zap size={13} className="text-success" />
-          <span className="text-sm font-semibold text-success-foreground">AI Verified & Submitted</span>
+          <span className="text-sm font-semibold text-success-foreground">
+            AI Verified & Submitted
+          </span>
         </div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Claim Submitted Successfully</h2>
         <p className="text-muted-foreground text-sm mb-2">
-          Claim <span className="font-bold text-foreground font-tabular">{claimId}</span> has been submitted to the TPA queue.
+          Claim <span className="font-bold text-foreground font-tabular">{claimId}</span> has been
+          submitted to the TPA queue.
         </p>
         <p className="text-xs text-muted-foreground mb-8">
-          You will receive a confirmation once the TPA processes the claim. Average processing time: 3–5 business days.
+          You will receive a confirmation once the TPA processes the claim. Average processing time:
+          3–5 business days.
         </p>
         <div className="grid grid-cols-3 gap-4 mb-8 text-left">
           {[
@@ -65,8 +82,19 @@ export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }
     );
   }
 
-  const docCount = Object.keys(uploadedDocs).length || 3;
-  const passedDocs = Object.values(uploadedDocs).filter(d => d.status === 'passed').length || 2;
+  const documentRows =
+    Object.values(uploadedDocs).length > 0
+      ? Object.values(uploadedDocs).map((doc) => ({
+          label: doc.name,
+          status: doc.status === 'passed' ? 'passed' : 'warning',
+        }))
+      : [
+          { label: 'Discharge Summary', status: 'warning' },
+          { label: 'Insurance Card', status: 'passed' },
+          { label: 'Lab Reports', status: 'warning' },
+          { label: 'Patient ID', status: 'passed' },
+          { label: 'Hospital Invoice', status: 'passed' },
+        ];
 
   return (
     <div className="space-y-6">
@@ -80,7 +108,8 @@ export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }
             <div>
               <h3 className="font-semibold text-foreground">Claim Ready for Review</h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                3 open issues · Submission readiness score: <span className="font-semibold text-warning-foreground">62/100</span>
+                3 open issues · Submission readiness score:{' '}
+                <span className="font-semibold text-warning-foreground">62/100</span>
               </p>
             </div>
           </div>
@@ -103,7 +132,10 @@ export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }
             {[
               { label: 'Name', value: patientData.patientName || 'Ramesh Kumar Iyer' },
               { label: 'DOB', value: patientData.dateOfBirth || '03/14/1958' },
-              { label: 'Hospital', value: patientData.hospitalName || 'Apollo Hospitals, Greams Rd' },
+              {
+                label: 'Hospital',
+                value: patientData.hospitalName || 'Apollo Hospitals, Greams Rd',
+              },
               { label: 'Admission', value: patientData.admissionDate || '05/01/2026' },
               { label: 'Discharge', value: patientData.dischargeDate || '05/06/2026' },
               { label: 'Physician', value: patientData.attendingPhysician || 'Dr. Suresh Babu' },
@@ -111,7 +143,9 @@ export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }
             ].map((item) => (
               <div key={`ps-${item.label}`} className="flex items-start justify-between gap-2">
                 <span className="text-xs text-muted-foreground shrink-0">{item.label}</span>
-                <span className="text-xs font-medium text-foreground text-right truncate max-w-[160px]">{item.value}</span>
+                <span className="text-xs font-medium text-foreground text-right truncate max-w-[160px]">
+                  {item.value}
+                </span>
               </div>
             ))}
           </div>
@@ -130,11 +164,18 @@ export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }
               { label: 'Card No.', value: patientData.insuranceCardNumber || 'IC-7748291034' },
               { label: 'Pre-Auth', value: patientData.preAuthNumber || 'PA-2026-00847' },
               { label: 'Claim Type', value: patientData.claimType || 'Cashless' },
-              { label: 'Est. Amount', value: patientData.estimatedAmount ? `₹${patientData.estimatedAmount}` : '₹1,84,500' },
+              {
+                label: 'Est. Amount',
+                value: patientData.estimatedAmount
+                  ? `₹${patientData.estimatedAmount}`
+                  : '₹1,84,500',
+              },
             ].map((item) => (
               <div key={`ins-${item.label}`} className="flex items-start justify-between gap-2">
                 <span className="text-xs text-muted-foreground shrink-0">{item.label}</span>
-                <span className="text-xs font-medium text-foreground text-right font-tabular">{item.value}</span>
+                <span className="text-xs font-medium text-foreground text-right font-tabular">
+                  {item.value}
+                </span>
               </div>
             ))}
           </div>
@@ -147,21 +188,19 @@ export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }
             <h4 className="font-semibold text-sm text-foreground">Documents & Validation</h4>
           </div>
           <div className="space-y-2">
-            {[
-              { label: 'Discharge Summary', status: 'warning' },
-              { label: 'Insurance Card', status: 'passed' },
-              { label: 'Lab Reports', status: 'warning' },
-              { label: 'Patient ID', status: 'passed' },
-              { label: 'Hospital Invoice', status: 'passed' },
-            ].map((doc) => (
+            {documentRows.map((doc) => (
               <div key={`doc-confirm-${doc.label}`} className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${
-                  doc.status === 'passed' ? 'bg-success' : 'bg-warning'
-                }`} />
+                <div
+                  className={`w-2 h-2 rounded-full shrink-0 ${
+                    doc.status === 'passed' ? 'bg-success' : 'bg-warning'
+                  }`}
+                />
                 <span className="text-xs text-foreground flex-1">{doc.label}</span>
-                <span className={`text-xs font-medium ${
-                  doc.status === 'passed' ? 'text-success-foreground' : 'text-warning-foreground'
-                }`}>
+                <span
+                  className={`text-xs font-medium ${
+                    doc.status === 'passed' ? 'text-success-foreground' : 'text-warning-foreground'
+                  }`}
+                >
                   {doc.status === 'passed' ? 'Verified' : 'Review'}
                 </span>
               </div>
@@ -188,7 +227,8 @@ export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }
           <div>
             <p className="text-sm font-semibold text-foreground">Proceed with open issues?</p>
             <p className="text-xs text-muted-foreground">
-              Submitting with unresolved repairs may increase rejection risk. Consider applying AI suggestions first.
+              Submitting with unresolved repairs may increase rejection risk. Consider applying AI
+              suggestions first.
             </p>
           </div>
         </div>
@@ -196,11 +236,7 @@ export default function ClaimConfirmation({ claimId, patientData, uploadedDocs }
           <button className="btn-secondary gap-2">
             <Download size={15} /> Save as Draft
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="btn-primary px-6 gap-2"
-          >
+          <button onClick={handleSubmit} disabled={submitting} className="btn-primary px-6 gap-2">
             {submitting ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

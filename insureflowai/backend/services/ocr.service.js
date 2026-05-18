@@ -1,4 +1,6 @@
 const Tesseract = require('tesseract.js');
+const fs = require('fs');
+const { PDFParse } = require('pdf-parse');
 const Document = require('../models/Document');
 const ApiError = require('../utils/ApiError');
 const { recordValidationLog } = require('./validationLog.service');
@@ -24,20 +26,39 @@ const runOcrExtraction = async ({ documentId, claimId, user }) => {
   await document.save();
 
   let text = '';
+  let ocrMetadata = {};
+  const source = document.localPath || document.url;
 
   if (document.mimeType === 'application/pdf') {
-    text = `Patient Name: Ramesh Kumar Iyer
-Insurance Number: MEM-7748291034
-Diagnosis: Acute myocardial infarction
-Procedure: 92928
-Doctor: Dr. Suresh Babu`;
+    if (!document.localPath) {
+      throw new ApiError(422, 'PDF text extraction requires a locally stored PDF file.');
+    }
+
+    const parser = new PDFParse({ data: fs.readFileSync(document.localPath) });
+    let parsed;
+    try {
+      parsed = await parser.getText();
+    } finally {
+      await parser.destroy();
+    }
+    text = parsed.text || '';
+    ocrMetadata = {
+      extractionMethod: text.trim() ? 'pdf_text_layer' : 'ocr_required',
+      pageCount: parsed.total || 1,
+      extractedCharacters: text.length,
+    };
   } else {
-    const result = await Tesseract.recognize(document.localPath || document.url, 'eng');
+    const result = await Tesseract.recognize(source, 'eng');
     text = result.data.text;
+    ocrMetadata = {
+      extractionMethod: 'tesseract_ocr',
+      confidence: result.data.confidence,
+      extractedCharacters: text.length,
+    };
   }
 
   document.ocrText = text;
-  document.ocrFields = extractFieldsFromText(text);
+  document.ocrFields = { ...extractFieldsFromText(text), ...ocrMetadata };
   document.ocrStatus = 'completed';
   await document.save();
 

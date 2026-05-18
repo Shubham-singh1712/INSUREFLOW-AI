@@ -1,8 +1,16 @@
 'use client';
 import React, { useState } from 'react';
 import {
-  FileText, Download, Send, CheckCircle2, Zap, ArrowRight,
-  ShieldCheck, Code2, BookOpen, Clock,
+  FileText,
+  Download,
+  Send,
+  CheckCircle2,
+  Zap,
+  ArrowRight,
+  ShieldCheck,
+  Code2,
+  BookOpen,
+  Clock,
 } from 'lucide-react';
 import Link from 'next/link';
 import type { ExtractedClaimData } from './ClaimIntakeFlow';
@@ -54,7 +62,36 @@ const ediPayloadPreview = `{
 export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSubmissionStepProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [activeTab, setActiveTab] = useState<'ub04' | 'edi'>('ub04');
+
+  const handleDownloadPdf = async () => {
+    setDownloadingPdf(true);
+    try {
+      const response = await fetch('/api/claims/pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ claimId, confirmedData }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || 'PDF download failed');
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${claimId}-UB04.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -84,11 +121,14 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
         </div>
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success-bg border border-success/20 mb-4">
           <Zap size={13} className="text-success" />
-          <span className="text-sm font-semibold text-success-foreground">AI Verified & Submitted</span>
+          <span className="text-sm font-semibold text-success-foreground">
+            AI Verified & Submitted
+          </span>
         </div>
         <h2 className="text-2xl font-bold text-foreground mb-2">Claim Submitted Successfully</h2>
         <p className="text-muted-foreground text-sm mb-2">
-          Claim <span className="font-bold text-foreground font-tabular">{claimId}</span> has been submitted to the TPA queue via EDI 837I.
+          Claim <span className="font-bold text-foreground font-tabular">{claimId}</span> has been
+          submitted to the TPA queue via EDI 837I.
         </p>
         <p className="text-xs text-muted-foreground mb-8">
           UB-04 form and EDI payload generated. Average TPA processing time: 3–5 business days.
@@ -106,8 +146,12 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
           ))}
         </div>
         <div className="flex items-center justify-center gap-3">
-          <button className="btn-secondary gap-2">
-            <Download size={15} /> Download UB-04 PDF
+          <button
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
+            className="btn-secondary gap-2 disabled:opacity-50"
+          >
+            <Download size={15} /> {downloadingPdf ? 'Preparing PDF...' : 'Download UB-04 PDF'}
           </button>
           <Link href="/main-dashboard" className="btn-primary gap-2">
             Back to Dashboard <ArrowRight size={15} />
@@ -145,7 +189,9 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
           <button
             onClick={() => setActiveTab('ub04')}
             className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors ${
-              activeTab === 'ub04' ?'text-primary border-b-2 border-primary bg-primary/5' :'text-muted-foreground hover:text-foreground'
+              activeTab === 'ub04'
+                ? 'text-primary border-b-2 border-primary bg-primary/5'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <BookOpen size={14} /> UB-04 / CMS-1450 Form
@@ -153,7 +199,9 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
           <button
             onClick={() => setActiveTab('edi')}
             className={`flex items-center gap-2 px-5 py-3.5 text-sm font-medium transition-colors ${
-              activeTab === 'edi' ?'text-primary border-b-2 border-primary bg-primary/5' :'text-muted-foreground hover:text-foreground'
+              activeTab === 'edi'
+                ? 'text-primary border-b-2 border-primary bg-primary/5'
+                : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <Code2 size={14} /> EDI 837I JSON Payload
@@ -165,22 +213,35 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-sm font-semibold text-foreground">UB-04 Institutional Claim Form</p>
-                  <p className="text-xs text-muted-foreground">CMS-1450 standard layout — Claim ID {claimId}</p>
+                  <p className="text-sm font-semibold text-foreground">
+                    UB-04 Institutional Claim Form
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    CMS-1450 standard layout — Claim ID {claimId}
+                  </p>
                 </div>
-                <button className="btn-secondary gap-2 text-xs py-1.5 px-3">
-                  <Download size={13} /> Download PDF
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={downloadingPdf}
+                  className="btn-secondary gap-2 text-xs py-1.5 px-3 disabled:opacity-50"
+                >
+                  <Download size={13} /> {downloadingPdf ? 'Preparing...' : 'Download PDF'}
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {ub04Fields.map((field) => (
-                  <div key={`ub04-${field.box}`} className="flex items-start gap-3 p-3 bg-muted/40 rounded-xl">
+                  <div
+                    key={`ub04-${field.box}`}
+                    className="flex items-start gap-3 p-3 bg-muted/40 rounded-xl"
+                  >
                     <span className="text-xs font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded font-tabular shrink-0">
                       Box {field.box}
                     </span>
                     <div className="min-w-0">
                       <p className="text-xs text-muted-foreground">{field.label}</p>
-                      <p className="text-xs font-semibold text-foreground font-tabular truncate">{field.value}</p>
+                      <p className="text-xs font-semibold text-foreground font-tabular truncate">
+                        {field.value}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -193,7 +254,9 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-sm font-semibold text-foreground">EDI 837I JSON Payload</p>
-                  <p className="text-xs text-muted-foreground">ANSI X12 005010X223A2 standard · Ready for API transmission</p>
+                  <p className="text-xs text-muted-foreground">
+                    ANSI X12 005010X223A2 standard · Ready for API transmission
+                  </p>
                 </div>
                 <button className="btn-secondary gap-2 text-xs py-1.5 px-3">
                   <Download size={13} /> Download JSON
@@ -209,7 +272,9 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
 
       {/* Submission checklist */}
       <div className="card p-5">
-        <h4 className="text-sm font-semibold text-foreground mb-3">Submission Readiness Checklist</h4>
+        <h4 className="text-sm font-semibold text-foreground mb-3">
+          Submission Readiness Checklist
+        </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {[
             'Patient demographics verified',
@@ -242,7 +307,8 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
           <div>
             <p className="text-sm font-semibold text-foreground">Ready to submit to TPA queue</p>
             <p className="text-xs text-muted-foreground">
-              Claim <span className="font-tabular font-bold">{claimId}</span> · ₹1,84,500 · Apollo Munich
+              Claim <span className="font-tabular font-bold">{claimId}</span> · ₹1,84,500 · Apollo
+              Munich
             </p>
           </div>
         </div>
@@ -250,11 +316,7 @@ export default function FinalSubmissionStep({ claimId, confirmedData }: FinalSub
           <button className="btn-secondary gap-2">
             <FileText size={15} /> Save as Draft
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="btn-primary px-6 gap-2"
-          >
+          <button onClick={handleSubmit} disabled={submitting} className="btn-primary px-6 gap-2">
             {submitting ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

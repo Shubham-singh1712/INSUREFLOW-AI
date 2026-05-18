@@ -1,6 +1,16 @@
 'use client';
 import React, { useState } from 'react';
-import { User, CreditCard, Stethoscope, Receipt, AlertTriangle, CheckCircle2, ArrowLeft, ArrowRight, Edit3 } from 'lucide-react';
+import {
+  User,
+  CreditCard,
+  Stethoscope,
+  Receipt,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowLeft,
+  ArrowRight,
+  Edit3,
+} from 'lucide-react';
 import type { ExtractedClaimData } from './ClaimIntakeFlow';
 
 interface ReviewConfirmStepProps {
@@ -9,11 +19,15 @@ interface ReviewConfirmStepProps {
   onBack: () => void;
 }
 
-export default function ReviewConfirmStep({ extractedData, onConfirm, onBack }: ReviewConfirmStepProps) {
+export default function ReviewConfirmStep({
+  extractedData,
+  onConfirm,
+  onBack,
+}: ReviewConfirmStepProps) {
   const [data, setData] = useState<ExtractedClaimData>(extractedData);
 
   const updateField = (section: keyof ExtractedClaimData, field: string, value: string) => {
-    setData(prev => ({
+    setData((prev) => ({
       ...prev,
       [section]: {
         ...(prev[section] as Record<string, unknown>),
@@ -45,9 +59,11 @@ export default function ReviewConfirmStep({ extractedData, onConfirm, onBack }: 
     const low = isLowConfidence(fieldPath);
 
     return (
-      <div className={`flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0 ${
-        low ? 'bg-warning-bg/20 -mx-2 px-2 rounded-lg' : ''
-      }`}>
+      <div
+        className={`flex items-start gap-3 py-2.5 border-b border-border/50 last:border-0 ${
+          low ? 'bg-warning-bg/20 -mx-2 px-2 rounded-lg' : ''
+        }`}
+      >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
             <span className="text-xs text-muted-foreground">{label}</span>
@@ -69,7 +85,9 @@ export default function ReviewConfirmStep({ extractedData, onConfirm, onBack }: 
               className="input-field text-xs py-1.5 h-auto"
             />
           ) : (
-            <p className={`text-sm font-medium font-tabular ${low ? 'text-warning-foreground' : 'text-foreground'}`}>
+            <p
+              className={`text-sm font-medium font-tabular ${low ? 'text-warning-foreground' : 'text-foreground'}`}
+            >
               {value || <span className="text-muted-foreground italic">Not detected</span>}
             </p>
           )}
@@ -87,31 +105,51 @@ export default function ReviewConfirmStep({ extractedData, onConfirm, onBack }: 
   };
 
   const lowCount = data.extraction_meta.low_confidence_fields.length;
+  const hasDetectedData =
+    Boolean(data.patient.full_name) ||
+    Boolean(data.insurance.member_id) ||
+    Boolean(data.clinical.facility_name) ||
+    data.coding.icd10_codes.length > 0 ||
+    data.coding.cpt_codes.length > 0 ||
+    data.billing.line_items.length > 0 ||
+    parseInt(data.billing.total_billed_amount, 10) > 0;
+  const needsReview =
+    lowCount > 0 || data.extraction_meta.overall_confidence === 0 || !hasDetectedData;
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className={`card p-5 flex items-center gap-4 ${lowCount > 0 ? 'border-warning/30' : 'border-success/30'}`}>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-          lowCount > 0 ? 'bg-warning-bg' : 'bg-success-bg'
-        }`}>
-          {lowCount > 0
-            ? <AlertTriangle size={18} className="text-warning" />
-            : <CheckCircle2 size={18} className="text-success" />
-          }
+      <div
+        className={`card p-5 flex items-center gap-4 ${needsReview ? 'border-warning/30' : 'border-success/30'}`}
+      >
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+            needsReview ? 'bg-warning-bg' : 'bg-success-bg'
+          }`}
+        >
+          {needsReview ? (
+            <AlertTriangle size={18} className="text-warning" />
+          ) : (
+            <CheckCircle2 size={18} className="text-success" />
+          )}
         </div>
         <div className="flex-1">
           <p className="text-sm font-semibold text-foreground">
-            {lowCount > 0
-              ? `${lowCount} field${lowCount > 1 ? 's' : ''} flagged for manual review`
-              : 'All fields extracted with high confidence'
-            }
+            {!hasDetectedData
+              ? 'No fields were detected from the uploaded documents'
+              : lowCount > 0
+                ? `${lowCount} field${lowCount > 1 ? 's' : ''} flagged for manual review`
+                : 'All fields extracted with high confidence'}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Review pre-populated data below. Edit any incorrect values before confirming.
+            {needsReview
+              ? 'Review the uploaded document quality or enter missing values manually before confirming.'
+              : 'Review pre-populated data below. Edit any incorrect values before confirming.'}
           </p>
         </div>
-        <span className="text-2xl font-bold font-tabular text-success-foreground">
+        <span
+          className={`text-2xl font-bold font-tabular ${needsReview ? 'text-warning-foreground' : 'text-success-foreground'}`}
+        >
           {data.extraction_meta.overall_confidence}%
         </span>
       </div>
@@ -126,12 +164,48 @@ export default function ReviewConfirmStep({ extractedData, onConfirm, onBack }: 
             <h4 className="text-sm font-semibold text-foreground">Patient Demographics</h4>
             <span className="badge-info ml-auto text-xs">Intake Form</span>
           </div>
-          <FieldRow label="Full Name" value={data.patient.full_name} fieldPath="patient.full_name" section="patient" field="full_name" />
-          <FieldRow label="Date of Birth" value={data.patient.date_of_birth} fieldPath="patient.date_of_birth" section="patient" field="date_of_birth" />
-          <FieldRow label="Gender" value={data.patient.gender} fieldPath="patient.gender" section="patient" field="gender" />
-          <FieldRow label="Address" value={data.patient.address} fieldPath="patient.address" section="patient" field="address" />
-          <FieldRow label="Phone" value={data.patient.contact_phone} fieldPath="patient.contact_phone" section="patient" field="contact_phone" />
-          <FieldRow label="Email" value={data.patient.contact_email} fieldPath="patient.contact_email" section="patient" field="contact_email" />
+          <FieldRow
+            label="Full Name"
+            value={data.patient.full_name}
+            fieldPath="patient.full_name"
+            section="patient"
+            field="full_name"
+          />
+          <FieldRow
+            label="Date of Birth"
+            value={data.patient.date_of_birth}
+            fieldPath="patient.date_of_birth"
+            section="patient"
+            field="date_of_birth"
+          />
+          <FieldRow
+            label="Gender"
+            value={data.patient.gender}
+            fieldPath="patient.gender"
+            section="patient"
+            field="gender"
+          />
+          <FieldRow
+            label="Address"
+            value={data.patient.address}
+            fieldPath="patient.address"
+            section="patient"
+            field="address"
+          />
+          <FieldRow
+            label="Phone"
+            value={data.patient.contact_phone}
+            fieldPath="patient.contact_phone"
+            section="patient"
+            field="contact_phone"
+          />
+          <FieldRow
+            label="Email"
+            value={data.patient.contact_email}
+            fieldPath="patient.contact_email"
+            section="patient"
+            field="contact_email"
+          />
         </div>
 
         {/* Insurance */}
@@ -143,12 +217,48 @@ export default function ReviewConfirmStep({ extractedData, onConfirm, onBack }: 
             <h4 className="text-sm font-semibold text-foreground">Insurance Details</h4>
             <span className="badge-info ml-auto text-xs">Insurance Card</span>
           </div>
-          <FieldRow label="Policyholder Name" value={data.insurance.policyholder_name} fieldPath="insurance.policyholder_name" section="insurance" field="policyholder_name" />
-          <FieldRow label="Member ID" value={data.insurance.member_id} fieldPath="insurance.member_id" section="insurance" field="member_id" />
-          <FieldRow label="Group Number" value={data.insurance.group_number} fieldPath="insurance.group_number" section="insurance" field="group_number" />
-          <FieldRow label="Payer ID" value={data.insurance.payer_id} fieldPath="insurance.payer_id" section="insurance" field="payer_id" />
-          <FieldRow label="Plan Name" value={data.insurance.plan_name} fieldPath="insurance.plan_name" section="insurance" field="plan_name" />
-          <FieldRow label="Pre-Auth Code" value={data.pre_authorization.approval_code} fieldPath="pre_authorization.approval_code" section="pre_authorization" field="approval_code" />
+          <FieldRow
+            label="Policyholder Name"
+            value={data.insurance.policyholder_name}
+            fieldPath="insurance.policyholder_name"
+            section="insurance"
+            field="policyholder_name"
+          />
+          <FieldRow
+            label="Member ID"
+            value={data.insurance.member_id}
+            fieldPath="insurance.member_id"
+            section="insurance"
+            field="member_id"
+          />
+          <FieldRow
+            label="Group Number"
+            value={data.insurance.group_number}
+            fieldPath="insurance.group_number"
+            section="insurance"
+            field="group_number"
+          />
+          <FieldRow
+            label="Payer ID"
+            value={data.insurance.payer_id}
+            fieldPath="insurance.payer_id"
+            section="insurance"
+            field="payer_id"
+          />
+          <FieldRow
+            label="Plan Name"
+            value={data.insurance.plan_name}
+            fieldPath="insurance.plan_name"
+            section="insurance"
+            field="plan_name"
+          />
+          <FieldRow
+            label="Pre-Auth Code"
+            value={data.pre_authorization.approval_code}
+            fieldPath="pre_authorization.approval_code"
+            section="pre_authorization"
+            field="approval_code"
+          />
         </div>
 
         {/* Clinical */}
@@ -160,12 +270,48 @@ export default function ReviewConfirmStep({ extractedData, onConfirm, onBack }: 
             <h4 className="text-sm font-semibold text-foreground">Clinical Information</h4>
             <span className="badge-success ml-auto text-xs">Discharge Summary</span>
           </div>
-          <FieldRow label="Facility Name" value={data.clinical.facility_name} fieldPath="clinical.facility_name" section="clinical" field="facility_name" />
-          <FieldRow label="Hospital NPI" value={data.clinical.hospital_npi} fieldPath="clinical.hospital_npi" section="clinical" field="hospital_npi" />
-          <FieldRow label="Tax ID" value={data.clinical.hospital_tax_id} fieldPath="clinical.hospital_tax_id" section="clinical" field="hospital_tax_id" />
-          <FieldRow label="Attending Physician" value={data.clinical.attending_physician} fieldPath="clinical.attending_physician" section="clinical" field="attending_physician" />
-          <FieldRow label="Admission Date" value={data.clinical.admission_date} fieldPath="clinical.admission_date" section="clinical" field="admission_date" />
-          <FieldRow label="Discharge Date" value={data.clinical.discharge_date} fieldPath="clinical.discharge_date" section="clinical" field="discharge_date" />
+          <FieldRow
+            label="Facility Name"
+            value={data.clinical.facility_name}
+            fieldPath="clinical.facility_name"
+            section="clinical"
+            field="facility_name"
+          />
+          <FieldRow
+            label="Hospital NPI"
+            value={data.clinical.hospital_npi}
+            fieldPath="clinical.hospital_npi"
+            section="clinical"
+            field="hospital_npi"
+          />
+          <FieldRow
+            label="Tax ID"
+            value={data.clinical.hospital_tax_id}
+            fieldPath="clinical.hospital_tax_id"
+            section="clinical"
+            field="hospital_tax_id"
+          />
+          <FieldRow
+            label="Attending Physician"
+            value={data.clinical.attending_physician}
+            fieldPath="clinical.attending_physician"
+            section="clinical"
+            field="attending_physician"
+          />
+          <FieldRow
+            label="Admission Date"
+            value={data.clinical.admission_date}
+            fieldPath="clinical.admission_date"
+            section="clinical"
+            field="admission_date"
+          />
+          <FieldRow
+            label="Discharge Date"
+            value={data.clinical.discharge_date}
+            fieldPath="clinical.discharge_date"
+            section="clinical"
+            field="discharge_date"
+          />
         </div>
 
         {/* Billing */}
@@ -179,7 +325,10 @@ export default function ReviewConfirmStep({ extractedData, onConfirm, onBack }: 
           </div>
           <div className="space-y-1.5 mb-3">
             {data.billing.line_items.map((item, i) => (
-              <div key={`li-review-${i}`} className="flex items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0">
+              <div
+                key={`li-review-${i}`}
+                className="flex items-center justify-between gap-2 py-1.5 border-b border-border/50 last:border-0"
+              >
                 <span className="text-xs text-muted-foreground flex-1">{item.description}</span>
                 <span className="text-xs font-medium text-foreground font-tabular shrink-0">
                   ₹{parseInt(item.gross_charge).toLocaleString()}
@@ -203,12 +352,9 @@ export default function ReviewConfirmStep({ extractedData, onConfirm, onBack }: 
         </button>
         <div className="flex items-center gap-3">
           <p className="text-xs text-muted-foreground">
-            {lowCount > 0 ? `${lowCount} fields need review` : 'All fields verified'}
+            {needsReview ? `${lowCount || 'Missing'} fields need review` : 'All fields verified'}
           </p>
-          <button
-            onClick={() => onConfirm(data)}
-            className="btn-primary px-6 gap-2"
-          >
+          <button onClick={() => onConfirm(data)} className="btn-primary px-6 gap-2">
             Confirm & Run Claim Scrubbing <ArrowRight size={15} />
           </button>
         </div>

@@ -46,11 +46,11 @@ CLOUDINARY_API_KEY=
 CLOUDINARY_API_SECRET=
 OPENAI_API_KEY=
 GEMINI_API_KEY=
-AI_PROVIDER=mock
+AI_PROVIDER=local
 MAX_FILE_SIZE_MB=20
 ```
 
-Use `AI_PROVIDER=mock` for investor-demo workflows without paid API keys. Switch to `openai` or `gemini` after adding the matching key.
+Use `AI_PROVIDER=local` for deterministic validation from extracted document text without paid API keys. Switch to `openai`, `openrouter`, or `gemini` after adding the matching key for LLM review.
 
 ## Core APIs
 

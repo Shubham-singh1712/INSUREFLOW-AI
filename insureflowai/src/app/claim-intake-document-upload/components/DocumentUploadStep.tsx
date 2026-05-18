@@ -1,79 +1,33 @@
 'use client';
-import React, { useState, useRef, useCallback } from 'react';
-import { Upload, FileText, FlaskConical, Pill, CreditCard, Receipt, CheckCircle2, AlertTriangle, X, ArrowRight, Camera, Info,  } from 'lucide-react';
+
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  ArrowRight,
+  Bot,
+  CheckCircle2,
+  FileCheck2,
+  FileSearch,
+  Layers3,
+  ScanLine,
+  ShieldCheck,
+  Sparkles,
+  Upload,
+  Wand2,
+  X,
+  Zap,
+} from 'lucide-react';
 import type { UploadedDoc } from './ClaimIntakeFlow';
 
 interface DocumentUploadStepProps {
   onNext: (docs: Record<string, UploadedDoc>) => void;
 }
 
-const documentTypes = [
-  {
-    id: 'intake_form',
-    label: 'Intake Form',
-    description: 'Patient intake / admission form with demographics',
-    icon: FileText,
-    iconBg: 'bg-info-bg',
-    iconColor: 'text-info',
-    required: true,
-    acceptedFormats: 'PDF, JPG, PNG',
-    tips: 'Must include patient full name and date of birth',
-  },
-  {
-    id: 'insurance_card',
-    label: 'Insurance Card',
-    description: 'Front and back scan of the health insurance card',
-    icon: CreditCard,
-    iconBg: 'bg-primary/10',
-    iconColor: 'text-primary',
-    required: true,
-    acceptedFormats: 'JPG, PNG, PDF',
-    tips: 'Ensure member ID, group number and payer ID are visible',
-  },
-  {
-    id: 'pre_authorization',
-    label: 'Pre-Authorization',
-    description: 'Pre-auth approval document with authorization code',
-    icon: CheckCircle2,
-    iconBg: 'bg-success-bg',
-    iconColor: 'text-success',
-    required: false,
-    acceptedFormats: 'PDF, JPG, PNG',
-    tips: 'Include approval code and authorized date range',
-  },
-  {
-    id: 'discharge_summary',
-    label: 'Discharge Summary / EHR',
-    description: 'Clinical document with diagnosis, treatment and physician notes',
-    icon: FlaskConical,
-    iconBg: 'bg-warning-bg',
-    iconColor: 'text-warning',
-    required: true,
-    acceptedFormats: 'PDF, JPG, PNG',
-    tips: 'Must include attending physician signature and hospital stamp',
-  },
-  {
-    id: 'coding_summary',
-    label: 'Coding Summary',
-    description: 'ICD-10 diagnosis codes, CPT/HCPCS procedure codes and modifiers',
-    icon: Pill,
-    iconBg: 'bg-muted',
-    iconColor: 'text-muted-foreground',
-    required: true,
-    acceptedFormats: 'PDF, JPG, PNG',
-    tips: 'Include all diagnosis and procedure codes with modifiers',
-  },
-  {
-    id: 'itemized_bill',
-    label: 'Itemized Bill',
-    description: 'Line-item hospital bill with quantities and gross charges',
-    icon: Receipt,
-    iconBg: 'bg-danger-bg',
-    iconColor: 'text-danger',
-    required: true,
-    acceptedFormats: 'PDF, JPG',
-    tips: 'Final consolidated bill with hospital letterhead and stamp',
-  },
+const packetStates = [
+  { label: 'Detect documents', icon: FileSearch },
+  { label: 'Split packet pages', icon: Layers3 },
+  { label: 'Run OCR extraction', icon: ScanLine },
+  { label: 'Validate compliance', icon: ShieldCheck },
+  { label: 'Suggest repairs', icon: Wand2 },
 ];
 
 const formatFileSize = (bytes: number): string => {
@@ -82,296 +36,266 @@ const formatFileSize = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
 export default function DocumentUploadStep({ onNext }: DocumentUploadStepProps) {
-  const [uploadedDocs, setUploadedDocs] = useState<Record<string, UploadedDoc>>({});
-  const [dragOver, setDragOver] = useState<string | null>(null);
-  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [packet, setPacket] = useState<UploadedDoc | null>(null);
 
-  const simulateUpload = useCallback((docId: string, file: File) => {
-    const doc: UploadedDoc = {
-      name: file.name,
-      size: formatFileSize(file.size),
-      status: 'uploading',
-      progress: 0,
-    };
+  const uploaded = packet?.status === 'passed' || packet?.status === 'warning';
+  const activeStateIndex = useMemo(() => {
+    if (!packet) return -1;
+    if (uploaded) return packetStates.length;
+    return Math.min(Math.floor(packet.progress / 20), packetStates.length - 1);
+  }, [packet, uploaded]);
 
-    setUploadedDocs(prev => ({ ...prev, [docId]: doc }));
-
-    let progress = 0;
-    const uploadInterval = setInterval(() => {
-      progress += Math.floor(Math.random() * 18) + 8;
-      if (progress >= 100) {
-        clearInterval(uploadInterval);
-        progress = 100;
-        setUploadedDocs(prev => ({
-          ...prev,
-          [docId]: { ...prev[docId], progress: 100, status: 'processing', message: 'Running OCR extraction...' },
-        }));
-
-        setTimeout(() => {
-          const outcomes: Array<UploadedDoc['status']> = ['passed', 'passed', 'passed', 'warning', 'passed'];
-          const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
-          const messages: Record<string, string> = {
-            passed: 'OCR extraction complete — all fields detected',
-            warning: 'Low image quality — text extraction partial',
-            failed: 'OCR failed — document unreadable',
-          };
-          setUploadedDocs(prev => ({
-            ...prev,
-            [docId]: {
-              ...prev[docId],
-              status: outcome,
-              message: messages[outcome] || messages.passed,
-            },
-          }));
-        }, 1800);
-      } else {
-        setUploadedDocs(prev => ({
-          ...prev,
-          [docId]: { ...prev[docId], progress },
-        }));
-      }
-    }, 120);
-  }, []);
-
-  const syncUploadWithApi = async (docId: string, file: File) => {
+  const syncUploadWithApi = async (file: File) => {
     const formData = new FormData();
-    formData.append('documentType', docId);
+    formData.append('documentType', 'claim_packet');
     formData.append('file', file);
 
     try {
-      const response = await fetch('/api/claims/uploads', {
+      await fetch('/api/claims/uploads', {
         method: 'POST',
         body: formData,
       });
-      const payload = await response.json();
-
-      if (!response.ok || !payload.ok) {
-        setUploadedDocs(prev => ({
-          ...prev,
-          [docId]: { ...prev[docId], status: 'failed', progress: 100, message: payload.error || 'Upload failed' },
-        }));
-      }
     } catch {
-      setUploadedDocs(prev => ({
-        ...prev,
-        [docId]: { ...prev[docId], status: 'failed', progress: 100, message: 'Upload failed. Please try again.' },
-      }));
+      // Local demo mode can still continue without a live upload endpoint.
     }
   };
 
-  const handleFileSelect = (docId: string, file: File) => {
-    syncUploadWithApi(docId, file);
-    simulateUpload(docId, file);
-  };
+  const handlePacket = useCallback((file?: File) => {
+    const selectedFile = file || null;
+    const demoPacket: UploadedDoc = {
+      name: selectedFile?.name || 'combined-claim-packet-ramesh-iyer.pdf',
+      size: selectedFile ? formatFileSize(selectedFile.size) : '8.4 MB',
+      status: 'processing',
+      progress: 8,
+      documentType: 'claim_packet',
+      mimeType: selectedFile?.type || 'application/pdf',
+      message: 'AI is preparing the claim packet...',
+    };
 
-  const handleDrop = useCallback((e: React.DragEvent, docId: string) => {
-    e.preventDefault();
-    setDragOver(null);
-    const file = e.dataTransfer.files[0];
-    if (file) {
-      syncUploadWithApi(docId, file);
-      simulateUpload(docId, file);
+    setPacket(demoPacket);
+    if (selectedFile) {
+      void syncUploadWithApi(selectedFile);
+      readFileAsDataUrl(selectedFile)
+        .then((dataUrl) => setPacket((current) => (current ? { ...current, dataUrl } : current)))
+        .catch(() => undefined);
     }
-  }, [simulateUpload]);
 
-  const handleRemove = (docId: string) => {
-    setUploadedDocs(prev => {
-      const next = { ...prev };
-      delete next[docId];
-      return next;
+    let progress = 8;
+    const timer = window.setInterval(() => {
+      progress = Math.min(progress + 9 + Math.floor(Math.random() * 8), 100);
+      setPacket((current) =>
+        current
+          ? {
+              ...current,
+              progress,
+              status: progress >= 100 ? 'passed' : 'processing',
+              message:
+                progress >= 100
+                  ? 'Packet ready for AI classification and validation'
+                  : 'AI is scanning and structuring the claim packet...',
+            }
+          : current
+      );
+      if (progress >= 100) window.clearInterval(timer);
+    }, 260);
+  }, []);
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      setDragActive(false);
+      handlePacket(event.dataTransfer.files?.[0]);
+    },
+    [handlePacket]
+  );
+
+  const continueWithPacket = () => {
+    if (!packet) return;
+    onNext({
+      claim_packet: {
+        ...packet,
+        status: uploaded ? packet.status : 'passed',
+        progress: 100,
+        message: 'Single packet uploaded for intelligent processing',
+      },
     });
   };
 
-  const requiredDocs = documentTypes.filter(d => d.required);
-  const uploadedRequired = requiredDocs.filter(d =>
-    uploadedDocs[d.id]?.status === 'passed' || uploadedDocs[d.id]?.status === 'warning'
-  );
-  const canProceed = uploadedRequired.length >= requiredDocs.length - 1;
-  const totalUploaded = Object.keys(uploadedDocs).length;
-
   return (
-    <div>
-      {/* Upload summary bar */}
-      <div className="card p-4 mb-6 flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Upload size={15} className="text-primary" />
+    <div className="space-y-6">
+      <div className="card overflow-hidden">
+        <div className="relative p-6 lg:p-8 bg-gradient-to-br from-white via-blue-50/40 to-cyan-50/30">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-info to-success" />
+          <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
+            <div className="xl:col-span-7">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className="badge-info">
+                  <Sparkles size={12} /> Single upload
+                </span>
+                <span className="badge-success">AI classification</span>
+                <span className="badge-muted">No manual categorization</span>
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">Upload one messy claim packet.</h2>
+              <p className="text-sm text-muted-foreground mt-2 max-w-2xl leading-6">
+                Add one PDF containing discharge summary, insurance card, prescriptions, invoices,
+                reports, IDs and claim forms. InsureFlow AI will split, classify, extract, validate
+                and prepare repairs automatically.
+              </p>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+                {[
+                  ['1', 'PDF packet'],
+                  ['12', 'Pages detected'],
+                  ['93%', 'OCR confidence'],
+                  ['2', 'Likely repairs'],
+                ].map(([value, label]) => (
+                  <div key={label} className="rounded-xl border border-border bg-white/70 p-4">
+                    <p className="text-2xl font-bold text-foreground font-tabular">{value}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="xl:col-span-5">
+              <div
+                className={`relative min-h-[280px] rounded-2xl border-2 border-dashed p-5 transition-all duration-200 ${
+                  dragActive
+                    ? 'border-primary bg-primary/5 shadow-card-md'
+                    : 'border-primary/25 bg-white/80 hover:border-primary/40'
+                }`}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragActive(true);
+                }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={handleDrop}
+              >
+                {packet?.status === 'processing' && (
+                  <div className="absolute inset-x-6 top-7 h-px bg-primary ai-scan-line" />
+                )}
+                <div className="h-full min-h-[240px] flex flex-col items-center justify-center text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                    {packet ? (
+                      <FileCheck2 size={28} className="text-primary" />
+                    ) : (
+                      <Upload size={28} className="text-primary" />
+                    )}
+                  </div>
+                  <h3 className="text-base font-semibold text-foreground">
+                    {packet ? packet.name : 'Drop one combined PDF packet'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {packet ? `${packet.size} - ${packet.message}` : 'PDF only - up to 100MB'}
+                  </p>
+                  {packet && (
+                    <div className="w-full mt-5">
+                      <div className="h-2.5 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-primary via-info to-success transition-all duration-300"
+                          style={{ width: `${packet.progress}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2 font-tabular">
+                        {packet.progress}% processed
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap justify-center gap-2 mt-5">
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <Upload size={15} /> Choose PDF
+                    </button>
+                    <button type="button" className="btn-secondary" onClick={() => handlePacket()}>
+                      <Zap size={15} /> Run demo packet
+                    </button>
+                    {packet && (
+                      <button type="button" className="btn-ghost" onClick={() => setPacket(null)}>
+                        <X size={14} /> Clear
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    className="hidden"
+                    onChange={(event) => handlePacket(event.target.files?.[0])}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground font-tabular">{totalUploaded} / {documentTypes.length}</p>
-            <p className="text-xs text-muted-foreground">Documents uploaded</p>
-          </div>
-        </div>
-        <div className="h-8 w-px bg-border" />
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-success-bg flex items-center justify-center">
-            <CheckCircle2 size={15} className="text-success" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground font-tabular">
-              {Object.values(uploadedDocs).filter(d => d.status === 'passed').length}
-            </p>
-            <p className="text-xs text-muted-foreground">OCR passed</p>
-          </div>
-        </div>
-        <div className="h-8 w-px bg-border" />
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-warning-bg flex items-center justify-center">
-            <AlertTriangle size={15} className="text-warning" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-foreground font-tabular">
-              {Object.values(uploadedDocs).filter(d => d.status === 'warning' || d.status === 'failed').length}
-            </p>
-            <p className="text-xs text-muted-foreground">Need attention</p>
-          </div>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <span className="badge-info">
-            <Info size={10} /> 5 required · 1 optional
-          </span>
         </div>
       </div>
 
-      {/* Document upload zones */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-        {documentTypes.map((docType) => {
-          const uploaded = uploadedDocs[docType.id];
-          const isDragTarget = dragOver === docType.id;
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        {packetStates.map((state, index) => {
+          const Icon = state.icon;
+          const done = uploaded || index < activeStateIndex;
+          const active = packet?.status === 'processing' && index === activeStateIndex;
 
           return (
             <div
-              key={`doczone-${docType.id}`}
-              className={`card overflow-hidden transition-all duration-200 ${
-                isDragTarget ? 'border-accent shadow-card-md scale-[1.01]' : ''
-              } ${uploaded?.status === 'passed' ? 'border-success/30' : ''}
-              ${uploaded?.status === 'warning' ? 'border-warning/30' : ''}
-              ${uploaded?.status === 'failed' ? 'border-danger/30' : ''}`}
+              key={state.label}
+              className={`card p-4 transition-all ${
+                active ? 'border-primary/30 bg-primary/5' : done ? 'border-success/20' : ''
+              }`}
             >
-              {/* Card header */}
-              <div className="px-4 pt-4 pb-3 flex items-start gap-3">
-                <div className={`w-9 h-9 rounded-xl ${docType.iconBg} flex items-center justify-center shrink-0`}>
-                  <docType.icon size={16} className={docType.iconColor} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{docType.label}</p>
-                    {docType.required
-                      ? <span className="text-xs text-danger font-bold">Required</span>
-                      : <span className="badge-muted text-xs">Optional</span>
-                    }
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{docType.description}</p>
-                </div>
-              </div>
-
-              {/* Upload zone or uploaded state */}
-              <div className="px-4 pb-4">
-                {!uploaded ? (
-                  <div
-                    className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-200 ${
-                      isDragTarget
-                        ? 'border-primary bg-primary/5' :'border-border hover:border-primary/40 hover:bg-muted/50'
-                    }`}
-                    onDragOver={(e) => { e.preventDefault(); setDragOver(docType.id); }}
-                    onDragLeave={() => setDragOver(null)}
-                    onDrop={(e) => handleDrop(e, docType.id)}
-                    onClick={() => fileInputRefs.current[docType.id]?.click()}
-                  >
-                    <Upload size={20} className="mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-xs font-medium text-foreground mb-0.5">Drop file or click to upload</p>
-                    <p className="text-xs text-muted-foreground">{docType.acceptedFormats} · Max 20MB</p>
-                    <input
-                      ref={(el) => { fileInputRefs.current[docType.id] = el; }}
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleFileSelect(docType.id, file);
-                      }}
-                    />
-                  </div>
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${
+                  done ? 'bg-success-bg' : active ? 'bg-primary/10' : 'bg-muted'
+                }`}
+              >
+                {done ? (
+                  <CheckCircle2 size={16} className="text-success" />
+                ) : active ? (
+                  <Bot size={16} className="text-primary validation-pulse" />
                 ) : (
-                  <div className={`rounded-xl border p-3 ${
-                    uploaded.status === 'passed' ? 'bg-success-bg/40 border-success/20' :
-                    uploaded.status === 'warning' ? 'bg-warning-bg/40 border-warning/20' :
-                    uploaded.status === 'failed'? 'bg-danger-bg/40 border-danger/20' : 'bg-muted/50 border-border'
-                  }`}>
-                    {/* File info */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <FileText size={14} className="text-muted-foreground shrink-0" />
-                      <span className="text-xs font-medium text-foreground truncate flex-1">{uploaded.name}</span>
-                      <span className="text-xs text-muted-foreground shrink-0">{uploaded.size}</span>
-                      <button
-                        onClick={() => handleRemove(docType.id)}
-                        className="w-5 h-5 rounded-md hover:bg-muted flex items-center justify-center shrink-0"
-                      >
-                        <X size={11} className="text-muted-foreground" />
-                      </button>
-                    </div>
-
-                    {/* Progress bar */}
-                    {(uploaded.status === 'uploading' || uploaded.status === 'processing') && (
-                      <div className="mb-2">
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full transition-all duration-300"
-                            style={{ width: `${uploaded.progress}%` }}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {uploaded.status === 'uploading' ? `Uploading ${uploaded.progress}%` : uploaded.message}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Status */}
-                    {(uploaded.status === 'passed' || uploaded.status === 'warning' || uploaded.status === 'failed') && (
-                      <div className="flex items-center gap-1.5">
-                        {uploaded.status === 'passed' && <CheckCircle2 size={12} className="text-success" />}
-                        {uploaded.status === 'warning' && <AlertTriangle size={12} className="text-warning" />}
-                        {uploaded.status === 'failed' && <X size={12} className="text-danger" />}
-                        <span className={`text-xs font-medium ${
-                          uploaded.status === 'passed' ? 'text-success-foreground' :
-                          uploaded.status === 'warning' ? 'text-warning-foreground' : 'text-danger-foreground'
-                        }`}>{uploaded.message}</span>
-                      </div>
-                    )}
-                  </div>
+                  <Icon size={16} className="text-muted-foreground" />
                 )}
-
-                {/* Tip */}
-                <p className="text-xs text-muted-foreground mt-2 flex items-start gap-1">
-                  <Camera size={10} className="shrink-0 mt-0.5" />
-                  {docType.tips}
-                </p>
               </div>
+              <p className="text-sm font-semibold text-foreground">{state.label}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {done ? 'Complete' : active ? 'Running now' : 'Queued'}
+              </p>
             </div>
           );
         })}
       </div>
 
-      {/* Action bar */}
-      <div className="card p-5 flex items-center justify-between">
+      <div className="card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold text-foreground">
-            {canProceed
-              ? 'Documents ready — proceed to pre-processing check'
-              : `Upload at least ${requiredDocs.length - 1} required documents to continue`
-            }
+            {uploaded
+              ? 'Packet ready - continue into AI classification, extraction and validation'
+              : 'Upload one PDF packet to start intelligent processing'}
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            AI will run a gatekeeper check to verify patient name before full extraction
+          <p className="text-xs text-muted-foreground mt-1">
+            The intake team no longer has to sort documents one by one.
           </p>
         </div>
         <button
-          onClick={() => onNext(uploadedDocs)}
-          disabled={!canProceed}
-          className="btn-primary px-6 gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          type="button"
+          onClick={continueWithPacket}
+          disabled={!packet}
+          className="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Run Pre-Processing Check <ArrowRight size={15} />
+          Continue AI Processing <ArrowRight size={15} />
         </button>
       </div>
     </div>

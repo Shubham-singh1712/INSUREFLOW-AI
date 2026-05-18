@@ -1,7 +1,8 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AppLogo from './ui/AppLogo';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
   FileText,
@@ -29,14 +30,26 @@ const navGroups = [
     items: [
       { href: '/main-dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: null },
       { href: '/claim-intake-document-upload', label: 'New Claim', icon: Upload, badge: null },
-      { href: '/all-claims', label: 'All Claims', icon: FileText, badge: '3' },
-      { href: '/validation-queue', label: 'Validation Queue', icon: ShieldCheck, badge: '5' },
+      { href: '/all-claims', label: 'All Claims', icon: FileText, badge: '3', demoOnly: true },
+      {
+        href: '/validation-queue',
+        label: 'Validation Queue',
+        icon: ShieldCheck,
+        badge: '5',
+        demoOnly: true,
+      },
     ],
   },
   {
     label: 'Submissions',
     items: [
-      { href: '/submission-queue', label: 'Submission Queue', icon: FileOutput, badge: '2' },
+      {
+        href: '/submission-queue',
+        label: 'Submission Queue',
+        icon: FileOutput,
+        badge: '2',
+        demoOnly: true,
+      },
       { href: '/pdf-generation', label: 'PDF Generation', icon: FileText, badge: null },
     ],
   },
@@ -44,7 +57,7 @@ const navGroups = [
     label: 'Insights',
     items: [
       { href: '/analytics', label: 'Analytics', icon: BarChart3, badge: null },
-      { href: '/notifications', label: 'Notifications', icon: Bell, badge: '7' },
+      { href: '/notifications', label: 'Notifications', icon: Bell, badge: '7', demoOnly: true },
     ],
   },
   {
@@ -56,7 +69,12 @@ const navGroups = [
   },
 ];
 
-export default function Sidebar({ collapsed, mobileOpen, onMobileClose, currentPath }: SidebarProps) {
+export default function Sidebar({
+  collapsed,
+  mobileOpen,
+  onMobileClose,
+  currentPath,
+}: SidebarProps) {
   const isActive = (href: string) => {
     return href === currentPath;
   };
@@ -88,7 +106,10 @@ export default function Sidebar({ collapsed, mobileOpen, onMobileClose, currentP
             <AppLogo size={28} />
             <span className="font-bold text-white text-sm">InsureFlow AI</span>
           </div>
-          <button onClick={onMobileClose} className="p-1.5 rounded-lg text-sidebar-fg hover:text-white hover:bg-sidebar-hover-bg transition-colors">
+          <button
+            onClick={onMobileClose}
+            className="p-1.5 rounded-lg text-sidebar-fg hover:text-white hover:bg-sidebar-hover-bg transition-colors"
+          >
             <ChevronRight size={16} />
           </button>
         </div>
@@ -105,10 +126,34 @@ function SidebarContent({
   collapsed: boolean;
   isActive: (href: string) => boolean;
 }) {
+  const { user } = useAuth();
+  const [demoModeEnabled, setDemoModeEnabled] = useState(false);
+  const profileName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Profile';
+  const profileRole = user?.user_metadata?.role
+    ? String(user.user_metadata.role).replace(/_/g, ' ')
+    : 'Insurance Desk';
+  const initials = profileName
+    .split(' ')
+    .map((part: string) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  useEffect(() => {
+    fetch('/api/settings/demo-mode', { cache: 'no-store' })
+      .then(async (response) => ({ response, payload: await response.json() }))
+      .then(({ response, payload }) => {
+        if (response.ok && payload.ok) setDemoModeEnabled(Boolean(payload.data.enabled));
+      })
+      .catch(() => setDemoModeEnabled(false));
+  }, []);
+
   return (
     <>
       {/* Logo */}
-      <div className={`flex items-center gap-3 p-4 border-b border-white/15 ${collapsed ? 'justify-center px-0' : ''}`}>
+      <div
+        className={`flex items-center gap-3 p-4 border-b border-white/15 ${collapsed ? 'justify-center px-0' : ''}`}
+      >
         <AppLogo size={28} />
         {!collapsed && (
           <div className="min-w-0">
@@ -138,6 +183,7 @@ function SidebarContent({
             )}
             {group.items.map((item) => {
               const active = isActive(item.href);
+              const badge = item.demoOnly && !demoModeEnabled ? null : item.badge;
               return (
                 <Link
                   key={`nav-${item.href}-${item.label}`}
@@ -146,26 +192,33 @@ function SidebarContent({
                   className={`
                     flex items-center gap-3 px-2.5 py-2 rounded-xl mb-0.5
                     transition-all duration-150 group relative
-                    ${active
-                      ? 'bg-sidebar-active-bg text-sidebar-active-fg shadow-sm' :'text-slate-200 hover:bg-sidebar-hover-bg hover:text-white'
+                    ${
+                      active
+                        ? 'bg-sidebar-active-bg text-sidebar-active-fg shadow-sm'
+                        : 'text-slate-200 hover:bg-sidebar-hover-bg hover:text-white'
                     }
                     ${collapsed ? 'justify-center px-0 py-2.5' : ''}
                   `}
                 >
-                  <item.icon size={16} className={`shrink-0 ${active ? 'text-white' : 'text-slate-200 group-hover:text-white'}`} />
+                  <item.icon
+                    size={16}
+                    className={`shrink-0 ${active ? 'text-white' : 'text-slate-200 group-hover:text-white'}`}
+                  />
                   {!collapsed && (
                     <>
                       <span className="text-sm font-semibold leading-none">{item.label}</span>
-                      {item.badge && (
-                        <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
-                          active ? 'bg-white/20 text-white' : 'bg-blue-500/20 text-blue-200'
-                        }`}>
-                          {item.badge}
+                      {badge && (
+                        <span
+                          className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                            active ? 'bg-white/20 text-white' : 'bg-blue-500/20 text-blue-200'
+                          }`}
+                        >
+                          {badge}
                         </span>
                       )}
                     </>
                   )}
-                  {collapsed && item.badge && (
+                  {collapsed && badge && (
                     <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-primary" />
                   )}
                 </Link>
@@ -185,11 +238,11 @@ function SidebarContent({
             }`}
           >
             <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-white">SR</span>
+              <span className="text-xs font-bold text-white">{initials || 'U'}</span>
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-white truncate">Sneha Rajan</p>
-              <p className="text-xs text-slate-300 truncate">Insurance Desk</p>
+              <p className="text-xs font-semibold text-white truncate capitalize">{profileName}</p>
+              <p className="text-xs text-slate-300 truncate capitalize">{profileRole}</p>
             </div>
             <ChevronRight size={14} className="ml-auto text-slate-300 shrink-0" />
           </Link>

@@ -40,6 +40,18 @@ app.get('/health', (_req, res) => {
   });
 });
 
+app.get('/', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'InsureFlow AI API is running',
+    data: {
+      service: 'insureflow-ai-api',
+      health: '/health',
+      apiBase: '/api',
+    },
+  });
+});
+
 app.use('/api', routes);
 app.use('/', routes);
 app.use(notFound);

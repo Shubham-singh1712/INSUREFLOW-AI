@@ -5,17 +5,38 @@ import DashboardChartsRow from './components/DashboardChartsRow';
 import RecentClaimsTable from './components/RecentClaimsTable';
 import ActivityTimeline from './components/ActivityTimeline';
 import SubmissionQueueWidget from './components/SubmissionQueueWidget';
+import { demoDashboardClaims, demoDashboardMetrics, emptyDashboardMetrics } from '@/lib/demoData';
+import { getDemoModeState } from '@/lib/demoMode';
+import { buildLiveDashboardMetrics, listLiveClaims, toDashboardClaims } from '@/lib/liveClaims';
+import { createClient } from '@/lib/supabase/server';
+import { getTimeOfDayGreeting, getUserDisplayName } from '@/lib/serverGreeting';
 
-export default function MainDashboardPage() {
+export default async function MainDashboardPage() {
+  const [demoMode, supabase] = await Promise.all([getDemoModeState(), createClient()]);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const liveClaims = await listLiveClaims(user?.id);
+  const claims = demoMode.enabled ? demoDashboardClaims : toDashboardClaims(liveClaims);
+  const metrics = demoMode.enabled
+    ? demoDashboardMetrics
+    : liveClaims.length > 0
+      ? buildLiveDashboardMetrics(liveClaims)
+      : emptyDashboardMetrics;
+  const attentionCount = claims.filter(
+    (claim) => claim.repairStatus === 'ocr_failed' || claim.repairStatus === 'signature_missing'
+  ).length;
+  const heading = `${getTimeOfDayGreeting()}, ${getUserDisplayName(user)}`;
+
   return (
     <AppLayout currentPath="/main-dashboard">
       <div className="space-y-6">
-        {/* Page header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Operations Dashboard</h1>
+            <h1 className="text-2xl font-bold text-foreground">{heading}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Good morning, Sneha — <span className="text-warning-foreground font-medium">5 claims need your attention</span> before the 5:00 PM submission window.
+              <span className="text-warning-foreground font-medium">{attentionCount}</span> claims
+              need your attention.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -31,21 +52,34 @@ export default function MainDashboardPage() {
           </div>
         </div>
 
-        {/* KPI Metrics Grid */}
-        <DashboardMetricsGrid />
+        <DashboardMetricsGrid metrics={metrics} />
 
-        {/* Charts row */}
-        <DashboardChartsRow />
+        {demoMode.enabled ? (
+          <DashboardChartsRow />
+        ) : (
+          <div className="card p-6 text-sm text-muted-foreground">
+            {liveClaims.length > 0
+              ? `${liveClaims.length} live claim${liveClaims.length === 1 ? '' : 's'} processed today. Detailed trend charts will build as more claims are submitted.`
+              : 'Live analytics will appear here after real claims and OCR extraction records are connected.'}
+          </div>
+        )}
 
-        {/* Bottom section: table + sidebar widgets */}
         <div className="grid grid-cols-1 xl:grid-cols-4 2xl:grid-cols-4 gap-6">
           <div className="xl:col-span-3 2xl:col-span-3">
-            <RecentClaimsTable />
+            <RecentClaimsTable claims={claims} />
           </div>
-          <div className="xl:col-span-1 2xl:col-span-1 space-y-6">
-            <SubmissionQueueWidget />
-            <ActivityTimeline />
-          </div>
+          {demoMode.enabled ? (
+            <div className="xl:col-span-1 2xl:col-span-1 space-y-6">
+              <SubmissionQueueWidget />
+              <ActivityTimeline />
+            </div>
+          ) : (
+            <div className="xl:col-span-1 2xl:col-span-1 card p-5 text-sm text-muted-foreground">
+              {liveClaims.length > 0
+                ? `${liveClaims.length} submitted claim${liveClaims.length === 1 ? '' : 's'} waiting in the live TPA queue.`
+                : 'Submission queue and activity timeline are hidden while Demo Mode is off.'}
+            </div>
+          )}
         </div>
       </div>
     </AppLayout>

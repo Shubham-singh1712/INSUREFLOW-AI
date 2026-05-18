@@ -1,6 +1,15 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, ScanLine, AlertTriangle, CheckCircle2, ArrowLeft, ArrowRight, User, RefreshCcw } from 'lucide-react';
+import {
+  ShieldCheck,
+  ScanLine,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowLeft,
+  ArrowRight,
+  User,
+  RefreshCcw,
+} from 'lucide-react';
 import type { UploadedDoc } from './ClaimIntakeFlow';
 
 interface GatekeeperStepProps {
@@ -22,8 +31,8 @@ export default function GatekeeperStep({ uploadedDocs, onPass, onBack }: Gatekee
   const [status, setStatus] = useState<GatekeeperStatus>('scanning');
   const [completedChecks, setCompletedChecks] = useState<Set<number>>(new Set());
   const [currentCheck, setCurrentCheck] = useState(0);
-  const [detectedName, setDetectedName] = useState('Ramesh Kumar Iyer');
-  const [confidence, setConfidence] = useState(96);
+  const [detectedName, setDetectedName] = useState<string | null>(null);
+  const [confidence, setConfidence] = useState(0);
 
   useEffect(() => {
     let idx = 0;
@@ -49,7 +58,7 @@ export default function GatekeeperStep({ uploadedDocs, onPass, onBack }: Gatekee
       }
       setCurrentCheck(idx);
       setTimeout(() => {
-        setCompletedChecks(prev => new Set([...prev, idx]));
+        setCompletedChecks((prev) => new Set([...prev, idx]));
         idx++;
         runCheck();
       }, checkItems[idx]?.duration || 900);
@@ -59,20 +68,29 @@ export default function GatekeeperStep({ uploadedDocs, onPass, onBack }: Gatekee
   }, [uploadedDocs]);
 
   const docCount = Object.keys(uploadedDocs).length || 3;
+  const hasDetectedName = status === 'passed' && Boolean(detectedName) && confidence > 0;
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       {/* Header card */}
-      <div className={`card p-6 transition-all duration-500 ${
-        status === 'passed' ? 'border-success/30' :
-        status === 'failed' ? 'border-danger/30' : ''
-      }`}>
+      <div
+        className={`card p-6 transition-all duration-500 ${
+          status === 'passed' ? 'border-success/30' : status === 'failed' ? 'border-danger/30' : ''
+        }`}
+      >
         <div className="flex items-center gap-4 mb-6">
-          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 ${
-            status === 'scanning' ? 'bg-primary/10' :
-            status === 'passed' ? 'bg-success-bg' : 'bg-danger-bg'
-          }`}>
-            {status === 'scanning' && <ScanLine size={24} className="text-primary validation-pulse" />}
+          <div
+            className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 ${
+              status === 'scanning'
+                ? 'bg-primary/10'
+                : status === 'passed'
+                  ? 'bg-success-bg'
+                  : 'bg-danger-bg'
+            }`}
+          >
+            {status === 'scanning' && (
+              <ScanLine size={24} className="text-primary validation-pulse" />
+            )}
             {status === 'passed' && <ShieldCheck size={24} className="text-success" />}
             {status === 'failed' && <AlertTriangle size={24} className="text-danger" />}
           </div>
@@ -83,8 +101,12 @@ export default function GatekeeperStep({ uploadedDocs, onPass, onBack }: Gatekee
               {status === 'failed' && 'Processing Failed'}
             </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {status === 'scanning' && `Scanning ${docCount} uploaded document${docCount !== 1 ? 's' : ''} for patient identity...`}
-              {status === 'passed' && 'Patient name detected — proceeding to full AI extraction'}
+              {status === 'scanning' &&
+                `Scanning ${docCount} uploaded document${docCount !== 1 ? 's' : ''} for patient identity...`}
+              {status === 'passed' &&
+                (hasDetectedName
+                  ? 'Patient name detected — proceeding to full AI extraction'
+                  : 'Documents are ready for full live extraction')}
               {status === 'failed' && 'No valid Patient Name detected in uploaded documents'}
             </p>
           </div>
@@ -95,32 +117,46 @@ export default function GatekeeperStep({ uploadedDocs, onPass, onBack }: Gatekee
           {checkItems.map((check, idx) => {
             const isCompleted = completedChecks.has(idx);
             const isActive = currentCheck === idx && status === 'scanning';
-            const isPending = idx > currentCheck && status === 'scanning';
 
             return (
               <div
                 key={check.id}
                 className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-300 ${
-                  isActive ? 'bg-primary/5 border border-primary/10' :
-                  isCompleted ? 'bg-muted/30' : 'opacity-40'
+                  isActive
+                    ? 'bg-primary/5 border border-primary/10'
+                    : isCompleted
+                      ? 'bg-muted/30'
+                      : 'opacity-40'
                 }`}
               >
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                  isCompleted ? 'bg-success-bg' : isActive ? 'bg-primary/10' : 'bg-muted'
-                }`}>
-                  {isCompleted
-                    ? <CheckCircle2 size={14} className="text-success" />
-                    : isActive
-                    ? <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                    : <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
-                  }
+                <div
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
+                    isCompleted ? 'bg-success-bg' : isActive ? 'bg-primary/10' : 'bg-muted'
+                  }`}
+                >
+                  {isCompleted ? (
+                    <CheckCircle2 size={14} className="text-success" />
+                  ) : isActive ? (
+                    <div className="w-3.5 h-3.5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  ) : (
+                    <div className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+                  )}
                 </div>
-                <span className={`text-sm font-medium ${
-                  isCompleted ? 'text-foreground' :
-                  isActive ? 'text-primary' : 'text-muted-foreground'
-                }`}>{check.label}</span>
+                <span
+                  className={`text-sm font-medium ${
+                    isCompleted
+                      ? 'text-foreground'
+                      : isActive
+                        ? 'text-primary'
+                        : 'text-muted-foreground'
+                  }`}
+                >
+                  {check.label}
+                </span>
                 {isActive && (
-                  <span className="ml-auto text-xs text-primary font-medium validation-pulse">Running...</span>
+                  <span className="ml-auto text-xs text-primary font-medium validation-pulse">
+                    Running...
+                  </span>
                 )}
                 {isCompleted && (
                   <span className="ml-auto text-xs text-success font-medium">✓ Done</span>
@@ -139,15 +175,25 @@ export default function GatekeeperStep({ uploadedDocs, onPass, onBack }: Gatekee
               <User size={16} className="text-success" />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-semibold text-foreground mb-1">Patient Name Detected</p>
+              <p className="text-sm font-semibold text-foreground mb-1">
+                {hasDetectedName ? 'Patient Name Detected' : 'Ready for Live Extraction'}
+              </p>
               <div className="flex items-center gap-3">
-                <span className="text-base font-bold text-foreground font-tabular">{detectedName}</span>
-                <span className="badge-success text-xs">
-                  <CheckCircle2 size={10} /> {confidence}% confidence
+                <span className="text-base font-bold text-foreground font-tabular">
+                  {hasDetectedName
+                    ? detectedName
+                    : `${docCount} document${docCount !== 1 ? 's' : ''} prepared`}
                 </span>
+                {hasDetectedName && (
+                  <span className="badge-success text-xs">
+                    <CheckCircle2 size={10} /> {confidence}% confidence
+                  </span>
+                )}
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                Extracted from Intake Form · Proceeding to full AI extraction and data mapping
+                {hasDetectedName
+                  ? 'Extracted from Intake Form · Proceeding to full AI extraction and data mapping'
+                  : 'Patient identity will be extracted from the uploaded files in the next step'}
               </p>
             </div>
           </div>
@@ -163,7 +209,8 @@ export default function GatekeeperStep({ uploadedDocs, onPass, onBack }: Gatekee
             <div className="flex-1">
               <p className="text-sm font-semibold text-foreground mb-1">Processing Failed</p>
               <p className="text-sm text-danger-foreground">
-                No valid Patient Name detected in the uploaded documents. Please ensure the Intake Form or Insurance Card is clearly legible and re-upload.
+                No valid Patient Name detected in the uploaded documents. Please ensure the Intake
+                Form or Insurance Card is clearly legible and re-upload.
               </p>
             </div>
           </div>
