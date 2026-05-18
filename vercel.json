@@ -1,0 +1,6 @@
+{
+  "framework": "nextjs",
+  "installCommand": "cd insureflowai && npm install",
+  "buildCommand": "cd insureflowai && npm run build",
+  "outputDirectory": "insureflowai/.next"
+}
