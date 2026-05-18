@@ -65,6 +65,54 @@ type ValidationReport = {
   extractionMethod: 'pdf_text' | 'ocr_required' | 'ai_ocr';
 };
 
+type ClaimAudit = {
+  document_metadata: {
+    document_type: string;
+    page_count: number;
+    scan_quality: 'Excellent' | 'Legible' | 'Poor/Blurry';
+  };
+  extracted_data: {
+    patient: {
+      full_name: string | null;
+      dob: string | null;
+      gender: string | null;
+      contact_number: string | null;
+    };
+    insurance: {
+      tpa_or_provider_name: string | null;
+      policy_number: string | null;
+      corporate_or_group_id: string | null;
+      member_id: string | null;
+    };
+    hospital: {
+      facility_name: string | null;
+      treating_doctor: string | null;
+      hospital_registration_no: string | null;
+    };
+    clinical: {
+      admission_date: string | null;
+      is_emergency: boolean | null;
+      presenting_complaints: string | null;
+      diagnosis: string | null;
+      icd_10_codes: string[];
+      proposed_treatment: string | null;
+    };
+    financial: {
+      expected_total_cost: number | null;
+      room_rent: number | null;
+      icu_charges: number | null;
+      ot_charges: number | null;
+      professional_fees: number | null;
+    };
+    signatures: {
+      patient_signature_present: boolean;
+      doctor_signature_present: boolean;
+      hospital_seal_present: boolean;
+    };
+  };
+  validation_errors: string[];
+};
+
 const MAX_PROMPT_CHARS = 24000;
 type PdfParseModule = {
   PDFParse: new (options: { data: Buffer }) => {
@@ -288,6 +336,277 @@ const extractLineItemAmounts = (text: string) =>
   [...text.matchAll(/(?:INR|Rs\.?|\$)?\s*([0-9][0-9,]{2,}(?:\.\d{1,2})?)/gi)]
     .map((match) => moneyToNumber(match[1]))
     .filter((amount) => amount > 0);
+
+const nullable = (value = '') => {
+  const cleaned = cleanValue(value);
+  return cleaned ? cleaned : null;
+};
+
+const findAuditValue = (text: string, patterns: RegExp[]) => nullable(findFirst(text, patterns));
+
+const findAuditDate = (text: string, label: string) => {
+  const value = findDateByLabel(text, label);
+  return value ? normalizeDate(value) : null;
+};
+
+const findAuditAmount = (text: string, patterns: RegExp[]) => {
+  const value = findFirst(text, patterns);
+  const amount = moneyToNumber(value);
+  return amount > 0 ? amount : null;
+};
+
+const uniqueMatches = (text: string, pattern: RegExp) =>
+  Array.from(new Set([...text.matchAll(pattern)].map((match) => cleanValue(match[1])))).filter(
+    Boolean
+  );
+
+const inferDocumentType = (text: string) => {
+  if (hasAny(text, [/pre[-\s]?authorization/i, /pre[-\s]?auth/i, /cashless\s+request/i])) {
+    return 'Pre-Authorization Request';
+  }
+  if (hasAny(text, [/discharge\s+summary/i])) return 'Discharge Summary';
+  if (hasAny(text, [/UB[-\s]?04/i, /CMS[-\s]?1450/i])) return 'UB-04 / CMS-1450';
+  if (hasAny(text, [/claim\s+form/i])) return 'Medical Claim Form';
+  if (hasAny(text, [/invoice/i, /itemized\s+bill/i])) return 'Hospital Invoice';
+  return 'Medical Claim Document';
+};
+
+const scanQualityFromConfidence = (
+  ocrConfidence: number
+): ClaimAudit['document_metadata']['scan_quality'] => {
+  if (ocrConfidence >= 85) return 'Excellent';
+  if (ocrConfidence >= 58) return 'Legible';
+  return 'Poor/Blurry';
+};
+
+const hasSignatureNear = (text: string, rolePattern: string) =>
+  new RegExp(`${rolePattern}[\\s\\S]{0,80}(signature|signed|e[-\\s]?signed)`, 'i').test(text) ||
+  new RegExp(`(signature|signed|e[-\\s]?signed)[\\s\\S]{0,80}${rolePattern}`, 'i').test(text);
+
+const buildClaimAudit = ({
+  text,
+  pages,
+  ocrConfidence,
+  fields,
+}: {
+  text: string;
+  pages: number;
+  ocrConfidence: number;
+  fields: ClaimField[];
+}): ClaimAudit => {
+  const patientName = findAuditValue(text, [
+    /(?:patient\s*(?:name)?|name\s+of\s+patient)\s*[:-]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,4})/i,
+    /(?:insured|beneficiary)\s*(?:name)?\s*[:-]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,4})/i,
+  ]);
+  const dob = findAuditDate(text, '(?:DOB|Date\\s+of\\s+Birth|Birth\\s+Date)');
+  const gender = findAuditValue(text, [
+    /(?:gender|sex)\s*[:-]\s*(male|female|m|f|other|transgender)/i,
+  ]);
+  const contactNumber = findAuditValue(text, [
+    /(?:contact|phone|mobile|telephone)(?:\s*(?:no|number))?\s*[:-]\s*(\+?\d[\d\s().-]{7,})/i,
+  ]);
+  const providerName = findAuditValue(text, [
+    /(?:TPA|payer|insurer|insurance\s*(?:provider|company|name))\s*[:-]\s*([^\n\r]{3,120})/i,
+  ]);
+  const policyNumber = findAuditValue(text, [
+    /policy\s*(?:no|number|id|#)?\s*[:-]\s*([A-Z0-9][A-Z0-9/-]{5,})/i,
+  ]);
+  const groupId = findAuditValue(text, [
+    /(?:corporate|group)\s*(?:id|no|number|#)?\s*[:-]\s*([A-Z0-9][A-Z0-9/-]{2,})/i,
+  ]);
+  const memberId = findAuditValue(text, [
+    /(?:member|subscriber|card|health\s*card)\s*(?:id|no|number|#)?\s*[:-]\s*([A-Z0-9][A-Z0-9/-]{5,})/i,
+  ]);
+  const facilityName = findAuditValue(text, [
+    /(?:hospital|facility|provider)\s*(?:name)?\s*[:-]\s*([^\n\r]{3,120})/i,
+    /([A-Z][A-Za-z&.' -]+(?:Hospital|Medical Center|Clinic|Healthcare)[^\n\r]{0,80})/i,
+  ]);
+  const treatingDoctor = findAuditValue(text, [
+    /(?:treating|attending|consulting)?\s*(?:doctor|physician|consultant)\s*[:-]\s*(Dr\.?\s+[A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){0,3})/i,
+    /\b(Dr\.?\s+[A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){0,3})\b/i,
+  ]);
+  const hospitalRegistrationNo = findAuditValue(text, [
+    /(?:hospital\s*)?(?:registration|reg\.?)\s*(?:no|number|#)?\s*[:-]\s*([A-Z0-9/-]{4,})/i,
+    /(?:TMC|MCI|NMC)\s*(?:reg\.?|registration)?\s*(?:no|number|#)?\s*[:-]\s*([A-Z0-9/-]{4,})/i,
+  ]);
+  const admissionDate = findAuditDate(text, 'Admission\\s+Date|Admitted|Expected\\s+Admission');
+  const isEmergency = hasAny(text, [/emergency\s*[:-]\s*(yes|true)/i, /\bemergency\b/i])
+    ? true
+    : hasAny(text, [/emergency\s*[:-]\s*(no|false)/i, /planned|elective/i])
+      ? false
+      : null;
+  const presentingComplaints = findAuditValue(text, [
+    /(?:presenting\s+complaints?|chief\s+complaints?|complaints?)\s*[:-]\s*([^\n\r]{3,240})/i,
+  ]);
+  const diagnosis =
+    findAuditValue(text, [/(?:principal\s*)?diagnosis(?:\s*code)?\s*[:-]\s*([^\n\r]{3,160})/i]) ||
+    fields.find((field) => field.id === 'diagnosis' && field.value !== emptyValue)?.value ||
+    null;
+  const icd10Codes = uniqueMatches(text, /\b([A-Z]\d{2}(?:\.\d+)?)\b/g);
+  const proposedTreatment =
+    findAuditValue(text, [
+      /(?:proposed\s+treatment|planned\s+procedure|procedure|treatment)\s*[:-]\s*([^\n\r]{3,180})/i,
+    ]) ||
+    fields.find((field) => field.id === 'procedure' && field.value !== emptyValue)?.value ||
+    null;
+  const financial = {
+    expected_total_cost: findAuditAmount(text, [
+      /(?:expected|estimated|total)\s*(?:total\s*)?(?:cost|amount|expense|package)\s*[:-]?\s*(?:INR|Rs\.?|\$)?\s*([0-9,]+(?:\.\d{1,2})?)/i,
+      /(?:total\s*(?:billed|bill|invoice|claim|amount|charges?)|grand\s*total|net\s*amount)\s*[:-]?\s*(?:INR|Rs\.?|\$)?\s*([0-9,]+(?:\.\d{1,2})?)/i,
+    ]),
+    room_rent: findAuditAmount(text, [
+      /(?:room\s*rent|room\s*charges?)\s*[:-]?\s*(?:INR|Rs\.?|\$)?\s*([0-9,]+(?:\.\d{1,2})?)/i,
+    ]),
+    icu_charges: findAuditAmount(text, [
+      /(?:ICU|intensive\s+care)\s*(?:charges?|rent)?\s*[:-]?\s*(?:INR|Rs\.?|\$)?\s*([0-9,]+(?:\.\d{1,2})?)/i,
+    ]),
+    ot_charges: findAuditAmount(text, [
+      /(?:OT|operation\s*theatre|operating\s*room)\s*(?:charges?)?\s*[:-]?\s*(?:INR|Rs\.?|\$)?\s*([0-9,]+(?:\.\d{1,2})?)/i,
+    ]),
+    professional_fees: findAuditAmount(text, [
+      /(?:professional|doctor|surgeon|consultation)\s*(?:fees?|charges?)\s*[:-]?\s*(?:INR|Rs\.?|\$)?\s*([0-9,]+(?:\.\d{1,2})?)/i,
+    ]),
+  };
+  const signatures = {
+    patient_signature_present: hasSignatureNear(text, 'patient|insured|beneficiary'),
+    doctor_signature_present: hasSignatureNear(text, 'doctor|physician|consultant|treating'),
+    hospital_seal_present: hasAny(text, [
+      /hospital\s+seal/i,
+      /hospital\s+stamp/i,
+      /official\s+seal/i,
+    ]),
+  };
+  const audit: ClaimAudit = {
+    document_metadata: {
+      document_type: inferDocumentType(text),
+      page_count: pages,
+      scan_quality: scanQualityFromConfidence(ocrConfidence),
+    },
+    extracted_data: {
+      patient: {
+        full_name: patientName,
+        dob,
+        gender,
+        contact_number: contactNumber,
+      },
+      insurance: {
+        tpa_or_provider_name: providerName,
+        policy_number: policyNumber,
+        corporate_or_group_id: groupId,
+        member_id: memberId,
+      },
+      hospital: {
+        facility_name: facilityName,
+        treating_doctor: treatingDoctor,
+        hospital_registration_no: hospitalRegistrationNo,
+      },
+      clinical: {
+        admission_date: admissionDate,
+        is_emergency: isEmergency,
+        presenting_complaints: presentingComplaints,
+        diagnosis,
+        icd_10_codes: icd10Codes,
+        proposed_treatment: proposedTreatment,
+      },
+      financial,
+      signatures,
+    },
+    validation_errors: [],
+  };
+
+  audit.validation_errors = buildAuditValidationErrors(audit, text);
+  return audit;
+};
+
+const buildAuditValidationErrors = (audit: ClaimAudit, text: string) => {
+  const errors: string[] = [];
+  const { extracted_data: data } = audit;
+  const addMissing = (value: unknown, message: string) => {
+    if (
+      value === null ||
+      value === undefined ||
+      (typeof value === 'string' && value.trim().length === 0) ||
+      (Array.isArray(value) && value.length === 0)
+    ) {
+      errors.push(message);
+    }
+  };
+
+  addMissing(data.patient.full_name, 'Missing patient full name.');
+  addMissing(data.patient.dob, 'Missing patient date of birth.');
+  addMissing(data.patient.gender, 'Missing patient gender.');
+  addMissing(data.patient.contact_number, 'Missing patient contact number.');
+  addMissing(data.insurance.tpa_or_provider_name, 'Missing insurance TPA or provider name.');
+  addMissing(data.insurance.policy_number, 'Missing insurance policy number.');
+  addMissing(data.insurance.corporate_or_group_id, 'Missing corporate or group ID.');
+  addMissing(data.insurance.member_id, 'Missing member ID.');
+  addMissing(data.hospital.facility_name, 'Missing hospital or facility name.');
+  addMissing(data.hospital.treating_doctor, 'Missing treating doctor name.');
+  addMissing(
+    data.hospital.hospital_registration_no,
+    'Missing hospital registration or TMC number.'
+  );
+  addMissing(data.clinical.admission_date, 'Missing admission date.');
+  addMissing(data.clinical.presenting_complaints, 'Missing presenting complaints.');
+  addMissing(data.clinical.diagnosis, 'Missing diagnosis.');
+  addMissing(data.clinical.icd_10_codes, 'Missing ICD-10 codes for the stated diagnosis.');
+  addMissing(data.clinical.proposed_treatment, 'Missing proposed treatment or procedure details.');
+  addMissing(data.financial.expected_total_cost, 'Missing expected total cost.');
+
+  if (
+    data.financial.room_rent === null &&
+    data.financial.icu_charges === null &&
+    data.financial.ot_charges === null &&
+    data.financial.professional_fees === null
+  ) {
+    errors.push('Missing financial line-item breakdown.');
+  }
+
+  if (!hasAny(text, [/expected\s+stay/i, /length\s+of\s+stay/i, /\bLOS\b/i, /days?\s+stay/i])) {
+    errors.push('Missing expected length of stay.');
+  }
+
+  if (!data.signatures.patient_signature_present) errors.push('Patient signature is missing.');
+  if (!data.signatures.doctor_signature_present) errors.push('Doctor signature is missing.');
+  if (!data.signatures.hospital_seal_present) errors.push('Hospital seal or stamp is missing.');
+
+  const lineItemValues = [
+    data.financial.room_rent,
+    data.financial.icu_charges,
+    data.financial.ot_charges,
+    data.financial.professional_fees,
+  ].filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+
+  if (data.financial.expected_total_cost !== null && lineItemValues.length >= 2) {
+    const lineSum = lineItemValues.reduce((sum, value) => sum + value, 0);
+    if (
+      Math.abs(lineSum - data.financial.expected_total_cost) >
+      Math.max(10, data.financial.expected_total_cost * 0.02)
+    ) {
+      errors.push('Financial breakdown does not sum to expected total cost.');
+    }
+  }
+
+  if (audit.document_metadata.scan_quality === 'Poor/Blurry') {
+    errors.push('Scan quality is poor or blurry; extracted values may be incomplete or illegible.');
+  }
+
+  if (
+    data.clinical.admission_date &&
+    data.clinical.is_emergency === false &&
+    hasAny(text, [/planned/i, /future/i, /elective/i, /proposed/i])
+  ) {
+    const admission = new Date(data.clinical.admission_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (!Number.isNaN(admission.getTime()) && admission < today) {
+      errors.push('Admission date is in the past for a planned or elective treatment request.');
+    }
+  }
+
+  return Array.from(new Set(errors));
+};
 
 const inferDocumentGroups = (
   text: string,
@@ -703,18 +1022,28 @@ const parseJsonResponse = (text: string) => {
   }
 };
 
+const isClaimAudit = (value: unknown): value is ClaimAudit => {
+  if (!value || typeof value !== 'object') return false;
+  const audit = value as Partial<ClaimAudit>;
+  return Boolean(
+    audit.document_metadata && audit.extracted_data && Array.isArray(audit.validation_errors)
+  );
+};
+
 const runAiValidation = async ({
   fileName,
   pageCount,
   text,
   fields,
   localReport,
+  localAudit,
 }: {
   fileName: string;
   pageCount: number;
   text: string;
   fields: ClaimField[];
   localReport: ValidationReport;
+  localAudit: ClaimAudit;
 }) => {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) return null;
@@ -734,15 +1063,16 @@ const runAiValidation = async ({
           {
             role: 'system',
             content:
-              'You are InsureFlow AI for healthcare claim validation. Return strict JSON only. Use only the uploaded document text and the extracted fields. Do not reuse canned demo issues. Produce document-specific confidence scores and contextual repair suggestions.',
+              'You are an expert Medical Claims Auditor and Data Extraction Engine. Return strict JSON only. Extract values exactly as they appear, never guess missing values, and use null for missing scalar fields. Validate the claim holistically and add every missing critical item, inconsistency, illegible field, signature gap, financial mismatch, and chronological error to claimAudit.validation_errors.',
           },
           {
             role: 'user',
             content: JSON.stringify({
-              task: 'Validate this claim packet for missing DOB, invoice mismatch, missing signatures, incomplete insurance ID, blurry scans, inconsistent totals, missing pages, missing diagnosis, date logic, payer/claim readiness, and any other claim-specific backend checks evident in the text.',
+              task: 'Extract a strict medical-claim audit JSON object and validate completeness for patient demographics, insurance details, hospital/provider details, clinical justification, ICD-10/procedure data, expected stay, financials, and patient/doctor/hospital authorizations. Preserve the existing UI fields and validation report too.',
               required_output_shape: {
                 fields,
                 validation: localReport,
+                claimAudit: localAudit,
               },
               document: {
                 fileName,
@@ -772,6 +1102,13 @@ const runAiValidation = async ({
         ...(parsed.validation && typeof parsed.validation === 'object' ? parsed.validation : {}),
         source: 'ai',
       },
+      claimAudit: isClaimAudit(parsed.claimAudit)
+        ? parsed.claimAudit
+        : isClaimAudit(parsed.audit)
+          ? parsed.audit
+          : isClaimAudit(parsed)
+            ? parsed
+            : localAudit,
     };
   } catch {
     return null;
@@ -804,17 +1141,25 @@ export async function POST(req: Request) {
       pages: pageCount,
       ocrConfidence: localExtraction.ocrConfidence,
     });
+    const localAudit = buildClaimAudit({
+      text,
+      pages: pageCount,
+      ocrConfidence: localExtraction.ocrConfidence,
+      fields: localExtraction.fields,
+    });
     const aiResult = await runAiValidation({
       fileName: file.name,
       pageCount,
       text,
       fields: localExtraction.fields,
       localReport,
+      localAudit,
     });
 
     return NextResponse.json({
       fields: aiResult?.fields || localExtraction.fields,
       validation: aiResult?.validation || localReport,
+      claimAudit: aiResult?.claimAudit || localAudit,
       extractedTextLength: text.length,
       pageCount,
       extractionSource: aiResult ? 'openrouter' : 'local_pdf_pipeline',
