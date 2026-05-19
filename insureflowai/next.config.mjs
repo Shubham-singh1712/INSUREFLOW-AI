@@ -6,7 +6,7 @@ const nextConfig = {
   distDir: process.env.DIST_DIR || '.next',
   serverExternalPackages: ['@napi-rs/canvas', 'tesseract.js', 'tesseract.js-core', '@tesseract.js-data/eng'],
   outputFileTracingIncludes: {
-    '/api/extract-claim': [
+    '/api/claims/process': [
       './node_modules/tesseract.js/src/worker-script/**/*',
       './node_modules/tesseract.js-core/**/*',
       './node_modules/@tesseract.js-data/eng/**/*',
