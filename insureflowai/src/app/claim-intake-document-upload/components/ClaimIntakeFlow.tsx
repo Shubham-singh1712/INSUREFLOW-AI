@@ -82,6 +82,75 @@ export type ValidationReport = {
   extractionMethod: 'pdf_text' | 'ocr_required' | 'ai_ocr';
 };
 
+export type OcrPage = {
+  page_number: number;
+  extracted_text: string;
+  ocr_confidence: number;
+};
+
+export type PageClassification = {
+  page_number: number;
+  document_type: string;
+  confidence: number;
+};
+
+export type TraceableField<T = string | number | boolean | null> = {
+  value: T;
+  confidence: number;
+  source_page: number | null;
+};
+
+export type ClaimAudit = {
+  document_metadata: {
+    document_type: string;
+    page_count: number;
+    scan_quality: string;
+  };
+  ocr_pages?: OcrPage[];
+  page_classifications?: PageClassification[];
+  extracted_data: {
+    patient: {
+      full_name: TraceableField<string | null>;
+      dob: TraceableField<string | null>;
+      gender: TraceableField<string | null>;
+      contact_number: TraceableField<string | null>;
+    };
+    insurance: {
+      tpa_or_provider_name: TraceableField<string | null>;
+      policy_number: TraceableField<string | null>;
+      corporate_or_group_id: TraceableField<string | null>;
+      member_id: TraceableField<string | null>;
+    };
+    hospital: {
+      facility_name: TraceableField<string | null>;
+      treating_doctor: TraceableField<string | null>;
+      hospital_registration_no: TraceableField<string | null>;
+    };
+    clinical: {
+      admission_date: TraceableField<string | null>;
+      discharge_date: TraceableField<string | null>;
+      is_emergency: TraceableField<boolean | null>;
+      presenting_complaints: TraceableField<string | null>;
+      diagnosis: TraceableField<string | null>;
+      icd_10_codes: TraceableField<string[]>;
+      proposed_treatment: TraceableField<string | null>;
+    };
+    financial: {
+      expected_total_cost: TraceableField<number | null>;
+      room_rent: TraceableField<number | null>;
+      icu_charges: TraceableField<number | null>;
+      ot_charges: TraceableField<number | null>;
+      professional_fees: TraceableField<number | null>;
+    };
+    signatures: {
+      patient_signature_present: TraceableField<boolean>;
+      doctor_signature_present: TraceableField<boolean>;
+      hospital_seal_present: TraceableField<boolean>;
+    };
+  };
+  validation_errors: string[];
+};
+
 type ReviewClaimRecord = {
   claimId: string;
   patient: string;
@@ -104,7 +173,7 @@ const formatCurrency = (value: string) => {
 const confidenceFromPaths = (data: ExtractedClaimData, fallback: number, ...paths: string[]) => {
   const lowConfidence = new Set(data.extraction_meta.low_confidence_fields);
   return paths.some((path) => lowConfidence.has(path))
-    ? Math.max(72, fallback - 12)
+    ? Math.max(0, fallback - 12)
     : Math.min(99, fallback);
 };
 
@@ -113,10 +182,9 @@ const buildClaimType = (data: ExtractedClaimData) => {
     data.pre_authorization.approval_code && 'Pre-authorized',
     data.clinical.admission_date && data.clinical.discharge_date && 'inpatient',
     data.coding.cpt_codes.length > 0 && 'procedural',
-    'claim',
   ].filter(Boolean);
 
-  return parts.join(' ');
+  return parts.length > 0 ? `${parts.join(' ')} claim` : '';
 };
 
 const mapExtractedDataToClaimFields = (data: ExtractedClaimData): ClaimField[] => {
@@ -128,14 +196,14 @@ const mapExtractedDataToClaimFields = (data: ExtractedClaimData): ClaimField[] =
     {
       id: 'patientName',
       label: 'Patient name',
-      value: data.patient.full_name || 'Not found',
+      value: data.patient.full_name || '',
       confidence: confidenceFromPaths(data, baseConfidence + 8, 'patient.full_name'),
       source: 'Patient intake form · PDF extraction',
     },
     {
       id: 'insuranceNumber',
       label: 'Insurance number',
-      value: data.insurance.member_id || 'Not found',
+      value: data.insurance.member_id || '',
       confidence: confidenceFromPaths(data, baseConfidence + 4, 'insurance.member_id'),
       source: 'Insurance card · PDF extraction',
     },
@@ -145,21 +213,21 @@ const mapExtractedDataToClaimFields = (data: ExtractedClaimData): ClaimField[] =
       value:
         diagnosisCode?.description && diagnosisCode?.code
           ? `${diagnosisCode.code} - ${diagnosisCode.description}`
-          : data.clinical.principal_diagnosis || 'Not found',
+          : data.clinical.principal_diagnosis || '',
       confidence: confidenceFromPaths(data, baseConfidence + 2, 'clinical.principal_diagnosis'),
       source: 'Discharge summary · PDF extraction',
     },
     {
       id: 'doctorName',
       label: 'Attending physician',
-      value: data.clinical.attending_physician || 'Not found',
+      value: data.clinical.attending_physician || '',
       confidence: confidenceFromPaths(data, baseConfidence + 1, 'clinical.attending_physician'),
       source: 'Discharge summary · PDF extraction',
     },
     {
       id: 'hospital',
       label: 'Hospital / Facility',
-      value: data.clinical.facility_name || 'Not found',
+      value: data.clinical.facility_name || '',
       confidence: confidenceFromPaths(data, baseConfidence + 5, 'clinical.facility_name'),
       source: 'Hospital records · PDF extraction',
     },
@@ -169,21 +237,21 @@ const mapExtractedDataToClaimFields = (data: ExtractedClaimData): ClaimField[] =
       value:
         procedureCode?.description && procedureCode?.code
           ? `${procedureCode.code} - ${procedureCode.description}`
-          : 'Not found',
+          : '',
       confidence:
         procedureCode && Number.isFinite(procedureCode.confidence)
-          ? Math.max(72, Math.min(99, Math.round(procedureCode.confidence * 100)))
-          : Math.max(72, baseConfidence - 6),
+          ? Math.max(0, Math.min(99, Math.round(procedureCode.confidence * 100)))
+          : 0,
       source: 'Coding summary · PDF extraction',
     },
     {
       id: 'invoiceTotal',
       label: 'Invoice total',
-      value: formatCurrency(data.billing.total_billed_amount || 'Not found'),
+      value: formatCurrency(data.billing.total_billed_amount || ''),
       confidence:
         data.billing.total_billed_amount && data.billing.total_billed_amount !== '0'
           ? baseConfidence
-          : Math.max(72, baseConfidence - 10),
+          : 0,
       source: 'Itemized bill · PDF extraction',
     },
     {
@@ -200,56 +268,56 @@ export const initialClaimFields: ClaimField[] = [
   {
     id: 'patientName',
     label: 'Patient name',
-    value: 'Not found',
+    value: '',
     confidence: 0,
     source: 'Awaiting PDF extraction',
   },
   {
     id: 'insuranceNumber',
     label: 'Insurance number',
-    value: 'Not found',
+    value: '',
     confidence: 0,
     source: 'Awaiting PDF extraction',
   },
   {
     id: 'diagnosis',
     label: 'Diagnosis',
-    value: 'Not found',
+    value: '',
     confidence: 0,
     source: 'Awaiting PDF extraction',
   },
   {
     id: 'doctorName',
     label: 'Attending physician',
-    value: 'Not found',
+    value: '',
     confidence: 0,
     source: 'Awaiting PDF extraction',
   },
   {
     id: 'hospital',
     label: 'Hospital / Facility',
-    value: 'Not found',
+    value: '',
     confidence: 0,
     source: 'Awaiting PDF extraction',
   },
   {
     id: 'procedure',
     label: 'Procedure',
-    value: 'Not found',
+    value: '',
     confidence: 0,
     source: 'Awaiting PDF extraction',
   },
   {
     id: 'invoiceTotal',
     label: 'Invoice total',
-    value: 'Not found',
+    value: '',
     confidence: 0,
     source: 'Awaiting PDF extraction',
   },
   {
     id: 'claimType',
     label: 'Claim metadata',
-    value: 'Not found',
+    value: '',
     confidence: 0,
     source: 'Awaiting PDF extraction',
   },
@@ -302,6 +370,57 @@ export const emptyValidationReport: ValidationReport = {
   extractionMethod: 'ocr_required',
 };
 
+export const emptyClaimAudit: ClaimAudit = {
+  document_metadata: {
+    document_type: 'Unprocessed',
+    page_count: 0,
+    scan_quality: 'Poor/Blurry',
+  },
+  ocr_pages: [],
+  page_classifications: [],
+  extracted_data: {
+    patient: {
+      full_name: { value: null, confidence: 0, source_page: null },
+      dob: { value: null, confidence: 0, source_page: null },
+      gender: { value: null, confidence: 0, source_page: null },
+      contact_number: { value: null, confidence: 0, source_page: null },
+    },
+    insurance: {
+      tpa_or_provider_name: { value: null, confidence: 0, source_page: null },
+      policy_number: { value: null, confidence: 0, source_page: null },
+      corporate_or_group_id: { value: null, confidence: 0, source_page: null },
+      member_id: { value: null, confidence: 0, source_page: null },
+    },
+    hospital: {
+      facility_name: { value: null, confidence: 0, source_page: null },
+      treating_doctor: { value: null, confidence: 0, source_page: null },
+      hospital_registration_no: { value: null, confidence: 0, source_page: null },
+    },
+    clinical: {
+      admission_date: { value: null, confidence: 0, source_page: null },
+      discharge_date: { value: null, confidence: 0, source_page: null },
+      is_emergency: { value: null, confidence: 0, source_page: null },
+      presenting_complaints: { value: null, confidence: 0, source_page: null },
+      diagnosis: { value: null, confidence: 0, source_page: null },
+      icd_10_codes: { value: [], confidence: 0, source_page: null },
+      proposed_treatment: { value: null, confidence: 0, source_page: null },
+    },
+    financial: {
+      expected_total_cost: { value: null, confidence: 0, source_page: null },
+      room_rent: { value: null, confidence: 0, source_page: null },
+      icu_charges: { value: null, confidence: 0, source_page: null },
+      ot_charges: { value: null, confidence: 0, source_page: null },
+      professional_fees: { value: null, confidence: 0, source_page: null },
+    },
+    signatures: {
+      patient_signature_present: { value: false, confidence: 0, source_page: null },
+      doctor_signature_present: { value: false, confidence: 0, source_page: null },
+      hospital_seal_present: { value: false, confidence: 0, source_page: null },
+    },
+  },
+  validation_errors: [],
+};
+
 export default function ClaimIntakeFlow() {
   const searchParams = useSearchParams();
   const [claimId, setClaimId] = useState(createClaimId);
@@ -310,7 +429,9 @@ export default function ClaimIntakeFlow() {
   const [progress, setProgress] = useState(0);
   const [claimFields, setClaimFields] = useState<ClaimField[]>(initialClaimFields);
   const [validationReport, setValidationReport] = useState<ValidationReport>(emptyValidationReport);
+  const [claimAudit, setClaimAudit] = useState<ClaimAudit>(emptyClaimAudit);
   const [reviewError, setReviewError] = useState('');
+  const [processingError, setProcessingError] = useState('');
 
   useEffect(() => {
     const reviewClaimId = searchParams.get('claimId');
@@ -371,6 +492,7 @@ export default function ClaimIntakeFlow() {
           healthScore: 85,
           ocrConfidence: reviewClaim.confirmedData.extraction_meta.overall_confidence,
         });
+        setClaimAudit(emptyClaimAudit);
         setFlowState('ready');
       } catch (error) {
         if (!active) return;
@@ -391,6 +513,7 @@ export default function ClaimIntakeFlow() {
   }, [searchParams]);
 
   const handlePacket = async (file?: File) => {
+    setProcessingError('');
     setPacket({
       name: file?.name || 'uploaded-claim-packet.pdf',
       size: file ? formatFileSize(file.size) : '0 B',
@@ -404,6 +527,8 @@ export default function ClaimIntakeFlow() {
     const timer = setInterval(() => {
       setProgress((cur) => (cur < 90 ? cur + Math.floor(Math.random() * 5) : cur));
     }, 400);
+
+    let succeeded = false;
 
     try {
       if (!file) {
@@ -431,29 +556,31 @@ export default function ClaimIntakeFlow() {
         setValidationReport(data.validation);
       }
 
+      if (data.claimAudit) {
+        setClaimAudit(data.claimAudit);
+      }
+
       if (Number.isFinite(data.pageCount)) {
         setPacket((current) => (current ? { ...current, pages: data.pageCount } : current));
       }
+
+      succeeded = true;
     } catch (e) {
       console.error(e);
-      setValidationReport({
-        ...emptyValidationReport,
-        issues: [
-          {
-            id: 'processing-error',
-            severity: 'High',
-            confidence: 100,
-            title: 'Document processing failed',
-            reference: 'Upload pipeline',
-            fix: e instanceof Error ? e.message : 'Try uploading a readable PDF packet again.',
-          },
-        ],
-        summary: e instanceof Error ? e.message : 'Document processing failed.',
-      });
+      setProcessingError(e instanceof Error ? e.message : 'Document processing failed.');
+      setClaimFields(initialClaimFields);
+      setValidationReport(emptyValidationReport);
+      setClaimAudit(emptyClaimAudit);
     } finally {
       clearInterval(timer);
-      setProgress(100);
-      setTimeout(() => setFlowState('ready'), 500);
+      if (succeeded) {
+        setProgress(100);
+        setTimeout(() => setFlowState('ready'), 500);
+      } else {
+        setProgress(0);
+        setPacket(null);
+        setFlowState('empty');
+      }
     }
   };
 
@@ -464,7 +591,9 @@ export default function ClaimIntakeFlow() {
     setFlowState('empty');
     setClaimFields(initialClaimFields);
     setValidationReport(emptyValidationReport);
+    setClaimAudit(emptyClaimAudit);
     setReviewError('');
+    setProcessingError('');
   };
 
   const updateClaimField = (fieldId: ClaimFieldKey, value: string) => {
@@ -478,6 +607,11 @@ export default function ClaimIntakeFlow() {
           {reviewError}
         </div>
       )}
+      {processingError && (
+        <div className="card p-4 mb-4 border border-danger/20 bg-danger-bg/20 text-sm text-danger-foreground">
+          {processingError}
+        </div>
+      )}
       {flowState === 'empty' && <UploadZone claimId={claimId} onUpload={handlePacket} />}
       {flowState === 'processing' && packet && (
         <ProcessingScreen packet={packet} progress={progress} />
@@ -488,6 +622,7 @@ export default function ClaimIntakeFlow() {
           packet={packet}
           claimFields={claimFields}
           validationReport={validationReport}
+          claimAudit={claimAudit}
           onUpdateField={updateClaimField}
           onReset={resetFlow}
         />

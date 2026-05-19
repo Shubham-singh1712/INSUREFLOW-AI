@@ -254,7 +254,7 @@ export default function AIExtractionStep({
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl border border-border bg-muted/20 p-3">
                   <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                  <p className="text-sm text-foreground mt-1">{value || 'Not found'}</p>
+                  <p className="text-sm text-foreground mt-1">{value || 'No value extracted'}</p>
                 </div>
               ))}
             </div>

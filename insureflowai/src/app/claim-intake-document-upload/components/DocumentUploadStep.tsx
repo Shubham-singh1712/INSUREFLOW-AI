@@ -14,7 +14,6 @@ import {
   Upload,
   Wand2,
   X,
-  Zap,
 } from 'lucide-react';
 import type { UploadedDoc } from './ClaimIntakeFlow';
 
@@ -66,36 +65,47 @@ export default function DocumentUploadStep({ onNext }: DocumentUploadStepProps) 
         method: 'POST',
         body: formData,
       });
-    } catch {
-      // Local demo mode can still continue without a live upload endpoint.
+    } catch (error) {
+      throw error instanceof Error ? error : new Error('Upload endpoint failed.');
     }
   };
 
   const handlePacket = useCallback((file?: File) => {
     const selectedFile = file || null;
-    const demoPacket: UploadedDoc = {
-      name: selectedFile?.name || 'combined-claim-packet-ramesh-iyer.pdf',
-      size: selectedFile ? formatFileSize(selectedFile.size) : '8.4 MB',
+    if (!selectedFile) return;
+
+    const uploadedPacket: UploadedDoc = {
+      name: selectedFile.name,
+      size: formatFileSize(selectedFile.size),
       status: 'processing',
       progress: 8,
       documentType: 'claim_packet',
-      mimeType: selectedFile?.type || 'application/pdf',
+      mimeType: selectedFile.type || 'application/pdf',
       message: 'AI is preparing the claim packet...',
     };
 
-    setPacket(demoPacket);
-    if (selectedFile) {
-      void syncUploadWithApi(selectedFile);
-      readFileAsDataUrl(selectedFile)
-        .then((dataUrl) => setPacket((current) => (current ? { ...current, dataUrl } : current)))
-        .catch(() => undefined);
-    }
+    setPacket(uploadedPacket);
+    void syncUploadWithApi(selectedFile).catch((error) => {
+      setPacket((current) =>
+        current
+          ? {
+              ...current,
+              status: 'failed',
+              progress: 100,
+              message: error instanceof Error ? error.message : 'Upload endpoint failed.',
+            }
+          : current
+      );
+    });
+    readFileAsDataUrl(selectedFile)
+      .then((dataUrl) => setPacket((current) => (current ? { ...current, dataUrl } : current)))
+      .catch(() => undefined);
 
     let progress = 8;
     const timer = window.setInterval(() => {
       progress = Math.min(progress + 9 + Math.floor(Math.random() * 8), 100);
       setPacket((current) =>
-        current
+        current && current.status !== 'failed'
           ? {
               ...current,
               progress,
@@ -220,9 +230,6 @@ export default function DocumentUploadStep({ onNext }: DocumentUploadStepProps) 
                     >
                       <Upload size={15} /> Choose PDF
                     </button>
-                    <button type="button" className="btn-secondary" onClick={() => handlePacket()}>
-                      <Zap size={15} /> Run demo packet
-                    </button>
                     {packet && (
                       <button type="button" className="btn-ghost" onClick={() => setPacket(null)}>
                         <X size={14} /> Clear
@@ -292,7 +299,7 @@ export default function DocumentUploadStep({ onNext }: DocumentUploadStepProps) 
         <button
           type="button"
           onClick={continueWithPacket}
-          disabled={!packet}
+          disabled={!packet || packet.status === 'failed'}
           className="btn-primary px-6 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Continue AI Processing <ArrowRight size={15} />
