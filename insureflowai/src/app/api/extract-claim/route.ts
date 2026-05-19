@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { mkdirSync } from 'fs';
-import { tmpdir } from 'os';
+import { existsSync, statSync } from 'fs';
 import path from 'path';
 import { inflateSync } from 'zlib';
 
@@ -154,6 +153,21 @@ type PipelineStage =
   | 'validation_start';
 
 type CanvasInitFailure = 'import_failed' | 'binary_load_failed' | 'create_canvas_failed';
+type TesseractInitFailure =
+  | 'tesseract_import_failed'
+  | 'worker_create_failed'
+  | 'worker_path_invalid'
+  | 'core_path_invalid'
+  | 'lang_path_invalid'
+  | 'wasm_load_failed'
+  | 'language_load_failed'
+  | 'initialize_failed';
+
+type TesseractLangData = {
+  langPath: string;
+  gzip: boolean;
+  trainedDataPath: string;
+};
 
 type UploadDebugContext = {
   sessionId: string;
@@ -201,11 +215,6 @@ const loadPdfParse = () => {
   return nodeRequire('pdf-parse') as PdfParseModule;
 };
 
-const loadTesseract = () => {
-  const nodeRequire = eval('require') as NodeRequire;
-  return nodeRequire('tesseract.js') as typeof import('tesseract.js');
-};
-
 const loadPdfJs = async () => {
   const runtimeImport = new Function('specifier', 'return import(specifier)') as (
     specifier: string
@@ -218,6 +227,9 @@ const resolveNodeModulePath = (specifier: string) => {
   const nodeRequire = eval('require') as NodeRequire;
   return nodeRequire.resolve(specifier);
 };
+
+const moduleFromDynamicImport = <T extends object>(module: T & { default?: unknown }) =>
+  (module.default && typeof module.default === 'object' ? module.default : module) as T;
 
 type NodeCanvas = import('@napi-rs/canvas').Canvas;
 type NodeCanvasImageData = import('@napi-rs/canvas').ImageData;
@@ -308,6 +320,181 @@ const loadCanvasModule = async (context: UploadDebugContext) => {
   });
 
   return canvasModule;
+};
+
+const classifyTesseractError = (
+  error: unknown,
+  currentProgressStatus?: string | null
+): TesseractInitFailure => {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (/worker|worker_threads|Worker\(/i.test(message)) return 'worker_create_failed';
+  if (/wasm|TesseractCore|core/i.test(message)) return 'wasm_load_failed';
+  if (/traineddata|language|lang|fetch|network/i.test(message)) return 'language_load_failed';
+  if (/initialization failed|initialize|Init\(/i.test(message)) return 'initialize_failed';
+  if (/loading tesseract core/i.test(currentProgressStatus || '')) return 'wasm_load_failed';
+  if (/loading language traineddata/i.test(currentProgressStatus || '')) return 'language_load_failed';
+  if (/initializing tesseract/i.test(currentProgressStatus || '')) return 'initialize_failed';
+
+  return 'worker_create_failed';
+};
+
+const throwTesseractInitError = ({
+  context,
+  initFailure,
+  error,
+  details,
+}: {
+  context: UploadDebugContext;
+  initFailure: TesseractInitFailure;
+  error: string;
+  details?: Record<string, unknown>;
+}): never => {
+  debugStageLog(context, 'tesseract_worker_failed', {
+    status: 'failed',
+    initFailure,
+    error,
+    ...(details || {}),
+  });
+  throw new PipelineStageError({
+    stage: 'tesseract_worker_failed',
+    error: initFailure,
+    sessionId: context.sessionId,
+    details: {
+      initFailure,
+      ...(details || {}),
+      cause: error,
+    },
+  });
+};
+
+const assertReadablePath = ({
+  context,
+  initFailure,
+  label,
+  targetPath,
+  mustBeDirectory = false,
+}: {
+  context: UploadDebugContext;
+  initFailure: TesseractInitFailure;
+  label: string;
+  targetPath?: string | null;
+  mustBeDirectory?: boolean;
+}): string => {
+  const candidatePath = targetPath || null;
+  if (!candidatePath || !existsSync(candidatePath)) {
+    return throwTesseractInitError({
+      context,
+      initFailure,
+      error: `${label} does not exist`,
+      details: { [label]: candidatePath },
+    });
+  }
+
+  const readablePath = candidatePath;
+  const stats = statSync(readablePath);
+  if (mustBeDirectory && !stats.isDirectory()) {
+    return throwTesseractInitError({
+      context,
+      initFailure,
+      error: `${label} must be a directory`,
+      details: { [label]: readablePath },
+    });
+  }
+  if (!mustBeDirectory && !stats.isFile()) {
+    return throwTesseractInitError({
+      context,
+      initFailure,
+      error: `${label} must be a file`,
+      details: { [label]: readablePath },
+    });
+  }
+
+  return readablePath;
+};
+
+const resolveOptionalNodeModulePath = (specifier: string): string | null => {
+  try {
+    return resolveNodeModulePath(specifier);
+  } catch {
+    return null;
+  }
+};
+
+const getTesseractLangPath = (context: UploadDebugContext): TesseractLangData => {
+  const resolveLangData = (langPath: string): TesseractLangData | null => {
+    const gzPath = path.join(langPath, 'eng.traineddata.gz');
+    const rawPath = path.join(langPath, 'eng.traineddata');
+    if (existsSync(gzPath)) return { langPath, gzip: true, trainedDataPath: gzPath };
+    if (existsSync(rawPath)) return { langPath, gzip: false, trainedDataPath: rawPath };
+    return null;
+  };
+
+  if (process.env.TESSERACT_LANG_PATH) {
+    const langPath = process.env.TESSERACT_LANG_PATH;
+    assertReadablePath({
+      context,
+      initFailure: 'lang_path_invalid',
+      label: 'langPath',
+      targetPath: langPath,
+      mustBeDirectory: true,
+    });
+    const langData = resolveLangData(langPath);
+    if (!langData) {
+      return throwTesseractInitError({
+        context,
+        initFailure: 'lang_path_invalid',
+        error: 'eng.traineddata was not found in TESSERACT_LANG_PATH',
+        details: { langPath },
+      });
+    }
+    return langData;
+  }
+
+  const packagedEngData = resolveOptionalNodeModulePath('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz');
+  if (!packagedEngData) {
+    return throwTesseractInitError({
+      context,
+      initFailure: 'lang_path_invalid',
+      error: 'Bundled English traineddata package is missing',
+      details: { dependency: '@tesseract.js-data/eng' },
+    });
+  }
+
+  const readableEngData = packagedEngData;
+  assertReadablePath({
+    context,
+    initFailure: 'lang_path_invalid',
+    label: 'engTrainedData',
+    targetPath: readableEngData,
+  });
+
+  return {
+    langPath: path.dirname(readableEngData),
+    gzip: true,
+    trainedDataPath: readableEngData,
+  };
+};
+
+const loadTesseractModule = async (context: UploadDebugContext): Promise<typeof import('tesseract.js')> => {
+  try {
+    const imported = await import('tesseract.js');
+    const Tesseract = (imported.default ?? imported) as typeof import('tesseract.js');
+
+    if (typeof Tesseract.createWorker !== 'function') {
+      throw new Error('tesseract.js did not expose createWorker');
+    }
+
+    debugStageLog(context, 'tesseract_worker_failed', { status: 'module_loaded' });
+    return Tesseract;
+  } catch (error) {
+    return throwTesseractInitError({
+      context,
+      initFailure: 'tesseract_import_failed',
+      error: error instanceof Error ? error.message : String(error),
+      details: { dependency: 'tesseract.js' },
+    });
+  }
 };
 
 class PipelineStageError extends Error {
@@ -624,27 +811,10 @@ const runOcrOnPdf = async (buffer: Buffer, context: UploadDebugContext) => {
   const { filename, sessionId } = context;
   let createCanvas: CreateCanvas;
   let canvasModule: typeof import('@napi-rs/canvas');
-  let Tesseract: typeof import('tesseract.js');
 
   canvasModule = await loadCanvasModule(context);
   createCanvas = canvasModule.createCanvas;
-
-  try {
-    Tesseract = loadTesseract();
-    debugStageLog(context, 'tesseract_worker_failed', { status: 'module_loaded' });
-  } catch (error) {
-    debugStageLog(context, 'tesseract_worker_failed', {
-      status: 'failed',
-      page: null,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw new PipelineStageError({
-      stage: 'tesseract_worker_failed',
-      error: 'Tesseract module failed to initialize',
-      sessionId,
-      cause: error,
-    });
-  }
+  const Tesseract = await loadTesseractModule(context);
 
   let pdfDocument: Awaited<ReturnType<Awaited<ReturnType<typeof loadPdfJs>>['getDocument']>['promise']>;
   let pageCount = 0;
@@ -802,13 +972,52 @@ const runOcrOnPdf = async (buffer: Buffer, context: UploadDebugContext) => {
     }
   };
 
-  const tesseractCachePath = path.join(tmpdir(), 'insureflow-tesseract-cache');
+  const workerPath = (() => {
+    try {
+      return resolveNodeModulePath('tesseract.js/src/worker-script/node/index.js');
+    } catch (error) {
+      throwTesseractInitError({
+        context,
+        initFailure: 'worker_path_invalid',
+        error: error instanceof Error ? error.message : String(error),
+        details: { dependency: 'tesseract.js' },
+      });
+    }
+  })();
+  const corePath = (() => {
+    try {
+      const coreEntryPath = resolveNodeModulePath('tesseract.js-core/tesseract-core-lstm.wasm.js');
+      assertReadablePath({
+        context,
+        initFailure: 'core_path_invalid',
+        label: 'coreEntryPath',
+        targetPath: coreEntryPath,
+      });
+      return path.dirname(coreEntryPath);
+    } catch (error) {
+      if (error instanceof PipelineStageError) throw error;
+      throwTesseractInitError({
+        context,
+        initFailure: 'core_path_invalid',
+        error: error instanceof Error ? error.message : String(error),
+        details: { dependency: 'tesseract.js-core' },
+      });
+    }
+  })();
+  const langData = getTesseractLangPath(context);
+
+  assertReadablePath({
+    context,
+    initFailure: 'worker_path_invalid',
+    label: 'workerPath',
+    targetPath: workerPath,
+  });
+
   const tesseractOptions = {
-    workerPath: resolveNodeModulePath('tesseract.js/src/worker-script/node/index.js'),
-    corePath: path.dirname(resolveNodeModulePath('tesseract.js-core/tesseract-core-lstm.wasm.js')),
-    cachePath: tesseractCachePath,
-    langPath: process.env.TESSERACT_LANG_PATH,
-    gzip: true,
+    workerPath,
+    corePath,
+    langPath: langData.langPath,
+    gzip: langData.gzip,
     cacheMethod: 'none',
     workerBlobURL: false,
     logger: (message: any) => {
@@ -823,38 +1032,59 @@ const runOcrOnPdf = async (buffer: Buffer, context: UploadDebugContext) => {
   };
 
   let worker: Awaited<ReturnType<typeof Tesseract.createWorker>>;
+  let tesseractProgressStatus: string | null = null;
 
   try {
-    mkdirSync(tesseractCachePath, { recursive: true });
-    worker = await Tesseract.createWorker('eng', undefined, tesseractOptions);
+    worker = await Tesseract.createWorker('eng', Tesseract.OEM.LSTM_ONLY, {
+      ...tesseractOptions,
+      logger: (message: any) => {
+        tesseractProgressStatus = message?.status || tesseractProgressStatus;
+        tesseractOptions.logger(message);
+      },
+      errorHandler: (error: unknown) => {
+        tesseractProgressStatus = tesseractProgressStatus || 'worker_error';
+        debugStageLog(context, 'tesseract_worker_failed', {
+          status: 'worker_error',
+          error: error instanceof Error ? error.message : String(error),
+        });
+      },
+    });
     debugStageLog(context, 'tesseract_worker_failed', {
       status: 'ready',
       workerPath: tesseractOptions.workerPath,
       corePath: tesseractOptions.corePath,
-      langPath: tesseractOptions.langPath || 'tesseract.js default CDN',
-      cachePath: tesseractOptions.cachePath,
+      langPath: tesseractOptions.langPath,
+      trainedDataPath: langData.trainedDataPath,
+      gzip: tesseractOptions.gzip,
       cacheMethod: tesseractOptions.cacheMethod,
     });
   } catch (error) {
+    const initFailure = classifyTesseractError(error, tesseractProgressStatus);
     debugStageLog(context, 'tesseract_worker_failed', {
       status: 'failed',
+      initFailure,
       error: error instanceof Error ? error.message : String(error),
       workerPath: tesseractOptions.workerPath,
       corePath: tesseractOptions.corePath,
-      langPath: tesseractOptions.langPath || 'tesseract.js default CDN',
-      cachePath: tesseractOptions.cachePath,
+      langPath: tesseractOptions.langPath,
+      trainedDataPath: langData.trainedDataPath,
+      gzip: tesseractOptions.gzip,
       cacheMethod: tesseractOptions.cacheMethod,
+      progressStatus: tesseractProgressStatus,
     });
     throw new PipelineStageError({
       stage: 'tesseract_worker_failed',
-      error: 'Tesseract worker failed to initialize',
+      error: initFailure,
       sessionId,
       details: {
+        initFailure,
         workerPath: tesseractOptions.workerPath,
         corePath: tesseractOptions.corePath,
-        langPath: tesseractOptions.langPath || 'tesseract.js default CDN',
-        cachePath: tesseractOptions.cachePath,
+        langPath: tesseractOptions.langPath,
+        trainedDataPath: langData.trainedDataPath,
+        gzip: tesseractOptions.gzip,
         cacheMethod: tesseractOptions.cacheMethod,
+        progressStatus: tesseractProgressStatus,
         cause: error instanceof Error ? error.message : String(error),
       },
       cause: error,
@@ -2167,17 +2397,23 @@ export async function POST(req: Request) {
           extractionMethod: 'ocr_required',
         };
       } catch (error) {
-        if (!(error instanceof PipelineStageError) || error.stage !== 'canvas_init_failed') {
+        const canDowngradeToTextOnly =
+          error instanceof PipelineStageError &&
+          (error.stage === 'canvas_init_failed' || error.stage === 'tesseract_worker_failed');
+
+        if (!canDowngradeToTextOnly) {
           throw error;
         }
 
-        ocrSkippedReason = error.stage;
+        ocrSkippedReason =
+          error.stage === 'tesseract_worker_failed' ? 'tesseract_init_failed' : 'canvas_init_failed';
         debugUploadLog('ocr_skipped', {
           sessionId,
           filename: file.name,
           fileBytes: buffer.byteLength,
           reason: ocrSkippedReason,
           initFailure: error.details?.initFailure || error.message,
+          stage: error.stage,
           fallbackTextLength: embeddedText.text.length,
         });
 

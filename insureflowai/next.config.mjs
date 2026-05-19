@@ -4,7 +4,14 @@ import { imageHosts } from './image-hosts.config.mjs';
 const nextConfig = {
   productionBrowserSourceMaps: true,
   distDir: process.env.DIST_DIR || '.next',
-  serverExternalPackages: ['@napi-rs/canvas'],
+  serverExternalPackages: ['@napi-rs/canvas', 'tesseract.js', 'tesseract.js-core', '@tesseract.js-data/eng'],
+  outputFileTracingIncludes: {
+    '/api/extract-claim': [
+      './node_modules/tesseract.js/src/worker-script/**/*',
+      './node_modules/tesseract.js-core/**/*',
+      './node_modules/@tesseract.js-data/eng/**/*',
+    ],
+  },
 
   typescript: {
     ignoreBuildErrors: true,
