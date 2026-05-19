@@ -3,6 +3,7 @@ const { sendSuccess } = require('../utils/apiResponse');
 const claimService = require('../services/claim.service');
 const { getClaimActivity } = require('../services/activity.service');
 const { getClaimValidationLogs } = require('../services/validationLog.service');
+const { processClaimDocument } = require('../services/process.service');
 
 const createClaim = asyncHandler(async (req, res) => {
   const claim = await claimService.createClaim(req.body, req.user);
@@ -34,4 +35,46 @@ const deleteClaim = asyncHandler(async (req, res) => {
   return sendSuccess(res, 200, 'Claim deleted successfully.', { claimId: claim._id });
 });
 
-module.exports = { createClaim, getAllClaims, getClaim, updateStatus, deleteClaim };
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const ApiError = require('../utils/ApiError');
+
+const processClaim = asyncHandler(async (req, res) => {
+  let fileToProcess = req.file;
+
+  if (!fileToProcess && req.body.documents) {
+    const docs = req.body.documents;
+    const key = Object.keys(docs)[0];
+    const doc = docs[key];
+
+    if (doc && doc.dataUrl) {
+      const match = doc.dataUrl.match(/^data:([^;,]+)?(;base64)?,([\s\S]*)$/);
+      if (match && match[2]) {
+        const buffer = Buffer.from(match[3], 'base64');
+        const tmpPath = path.join(__dirname, '..', 'uploads', `${Date.now()}-${crypto.randomUUID()}.pdf`);
+        fs.writeFileSync(tmpPath, buffer);
+        
+        fileToProcess = {
+          path: tmpPath,
+          originalname: doc.name || 'document.pdf',
+          mimetype: match[1] || 'application/pdf',
+          size: buffer.length,
+        };
+      }
+    }
+  }
+
+  if (!fileToProcess) {
+    throw new ApiError(400, 'No document found to process.');
+  }
+
+  const result = await processClaimDocument({
+    file: fileToProcess,
+    user: req.user,
+  });
+
+  return sendSuccess(res, 200, 'Claim processed successfully.', { ...result, data: result });
+});
+
+module.exports = { createClaim, getAllClaims, getClaim, updateStatus, deleteClaim, processClaim };

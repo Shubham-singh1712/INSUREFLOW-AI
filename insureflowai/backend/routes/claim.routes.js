@@ -1,5 +1,6 @@
 const express = require('express');
 const claimController = require('../controllers/claim.controller');
+const { upload } = require('../middleware/upload.middleware');
 const { protect } = require('../middleware/auth.middleware');
 const { requireRoles } = require('../middleware/role.middleware');
 const { validateRequest } = require('../middleware/validate.middleware');
@@ -19,6 +20,12 @@ router.post(
   createClaimValidator,
   validateRequest,
   claimController.createClaim
+);
+router.post(
+  '/process',
+  requireRoles(ROLES.ADMIN, ROLES.HOSPITAL_ADMIN, ROLES.INSURANCE_DESK, ROLES.BILLING_EXECUTIVE),
+  upload.single('file'),
+  claimController.processClaim
 );
 router.get('/all', claimController.getAllClaims);
 router.get('/:id', claimIdValidator, validateRequest, claimController.getClaim);

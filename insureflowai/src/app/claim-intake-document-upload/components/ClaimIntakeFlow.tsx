@@ -538,11 +538,11 @@ export default function ClaimIntakeFlow() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const res = await fetch('/api/extract-claim', {
+      const res = await fetch('/api/claims/process', {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json().catch(() => null);
+      const responsePayload = await res.json().catch(() => null); const data = responsePayload?.data || responsePayload;
 
       if (!res.ok) {
         throw new Error(data?.error || 'AI extraction failed.');
@@ -630,3 +630,5 @@ export default function ClaimIntakeFlow() {
     </div>
   );
 }
+
+
