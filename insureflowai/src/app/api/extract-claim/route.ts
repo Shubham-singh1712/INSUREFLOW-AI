@@ -66,7 +66,7 @@ type ValidationReport = {
   healthScore: number;
   ocrConfidence: number;
   source: 'ai' | 'local_analysis';
-  extractionMethod: 'pdf_text' | 'ocr_required' | 'ai_ocr';
+  extractionMethod: 'pdf_text' | 'pdf_text_only' | 'ocr_required' | 'ai_ocr';
 };
 
 type TraceableField<T = string | number | boolean | null> = {
@@ -153,6 +153,8 @@ type PipelineStage =
   | 'entity_extraction'
   | 'validation_start';
 
+type CanvasInitFailure = 'import_failed' | 'binary_load_failed' | 'create_canvas_failed';
+
 type UploadDebugContext = {
   sessionId: string;
   filename: string;
@@ -199,11 +201,6 @@ const loadPdfParse = () => {
   return nodeRequire('pdf-parse') as PdfParseModule;
 };
 
-const loadCanvas = () => {
-  const nodeRequire = eval('require') as NodeRequire;
-  return nodeRequire('@napi-rs/canvas') as typeof import('@napi-rs/canvas');
-};
-
 const loadTesseract = () => {
   const nodeRequire = eval('require') as NodeRequire;
   return nodeRequire('tesseract.js') as typeof import('tesseract.js');
@@ -225,6 +222,93 @@ const resolveNodeModulePath = (specifier: string) => {
 type NodeCanvas = import('@napi-rs/canvas').Canvas;
 type NodeCanvasImageData = import('@napi-rs/canvas').ImageData;
 type CreateCanvas = typeof import('@napi-rs/canvas').createCanvas;
+
+const isNativeBinaryLoadError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  const code = error && typeof error === 'object' && 'code' in error ? String((error as any).code) : '';
+
+  return (
+    code === 'ERR_DLOPEN_FAILED' ||
+    /@napi-rs[\\/]canvas-|bindings?|native|napi|node-pre-gyp|skia|\.node|dlopen|was not found/i.test(message)
+  );
+};
+
+const loadCanvasModule = async (context: UploadDebugContext) => {
+  let canvasModule: typeof import('@napi-rs/canvas');
+
+  try {
+    canvasModule = await import('@napi-rs/canvas');
+  } catch (error) {
+    const initFailure: CanvasInitFailure = isNativeBinaryLoadError(error)
+      ? 'binary_load_failed'
+      : 'import_failed';
+    debugStageLog(context, 'canvas_init_failed', {
+      status: 'failed',
+      initFailure,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new PipelineStageError({
+      stage: 'canvas_init_failed',
+      error: initFailure,
+      sessionId: context.sessionId,
+      details: {
+        dependency: '@napi-rs/canvas',
+        initFailure,
+        cause: error instanceof Error ? error.message : String(error),
+      },
+      cause: error,
+    });
+  }
+
+  if (typeof canvasModule.createCanvas !== 'function') {
+    const initFailure: CanvasInitFailure = 'create_canvas_failed';
+    debugStageLog(context, 'canvas_init_failed', {
+      status: 'failed',
+      initFailure,
+      error: '@napi-rs/canvas did not expose createCanvas',
+    });
+    throw new PipelineStageError({
+      stage: 'canvas_init_failed',
+      error: initFailure,
+      sessionId: context.sessionId,
+      details: {
+        dependency: '@napi-rs/canvas',
+        initFailure,
+      },
+    });
+  }
+
+  try {
+    const probeCanvas = canvasModule.createCanvas(1, 1);
+    const probeContext = probeCanvas.getContext('2d');
+    if (!probeContext) throw new Error('createCanvas(1, 1).getContext("2d") returned null');
+  } catch (error) {
+    const initFailure: CanvasInitFailure = 'create_canvas_failed';
+    debugStageLog(context, 'canvas_init_failed', {
+      status: 'failed',
+      initFailure,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new PipelineStageError({
+      stage: 'canvas_init_failed',
+      error: initFailure,
+      sessionId: context.sessionId,
+      details: {
+        dependency: '@napi-rs/canvas',
+        initFailure,
+        cause: error instanceof Error ? error.message : String(error),
+      },
+      cause: error,
+    });
+  }
+
+  debugStageLog(context, 'canvas_init_failed', {
+    status: 'loaded',
+    renderer: '@napi-rs/canvas',
+  });
+
+  return canvasModule;
+};
 
 class PipelineStageError extends Error {
   stage: PipelineStage;
@@ -542,28 +626,8 @@ const runOcrOnPdf = async (buffer: Buffer, context: UploadDebugContext) => {
   let canvasModule: typeof import('@napi-rs/canvas');
   let Tesseract: typeof import('tesseract.js');
 
-  try {
-    canvasModule = loadCanvas();
-    createCanvas = canvasModule.createCanvas;
-    if (!createCanvas) throw new Error('@napi-rs/canvas did not expose createCanvas');
-    debugStageLog(context, 'canvas_init_failed', {
-      status: 'loaded',
-      renderer: '@napi-rs/canvas',
-    });
-  } catch (error) {
-    debugStageLog(context, 'canvas_init_failed', {
-      status: 'failed',
-      page: null,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw new PipelineStageError({
-      stage: 'canvas_init_failed',
-      error: 'Canvas dependency failed to initialize',
-      sessionId,
-      details: { renderer: '@napi-rs/canvas' },
-      cause: error,
-    });
-  }
+  canvasModule = await loadCanvasModule(context);
+  createCanvas = canvasModule.createCanvas;
 
   try {
     Tesseract = loadTesseract();
@@ -1736,7 +1800,10 @@ const buildLocalReport = (
 ): ValidationReport => {
   const ocrPages = audit.ocr_pages || [];
   const errors = audit.validation_errors;
-  const textSourceLabel = extractionMethod === 'pdf_text' ? 'PDF text' : 'OCR';
+  const textSourceLabel =
+    extractionMethod === 'pdf_text' || extractionMethod === 'pdf_text_only'
+      ? 'PDF text'
+      : 'OCR';
 
   const docGroups: DocumentGroup[] = ocrPages.map((page) => {
     const pc = audit.page_classifications?.find((p) => p.page_number === page.page_number);
@@ -1847,7 +1914,15 @@ const buildLocalReport = (
     issues,
     timeline: [
       { id: 'uploaded', label: 'Claim Packet Uploaded', time: now, done: true },
-      { id: 'parsed', label: extractionMethod === 'pdf_text' ? 'PDF Text Extracted' : 'Page-wise OCR Extracted', time: now, done: true },
+      {
+        id: 'parsed',
+        label:
+          extractionMethod === 'pdf_text' || extractionMethod === 'pdf_text_only'
+            ? 'PDF Text Extracted'
+            : 'Page-wise OCR Extracted',
+        time: now,
+        done: true,
+      },
       { id: 'classified', label: 'Pages Dynamically Classified', time: now, done: true },
       { id: 'validation', label: 'Cross-Doc Audits Evaluated', time: now, done: true },
       { id: 'repairs', label: 'Repair Log Generated', time: now, done: issues.length > 0 },
@@ -1855,7 +1930,9 @@ const buildLocalReport = (
     ],
     pdfStructure: [
       `01  Source packet: ${filename}`,
-      extractionMethod === 'pdf_text' ? '02  Embedded PDF text layer' : '02  Page-wise parallel OCR logs',
+      extractionMethod === 'pdf_text' || extractionMethod === 'pdf_text_only'
+        ? '02  Embedded PDF text layer'
+        : '02  Page-wise parallel OCR logs',
       '03  Cross-document identity validations',
       '04  Clinical plausibility and missing report audits',
       '05  Dynamic billing and financial reconciliations',
@@ -2062,22 +2139,60 @@ export async function POST(req: Request) {
     // Text PDFs should never pay the OCR cost. Try the PDF text layer first, then OCR only for scans.
     debugStageLog(uploadContext, 'pdf_upload_parse', { status: 'text_extraction_start' });
     const embeddedText = await extractTextFromPdfBuffer(buffer);
-    const ocrData =
-      embeddedText.text.length > MIN_DIRECT_PDF_TEXT_CHARS
-        ? {
-            ocrPages: embeddedText.pages,
-            combinedText: embeddedText.text,
-            averageOcrConfidence: 99,
-            pageCount: embeddedText.pageCount,
-            failedPages: [],
-            extractionMethod: 'pdf_text' as const,
-          }
-        : {
-            ...(await runOcrOnPdf(buffer, uploadContext)),
-            extractionMethod: 'ocr_required' as const,
-          };
+    let ocrSkippedReason: string | undefined;
+    let ocrData:
+      | {
+          ocrPages: PdfTextExtractionResult['pages'];
+          combinedText: string;
+          averageOcrConfidence: number;
+          pageCount: number;
+          failedPages: ReturnType<PipelineStageError['toResponse']>[];
+          extractionMethod: 'pdf_text' | 'pdf_text_only';
+        }
+      | (Awaited<ReturnType<typeof runOcrOnPdf>> & { extractionMethod: 'ocr_required' });
 
-    if (ocrData.extractionMethod === 'pdf_text') {
+    if (embeddedText.text.length > MIN_DIRECT_PDF_TEXT_CHARS) {
+      ocrData = {
+        ocrPages: embeddedText.pages,
+        combinedText: embeddedText.text,
+        averageOcrConfidence: 99,
+        pageCount: embeddedText.pageCount,
+        failedPages: [],
+        extractionMethod: 'pdf_text',
+      };
+    } else {
+      try {
+        ocrData = {
+          ...(await runOcrOnPdf(buffer, uploadContext)),
+          extractionMethod: 'ocr_required',
+        };
+      } catch (error) {
+        if (!(error instanceof PipelineStageError) || error.stage !== 'canvas_init_failed') {
+          throw error;
+        }
+
+        ocrSkippedReason = error.stage;
+        debugUploadLog('ocr_skipped', {
+          sessionId,
+          filename: file.name,
+          fileBytes: buffer.byteLength,
+          reason: ocrSkippedReason,
+          initFailure: error.details?.initFailure || error.message,
+          fallbackTextLength: embeddedText.text.length,
+        });
+
+        ocrData = {
+          ocrPages: embeddedText.pages,
+          combinedText: embeddedText.text,
+          averageOcrConfidence: embeddedText.text.length > 0 ? 99 : 0,
+          pageCount: embeddedText.pageCount,
+          failedPages: [error.toResponse()],
+          extractionMethod: 'pdf_text_only',
+        };
+      }
+    }
+
+    if (ocrData.extractionMethod === 'pdf_text' || ocrData.extractionMethod === 'pdf_text_only') {
       uploadContext.pageCount = ocrData.pageCount;
       debugUploadLog('pdf_text_summary', {
         sessionId,
@@ -2086,6 +2201,7 @@ export async function POST(req: Request) {
         pageCount: ocrData.pageCount,
         textLength: ocrData.combinedText.length,
         skippedOcr: true,
+        ...(ocrSkippedReason ? { ocrSkippedReason } : {}),
       });
     }
 
@@ -2132,8 +2248,11 @@ export async function POST(req: Request) {
           ? 'openrouter'
           : ocrData.extractionMethod === 'pdf_text'
             ? 'local_pdf_text_pipeline'
+            : ocrData.extractionMethod === 'pdf_text_only'
+              ? 'local_pdf_text_only_pipeline'
             : 'local_ocr_pipeline',
       extractionMethod: ocrData.extractionMethod,
+      ...(ocrSkippedReason ? { ocrSkippedReason } : {}),
     });
   } catch (error) {
     console.error('[POST Handler] Uncaught exception during claim intake:', error);
