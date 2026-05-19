@@ -7,6 +7,7 @@ const nextConfig = {
   serverExternalPackages: ['@napi-rs/canvas', 'tesseract.js', 'tesseract.js-core', '@tesseract.js-data/eng'],
   outputFileTracingIncludes: {
     '/api/claims/process': [
+      './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
       './node_modules/tesseract.js/src/worker-script/**/*',
       './node_modules/tesseract.js-core/**/*',
       './node_modules/@tesseract.js-data/eng/**/*',

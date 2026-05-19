@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/api';
+import path from 'path';
+import { pathToFileURL } from 'url';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -8,6 +10,14 @@ const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 const TEXT_PAGE_THRESHOLD = 40;
 const TEXT_PACKET_THRESHOLD = 180;
 const OCR_PAGE_LIMIT = Number.parseInt(process.env.CLAIM_OCR_PAGE_LIMIT || '8', 10);
+const PDF_WORKER_PATH = path.join(
+  process.cwd(),
+  'node_modules',
+  'pdfjs-dist',
+  'legacy',
+  'build',
+  'pdf.worker.mjs'
+);
 
 type ExtractionMethod = 'pdf_text' | 'ocr' | 'mixed' | 'metadata_only';
 type FieldMethod = 'pdf_text' | 'ocr';
@@ -380,7 +390,9 @@ async function ensurePdfJsNodePolyfills() {
 
 async function loadPdfJs(): Promise<PdfJsModule> {
   await ensurePdfJsNodePolyfills();
-  return import('pdfjs-dist/legacy/build/pdf.mjs');
+  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc ||= pathToFileURL(PDF_WORKER_PATH).href;
+  return pdfjs;
 }
 
 async function parsePdfWithPdfJs(buffer: Buffer): Promise<{
