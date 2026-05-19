@@ -284,35 +284,47 @@ export default function AnalysisResults({
               </span>
             </div>
             <div className="space-y-3">
-              {claimFields.map((field) => (
-                <label key={field.id} className="block">
-                  <span className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {field.label}
+              {claimFields.map((field) => {
+                const hasValue = field.value.trim().length > 0;
+                const confidence = hasValue ? field.confidence : 0;
+                const sourceText = hasValue
+                  ? field.sourcePage
+                    ? `${field.sourceDocType || field.source} · page ${field.sourcePage}${
+                        field.method ? ` · ${field.method}` : ''
+                      }`
+                    : field.source
+                  : 'No source page extracted';
+
+                return (
+                  <label key={field.id} className="block">
+                    <span className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {field.label}
+                      </span>
+                      <span
+                        className={`text-xs font-tabular font-semibold ${
+                          confidence >= 95
+                            ? 'text-success-foreground'
+                            : confidence >= 75
+                              ? 'text-warning-foreground'
+                              : 'text-danger-foreground'
+                        }`}
+                      >
+                        {confidence}% AI
+                      </span>
                     </span>
-                    <span
-                      className={`text-xs font-tabular font-semibold ${
-                        field.confidence >= 95
-                          ? 'text-success-foreground'
-                          : field.confidence >= 75
-                            ? 'text-warning-foreground'
-                            : 'text-danger-foreground'
-                      }`}
-                    >
-                      {field.confidence}% AI
+                    <input
+                      className="input-field"
+                      value={field.value}
+                      placeholder="No value extracted"
+                      onChange={(event) => onUpdateField(field.id, event.target.value)}
+                    />
+                    <span className="text-xs text-muted-foreground mt-0.5 block">
+                      Source: {sourceText}
                     </span>
-                  </span>
-                  <input
-                    className="input-field"
-                    value={field.value}
-                    placeholder="No value extracted"
-                    onChange={(event) => onUpdateField(field.id, event.target.value)}
-                  />
-                  <span className="text-xs text-muted-foreground mt-0.5 block">
-                    Source: {field.source}
-                  </span>
-                </label>
-              ))}
+                  </label>
+                );
+              })}
             </div>
           </div>
 

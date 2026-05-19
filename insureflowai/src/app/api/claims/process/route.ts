@@ -21,6 +21,17 @@ type ClaimField = {
   value: string;
   confidence: number;
   source: string;
+  sourcePage?: number | null;
+  sourceDocType?: string;
+  method?: string;
+};
+
+type TraceableField<T = string | number | boolean | string[] | null> = {
+  value: T;
+  confidence: number;
+  source_page: number | null;
+  source_doc_type: string;
+  method: string;
 };
 
 type ValidationIssue = {
@@ -74,41 +85,41 @@ type ClaimAudit = {
   };
   extracted_data: {
     patient: {
-      full_name: string | null;
-      dob: string | null;
-      gender: string | null;
-      contact_number: string | null;
+      full_name: TraceableField<string | null>;
+      dob: TraceableField<string | null>;
+      gender: TraceableField<string | null>;
+      contact_number: TraceableField<string | null>;
     };
     insurance: {
-      tpa_or_provider_name: string | null;
-      policy_number: string | null;
-      corporate_or_group_id: string | null;
-      member_id: string | null;
+      tpa_or_provider_name: TraceableField<string | null>;
+      policy_number: TraceableField<string | null>;
+      corporate_or_group_id: TraceableField<string | null>;
+      member_id: TraceableField<string | null>;
     };
     hospital: {
-      facility_name: string | null;
-      treating_doctor: string | null;
-      hospital_registration_no: string | null;
+      facility_name: TraceableField<string | null>;
+      treating_doctor: TraceableField<string | null>;
+      hospital_registration_no: TraceableField<string | null>;
     };
     clinical: {
-      admission_date: string | null;
-      is_emergency: boolean | null;
-      presenting_complaints: string | null;
-      diagnosis: string | null;
-      icd_10_codes: string[];
-      proposed_treatment: string | null;
+      admission_date: TraceableField<string | null>;
+      is_emergency: TraceableField<boolean | null>;
+      presenting_complaints: TraceableField<string | null>;
+      diagnosis: TraceableField<string | null>;
+      icd_10_codes: TraceableField<string[]>;
+      proposed_treatment: TraceableField<string | null>;
     };
     financial: {
-      expected_total_cost: number | null;
-      room_rent: number | null;
-      icu_charges: number | null;
-      ot_charges: number | null;
-      professional_fees: number | null;
+      expected_total_cost: TraceableField<number | null>;
+      room_rent: TraceableField<number | null>;
+      icu_charges: TraceableField<number | null>;
+      ot_charges: TraceableField<number | null>;
+      professional_fees: TraceableField<number | null>;
     };
     signatures: {
-      patient_signature_present: boolean;
-      doctor_signature_present: boolean;
-      hospital_seal_present: boolean;
+      patient_signature_present: TraceableField<boolean>;
+      doctor_signature_present: TraceableField<boolean>;
+      hospital_seal_present: TraceableField<boolean>;
     };
   };
   validation_errors: string[];
@@ -268,6 +279,59 @@ const cleanValue = (value = '') =>
 const clamp = (value: number, min = 0, max = 100) =>
   Math.max(min, Math.min(max, Math.round(value)));
 
+const hasExtractedValue = (value: unknown) =>
+  value !== null &&
+  value !== undefined &&
+  !(typeof value === 'string' && (value.trim().length === 0 || value.trim() === emptyValue)) &&
+  !(Array.isArray(value) && value.length === 0);
+
+const traceValue = <T,>(field: TraceableField<T> | T): T =>
+  field && typeof field === 'object' && 'value' in (field as Record<string, unknown>)
+    ? (field as TraceableField<T>).value
+    : (field as T);
+
+const traceConfidence = (value: unknown, fallback: number, supplied?: unknown) => {
+  if (!hasExtractedValue(value)) return 0;
+  const numeric = typeof supplied === 'number' ? supplied : Number(supplied);
+  if (Number.isFinite(numeric) && numeric > 0) return clamp(numeric, 1, 99);
+  return clamp(fallback, 40, 99);
+};
+
+const sourcePageForValue = (text: string, pages: number, value: unknown) => {
+  if (!hasExtractedValue(value) || pages <= 0) return null;
+  const searchable = Array.isArray(value) ? String(value[0] || '') : String(value);
+  if (!searchable.trim()) return null;
+  const index = text.toLowerCase().indexOf(searchable.toLowerCase());
+  if (index < 0 || text.length === 0) return 1;
+  return clamp(Math.floor((index / text.length) * pages) + 1, 1, Math.max(1, pages));
+};
+
+const makeTrace = <T extends string | number | boolean | string[] | null>({
+  value,
+  fallbackConfidence,
+  text,
+  pages,
+  sourceDocType,
+  method,
+  confidence,
+  sourcePage,
+}: {
+  value: T;
+  fallbackConfidence: number;
+  text: string;
+  pages: number;
+  sourceDocType: string;
+  method: string;
+  confidence?: unknown;
+  sourcePage?: number | null;
+}): TraceableField<T> => ({
+  value,
+  confidence: traceConfidence(value, fallbackConfidence, confidence),
+  source_page: hasExtractedValue(value) ? sourcePage ?? sourcePageForValue(text, pages, value) : null,
+  source_doc_type: sourceDocType,
+  method,
+});
+
 const moneyToNumber = (value = '') => {
   const parsed = Number.parseFloat(value.replace(/[^\d.]/g, ''));
   return Number.isFinite(parsed) ? parsed : 0;
@@ -370,12 +434,22 @@ const buildClaimAudit = ({
   pages,
   ocrConfidence,
   fields,
+  extractionMethod = 'pdf_text',
 }: {
   text: string;
   pages: number;
   ocrConfidence: number;
   fields: ClaimField[];
+  extractionMethod?: ValidationReport['extractionMethod'];
 }): ClaimAudit => {
+  const method = extractionMethod === 'ai_ocr' ? 'ocr' : 'pdf_text';
+  const directConfidence = (value: unknown) =>
+    hasExtractedValue(value) ? clamp(ocrConfidence + 8, 90, 99) : 0;
+  const regexConfidence = (value: unknown) =>
+    hasExtractedValue(value) ? clamp(ocrConfidence + 4, 80, 95) : 0;
+  const weakConfidence = (value: unknown) =>
+    hasExtractedValue(value) ? clamp(ocrConfidence - 8, 40, 70) : 0;
+
   const patientName = findAuditValue(text, [
     /(?:patient\s*(?:name)?|name\s+of\s+patient)\s*[:-]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,4})/i,
     /(?:insured|beneficiary)\s*(?:name)?\s*[:-]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,4})/i,
@@ -466,32 +540,221 @@ const buildClaimAudit = ({
     },
     extracted_data: {
       patient: {
-        full_name: patientName,
-        dob,
-        gender,
-        contact_number: contactNumber,
+        full_name: makeTrace({
+          value: patientName,
+          fallbackConfidence: directConfidence(patientName),
+          text,
+          pages,
+          sourceDocType: 'Patient intake form',
+          method,
+        }),
+        dob: makeTrace({
+          value: dob,
+          fallbackConfidence: directConfidence(dob),
+          text,
+          pages,
+          sourceDocType: 'Patient intake form',
+          method,
+        }),
+        gender: makeTrace({
+          value: gender,
+          fallbackConfidence: regexConfidence(gender),
+          text,
+          pages,
+          sourceDocType: 'Patient intake form',
+          method,
+        }),
+        contact_number: makeTrace({
+          value: contactNumber,
+          fallbackConfidence: regexConfidence(contactNumber),
+          text,
+          pages,
+          sourceDocType: 'Patient intake form',
+          method,
+        }),
       },
       insurance: {
-        tpa_or_provider_name: providerName,
-        policy_number: policyNumber,
-        corporate_or_group_id: groupId,
-        member_id: memberId,
+        tpa_or_provider_name: makeTrace({
+          value: providerName,
+          fallbackConfidence: regexConfidence(providerName),
+          text,
+          pages,
+          sourceDocType: 'Insurance document',
+          method,
+        }),
+        policy_number: makeTrace({
+          value: policyNumber,
+          fallbackConfidence: regexConfidence(policyNumber),
+          text,
+          pages,
+          sourceDocType: 'Insurance document',
+          method,
+        }),
+        corporate_or_group_id: makeTrace({
+          value: groupId,
+          fallbackConfidence: regexConfidence(groupId),
+          text,
+          pages,
+          sourceDocType: 'Insurance document',
+          method,
+        }),
+        member_id: makeTrace({
+          value: memberId,
+          fallbackConfidence: regexConfidence(memberId),
+          text,
+          pages,
+          sourceDocType: 'Insurance document',
+          method,
+        }),
       },
       hospital: {
-        facility_name: facilityName,
-        treating_doctor: treatingDoctor,
-        hospital_registration_no: hospitalRegistrationNo,
+        facility_name: makeTrace({
+          value: facilityName,
+          fallbackConfidence: directConfidence(facilityName),
+          text,
+          pages,
+          sourceDocType: 'Hospital records',
+          method,
+        }),
+        treating_doctor: makeTrace({
+          value: treatingDoctor,
+          fallbackConfidence: regexConfidence(treatingDoctor),
+          text,
+          pages,
+          sourceDocType: 'Hospital records',
+          method,
+        }),
+        hospital_registration_no: makeTrace({
+          value: hospitalRegistrationNo,
+          fallbackConfidence: regexConfidence(hospitalRegistrationNo),
+          text,
+          pages,
+          sourceDocType: 'Hospital records',
+          method,
+        }),
       },
       clinical: {
-        admission_date: admissionDate,
-        is_emergency: isEmergency,
-        presenting_complaints: presentingComplaints,
-        diagnosis,
-        icd_10_codes: icd10Codes,
-        proposed_treatment: proposedTreatment,
+        admission_date: makeTrace({
+          value: admissionDate,
+          fallbackConfidence: directConfidence(admissionDate),
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method,
+        }),
+        is_emergency: makeTrace({
+          value: isEmergency,
+          fallbackConfidence: isEmergency === null ? 0 : weakConfidence(isEmergency),
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method: isEmergency === null ? method : 'inferred_weak_match',
+        }),
+        presenting_complaints: makeTrace({
+          value: presentingComplaints,
+          fallbackConfidence: regexConfidence(presentingComplaints),
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method,
+        }),
+        diagnosis: makeTrace({
+          value: diagnosis,
+          fallbackConfidence: diagnosis === patientName ? weakConfidence(diagnosis) : regexConfidence(diagnosis),
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method: hasExtractedValue(diagnosis) && !text.toLowerCase().includes(String(diagnosis).toLowerCase())
+            ? 'inferred_weak_match'
+            : method,
+        }),
+        icd_10_codes: makeTrace({
+          value: icd10Codes,
+          fallbackConfidence: regexConfidence(icd10Codes),
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method,
+        }),
+        proposed_treatment: makeTrace({
+          value: proposedTreatment,
+          fallbackConfidence: regexConfidence(proposedTreatment),
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method: hasExtractedValue(proposedTreatment) && !text.toLowerCase().includes(String(proposedTreatment).toLowerCase())
+            ? 'inferred_weak_match'
+            : method,
+        }),
       },
-      financial,
-      signatures,
+      financial: {
+        expected_total_cost: makeTrace({
+          value: financial.expected_total_cost,
+          fallbackConfidence: directConfidence(financial.expected_total_cost),
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+        room_rent: makeTrace({
+          value: financial.room_rent,
+          fallbackConfidence: regexConfidence(financial.room_rent),
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+        icu_charges: makeTrace({
+          value: financial.icu_charges,
+          fallbackConfidence: regexConfidence(financial.icu_charges),
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+        ot_charges: makeTrace({
+          value: financial.ot_charges,
+          fallbackConfidence: regexConfidence(financial.ot_charges),
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+        professional_fees: makeTrace({
+          value: financial.professional_fees,
+          fallbackConfidence: regexConfidence(financial.professional_fees),
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+      },
+      signatures: {
+        patient_signature_present: makeTrace({
+          value: signatures.patient_signature_present,
+          fallbackConfidence: signatures.patient_signature_present ? regexConfidence(true) : 0,
+          text,
+          pages,
+          sourceDocType: 'Authorization form',
+          method,
+        }),
+        doctor_signature_present: makeTrace({
+          value: signatures.doctor_signature_present,
+          fallbackConfidence: signatures.doctor_signature_present ? regexConfidence(true) : 0,
+          text,
+          pages,
+          sourceDocType: 'Authorization form',
+          method,
+        }),
+        hospital_seal_present: makeTrace({
+          value: signatures.hospital_seal_present,
+          fallbackConfidence: signatures.hospital_seal_present ? regexConfidence(true) : 0,
+          text,
+          pages,
+          sourceDocType: 'Authorization form',
+          method,
+        }),
+      },
     },
     validation_errors: [],
   };
@@ -504,11 +767,14 @@ const buildAuditValidationErrors = (audit: ClaimAudit, text: string) => {
   const errors: string[] = [];
   const { extracted_data: data } = audit;
   const addMissing = (value: unknown, message: string) => {
+    const actualValue = value && typeof value === 'object' && 'value' in (value as Record<string, unknown>)
+      ? (value as TraceableField).value
+      : value;
     if (
-      value === null ||
-      value === undefined ||
-      (typeof value === 'string' && value.trim().length === 0) ||
-      (Array.isArray(value) && value.length === 0)
+      actualValue === null ||
+      actualValue === undefined ||
+      (typeof actualValue === 'string' && actualValue.trim().length === 0) ||
+      (Array.isArray(actualValue) && actualValue.length === 0)
     ) {
       errors.push(message);
     }
@@ -535,12 +801,15 @@ const buildAuditValidationErrors = (audit: ClaimAudit, text: string) => {
   addMissing(data.clinical.proposed_treatment, 'Missing proposed treatment or procedure details.');
   addMissing(data.financial.expected_total_cost, 'Missing expected total cost.');
 
-  if (
-    data.financial.room_rent === null &&
-    data.financial.icu_charges === null &&
-    data.financial.ot_charges === null &&
-    data.financial.professional_fees === null
-  ) {
+  const roomRent = traceValue(data.financial.room_rent);
+  const icuCharges = traceValue(data.financial.icu_charges);
+  const otCharges = traceValue(data.financial.ot_charges);
+  const professionalFees = traceValue(data.financial.professional_fees);
+  const expectedTotalCost = traceValue(data.financial.expected_total_cost);
+  const admissionDate = traceValue(data.clinical.admission_date);
+  const isEmergency = traceValue(data.clinical.is_emergency);
+
+  if (roomRent === null && icuCharges === null && otCharges === null && professionalFees === null) {
     errors.push('Missing financial line-item breakdown.');
   }
 
@@ -548,22 +817,22 @@ const buildAuditValidationErrors = (audit: ClaimAudit, text: string) => {
     errors.push('Missing expected length of stay.');
   }
 
-  if (!data.signatures.patient_signature_present) errors.push('Patient signature is missing.');
-  if (!data.signatures.doctor_signature_present) errors.push('Doctor signature is missing.');
-  if (!data.signatures.hospital_seal_present) errors.push('Hospital seal or stamp is missing.');
+  if (!traceValue(data.signatures.patient_signature_present)) errors.push('Patient signature is missing.');
+  if (!traceValue(data.signatures.doctor_signature_present)) errors.push('Doctor signature is missing.');
+  if (!traceValue(data.signatures.hospital_seal_present)) errors.push('Hospital seal or stamp is missing.');
 
   const lineItemValues = [
-    data.financial.room_rent,
-    data.financial.icu_charges,
-    data.financial.ot_charges,
-    data.financial.professional_fees,
+    roomRent,
+    icuCharges,
+    otCharges,
+    professionalFees,
   ].filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
 
-  if (data.financial.expected_total_cost !== null && lineItemValues.length >= 2) {
+  if (expectedTotalCost !== null && lineItemValues.length >= 2) {
     const lineSum = lineItemValues.reduce((sum, value) => sum + value, 0);
     if (
-      Math.abs(lineSum - data.financial.expected_total_cost) >
-      Math.max(10, data.financial.expected_total_cost * 0.02)
+      Math.abs(lineSum - expectedTotalCost) >
+      Math.max(10, expectedTotalCost * 0.02)
     ) {
       errors.push('Financial breakdown does not sum to expected total cost.');
     }
@@ -574,11 +843,11 @@ const buildAuditValidationErrors = (audit: ClaimAudit, text: string) => {
   }
 
   if (
-    data.clinical.admission_date &&
-    data.clinical.is_emergency === false &&
+    admissionDate &&
+    isEmergency === false &&
     hasAny(text, [/planned/i, /future/i, /elective/i, /proposed/i])
   ) {
-    const admission = new Date(data.clinical.admission_date);
+    const admission = new Date(admissionDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -588,6 +857,356 @@ const buildAuditValidationErrors = (audit: ClaimAudit, text: string) => {
   }
 
   return Array.from(new Set(errors));
+};
+
+const traceFromUnknown = <T extends string | number | boolean | string[] | null>({
+  raw,
+  fallbackValue,
+  fallbackConfidence,
+  text,
+  pages,
+  sourceDocType,
+  method,
+}: {
+  raw: unknown;
+  fallbackValue: T;
+  fallbackConfidence: number;
+  text: string;
+  pages: number;
+  sourceDocType: string;
+  method: string;
+}): TraceableField<T> => {
+  const maybeTrace =
+    raw && typeof raw === 'object' && 'value' in (raw as Record<string, unknown>)
+      ? (raw as Partial<TraceableField<T>>)
+      : null;
+  const value = (maybeTrace ? maybeTrace.value : raw) as T;
+  const normalizedValue = (value === undefined ? fallbackValue : value) as T;
+
+  return makeTrace({
+    value: normalizedValue,
+    fallbackConfidence,
+    text,
+    pages,
+    sourceDocType: maybeTrace?.source_doc_type || sourceDocType,
+    method: maybeTrace?.method || method,
+    confidence: maybeTrace?.confidence,
+    sourcePage: maybeTrace?.source_page ?? undefined,
+  });
+};
+
+const normalizeClaimAudit = ({
+  audit,
+  fallbackAudit,
+  fallbackFields,
+  text,
+  pages,
+  extractionMethod,
+}: {
+  audit: unknown;
+  fallbackAudit: ClaimAudit;
+  fallbackFields: ClaimField[];
+  text: string;
+  pages: number;
+  extractionMethod: ValidationReport['extractionMethod'];
+}): ClaimAudit => {
+  const rawAudit = audit && typeof audit === 'object' ? (audit as any) : {};
+  const rawData = rawAudit.extracted_data || {};
+  const fallbackData = fallbackAudit.extracted_data;
+  const method = extractionMethod === 'ai_ocr' ? 'ocr' : 'pdf_text';
+  const fallbackField = (id: ClaimField['id']) => fallbackFields.find((field) => field.id === id);
+  const fieldConfidence = (id: ClaimField['id'], fallback = 82) =>
+    clamp(fallbackField(id)?.confidence || fallback, 40, 99);
+
+  const normalized: ClaimAudit = {
+    document_metadata: {
+      document_type: rawAudit.document_metadata?.document_type || fallbackAudit.document_metadata.document_type,
+      page_count: Number.isFinite(rawAudit.document_metadata?.page_count)
+        ? rawAudit.document_metadata.page_count
+        : fallbackAudit.document_metadata.page_count,
+      scan_quality:
+        rawAudit.document_metadata?.scan_quality || fallbackAudit.document_metadata.scan_quality,
+    },
+    extracted_data: {
+      patient: {
+        full_name: traceFromUnknown({
+          raw: rawData.patient?.full_name,
+          fallbackValue: traceValue(fallbackData.patient.full_name),
+          fallbackConfidence: fieldConfidence('patientName', traceValue(fallbackData.patient.full_name) ? fallbackData.patient.full_name.confidence : 90),
+          text,
+          pages,
+          sourceDocType: 'Patient intake form',
+          method,
+        }),
+        dob: traceFromUnknown({
+          raw: rawData.patient?.dob,
+          fallbackValue: traceValue(fallbackData.patient.dob),
+          fallbackConfidence: fallbackData.patient.dob.confidence || 90,
+          text,
+          pages,
+          sourceDocType: 'Patient intake form',
+          method,
+        }),
+        gender: traceFromUnknown({
+          raw: rawData.patient?.gender,
+          fallbackValue: traceValue(fallbackData.patient.gender),
+          fallbackConfidence: fallbackData.patient.gender.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Patient intake form',
+          method,
+        }),
+        contact_number: traceFromUnknown({
+          raw: rawData.patient?.contact_number,
+          fallbackValue: traceValue(fallbackData.patient.contact_number),
+          fallbackConfidence: fallbackData.patient.contact_number.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Patient intake form',
+          method,
+        }),
+      },
+      insurance: {
+        tpa_or_provider_name: traceFromUnknown({
+          raw: rawData.insurance?.tpa_or_provider_name,
+          fallbackValue: traceValue(fallbackData.insurance.tpa_or_provider_name),
+          fallbackConfidence: fallbackData.insurance.tpa_or_provider_name.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Insurance document',
+          method,
+        }),
+        policy_number: traceFromUnknown({
+          raw: rawData.insurance?.policy_number,
+          fallbackValue: traceValue(fallbackData.insurance.policy_number),
+          fallbackConfidence: fallbackData.insurance.policy_number.confidence || fieldConfidence('insuranceNumber'),
+          text,
+          pages,
+          sourceDocType: 'Insurance document',
+          method,
+        }),
+        corporate_or_group_id: traceFromUnknown({
+          raw: rawData.insurance?.corporate_or_group_id,
+          fallbackValue: traceValue(fallbackData.insurance.corporate_or_group_id),
+          fallbackConfidence: fallbackData.insurance.corporate_or_group_id.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Insurance document',
+          method,
+        }),
+        member_id: traceFromUnknown({
+          raw: rawData.insurance?.member_id,
+          fallbackValue: traceValue(fallbackData.insurance.member_id) || fallbackField('insuranceNumber')?.value || null,
+          fallbackConfidence: fallbackData.insurance.member_id.confidence || fieldConfidence('insuranceNumber'),
+          text,
+          pages,
+          sourceDocType: 'Insurance document',
+          method,
+        }),
+      },
+      hospital: {
+        facility_name: traceFromUnknown({
+          raw: rawData.hospital?.facility_name,
+          fallbackValue: traceValue(fallbackData.hospital.facility_name) || fallbackField('hospital')?.value || null,
+          fallbackConfidence: fallbackData.hospital.facility_name.confidence || fieldConfidence('hospital'),
+          text,
+          pages,
+          sourceDocType: 'Hospital records',
+          method,
+        }),
+        treating_doctor: traceFromUnknown({
+          raw: rawData.hospital?.treating_doctor,
+          fallbackValue: traceValue(fallbackData.hospital.treating_doctor) || fallbackField('doctorName')?.value || null,
+          fallbackConfidence: fallbackData.hospital.treating_doctor.confidence || fieldConfidence('doctorName'),
+          text,
+          pages,
+          sourceDocType: 'Hospital records',
+          method,
+        }),
+        hospital_registration_no: traceFromUnknown({
+          raw: rawData.hospital?.hospital_registration_no,
+          fallbackValue: traceValue(fallbackData.hospital.hospital_registration_no),
+          fallbackConfidence: fallbackData.hospital.hospital_registration_no.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Hospital records',
+          method,
+        }),
+      },
+      clinical: {
+        admission_date: traceFromUnknown({
+          raw: rawData.clinical?.admission_date,
+          fallbackValue: traceValue(fallbackData.clinical.admission_date),
+          fallbackConfidence: fallbackData.clinical.admission_date.confidence || 90,
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method,
+        }),
+        is_emergency: traceFromUnknown({
+          raw: rawData.clinical?.is_emergency,
+          fallbackValue: traceValue(fallbackData.clinical.is_emergency),
+          fallbackConfidence: fallbackData.clinical.is_emergency.confidence || 60,
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method: 'inferred_weak_match',
+        }),
+        presenting_complaints: traceFromUnknown({
+          raw: rawData.clinical?.presenting_complaints,
+          fallbackValue: traceValue(fallbackData.clinical.presenting_complaints),
+          fallbackConfidence: fallbackData.clinical.presenting_complaints.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method,
+        }),
+        diagnosis: traceFromUnknown({
+          raw: rawData.clinical?.diagnosis,
+          fallbackValue: traceValue(fallbackData.clinical.diagnosis) || fallbackField('diagnosis')?.value || null,
+          fallbackConfidence: fallbackData.clinical.diagnosis.confidence || fieldConfidence('diagnosis'),
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method,
+        }),
+        icd_10_codes: traceFromUnknown({
+          raw: rawData.clinical?.icd_10_codes,
+          fallbackValue: traceValue(fallbackData.clinical.icd_10_codes),
+          fallbackConfidence: fallbackData.clinical.icd_10_codes.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method,
+        }),
+        proposed_treatment: traceFromUnknown({
+          raw: rawData.clinical?.proposed_treatment,
+          fallbackValue: traceValue(fallbackData.clinical.proposed_treatment) || fallbackField('procedure')?.value || null,
+          fallbackConfidence: fallbackData.clinical.proposed_treatment.confidence || fieldConfidence('procedure', 65),
+          text,
+          pages,
+          sourceDocType: 'Clinical summary',
+          method,
+        }),
+      },
+      financial: {
+        expected_total_cost: traceFromUnknown({
+          raw: rawData.financial?.expected_total_cost,
+          fallbackValue: traceValue(fallbackData.financial.expected_total_cost) || moneyToNumber(fallbackField('invoiceTotal')?.value || ''),
+          fallbackConfidence: fallbackData.financial.expected_total_cost.confidence || fieldConfidence('invoiceTotal'),
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+        room_rent: traceFromUnknown({
+          raw: rawData.financial?.room_rent,
+          fallbackValue: traceValue(fallbackData.financial.room_rent),
+          fallbackConfidence: fallbackData.financial.room_rent.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+        icu_charges: traceFromUnknown({
+          raw: rawData.financial?.icu_charges,
+          fallbackValue: traceValue(fallbackData.financial.icu_charges),
+          fallbackConfidence: fallbackData.financial.icu_charges.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+        ot_charges: traceFromUnknown({
+          raw: rawData.financial?.ot_charges,
+          fallbackValue: traceValue(fallbackData.financial.ot_charges),
+          fallbackConfidence: fallbackData.financial.ot_charges.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+        professional_fees: traceFromUnknown({
+          raw: rawData.financial?.professional_fees,
+          fallbackValue: traceValue(fallbackData.financial.professional_fees),
+          fallbackConfidence: fallbackData.financial.professional_fees.confidence || 82,
+          text,
+          pages,
+          sourceDocType: 'Itemized bill',
+          method,
+        }),
+      },
+      signatures: fallbackData.signatures,
+    },
+    validation_errors: Array.isArray(rawAudit.validation_errors)
+      ? rawAudit.validation_errors
+      : fallbackAudit.validation_errors,
+  };
+
+  normalized.validation_errors = buildAuditValidationErrors(normalized, text);
+  return normalized;
+};
+
+const sourceLabel = (field: TraceableField) =>
+  `${field.source_doc_type} - ${field.method}${field.source_page ? ` - page ${field.source_page}` : ''}`;
+
+const claimFieldFromTrace = (
+  id: ClaimField['id'],
+  label: string,
+  field: TraceableField,
+  fallbackValue = ''
+): ClaimField => {
+  const value = traceValue(field);
+  const cleanFallbackValue = fallbackValue === emptyValue ? '' : fallbackValue;
+  const displayValue = hasExtractedValue(value)
+    ? Array.isArray(value)
+      ? value.join(', ')
+      : String(value)
+    : cleanFallbackValue;
+
+  return {
+    id,
+    label,
+    value: displayValue || '',
+    confidence: displayValue ? field.confidence : 0,
+    source: displayValue ? sourceLabel(field) : 'No source page extracted',
+    sourcePage: displayValue ? field.source_page : null,
+    sourceDocType: field.source_doc_type,
+    method: field.method,
+  };
+};
+
+const buildClaimFieldsFromAudit = (
+  audit: ClaimAudit,
+  fallbackFields: ClaimField[]
+): ClaimField[] => {
+  const fallback = (id: ClaimField['id']) => fallbackFields.find((field) => field.id === id);
+  const procedureFallback = traceValue(audit.extracted_data.clinical.proposed_treatment);
+  const claimTypeValue = [
+    traceValue(audit.extracted_data.clinical.admission_date) && 'Inpatient',
+    traceValue(audit.extracted_data.clinical.proposed_treatment) && 'procedural',
+    'claim',
+  ].filter(Boolean).join(' ');
+
+  return [
+    claimFieldFromTrace('patientName', 'Patient name', audit.extracted_data.patient.full_name, fallback('patientName')?.value),
+    claimFieldFromTrace('insuranceNumber', 'Insurance number', audit.extracted_data.insurance.member_id, fallback('insuranceNumber')?.value),
+    claimFieldFromTrace('diagnosis', 'Diagnosis', audit.extracted_data.clinical.diagnosis, fallback('diagnosis')?.value),
+    claimFieldFromTrace('doctorName', 'Attending physician', audit.extracted_data.hospital.treating_doctor, fallback('doctorName')?.value),
+    claimFieldFromTrace('hospital', 'Hospital / Facility', audit.extracted_data.hospital.facility_name, fallback('hospital')?.value),
+    claimFieldFromTrace('procedure', 'Procedure', audit.extracted_data.clinical.proposed_treatment, procedureFallback ? String(procedureFallback) : fallback('procedure')?.value),
+    claimFieldFromTrace('invoiceTotal', 'Invoice total', audit.extracted_data.financial.expected_total_cost, fallback('invoiceTotal')?.value),
+    {
+      id: 'claimType',
+      label: 'Claim metadata',
+      value: claimTypeValue,
+      confidence: claimTypeValue ? clamp(audit.extracted_data.clinical.admission_date.confidence || 72, 40, 95) : 0,
+      source: claimTypeValue ? 'Claim packet context - inferred_weak_match' : 'No source page extracted',
+      sourcePage: null,
+      sourceDocType: 'Claim packet context',
+      method: 'inferred_weak_match',
+    },
+  ];
 };
 
 const inferDocumentGroups = (
@@ -1184,6 +1803,7 @@ export async function POST(req: Request) {
       pages: pageCount,
       ocrConfidence: localExtraction.ocrConfidence,
       fields: localExtraction.fields,
+      extractionMethod,
     });
     const aiResult = await runAiValidation({
       fileName: file.name,
@@ -1194,9 +1814,16 @@ export async function POST(req: Request) {
       localAudit,
     });
 
-    const finalFields = aiResult?.fields || localExtraction.fields;
     const finalReport = aiResult?.validation || localReport;
-    const finalAudit = aiResult?.claimAudit || localAudit;
+    const finalAudit = normalizeClaimAudit({
+      audit: aiResult?.claimAudit || localAudit,
+      fallbackAudit: localAudit,
+      fallbackFields: aiResult?.fields || localExtraction.fields,
+      text,
+      pages: pageCount,
+      extractionMethod,
+    });
+    const finalFields = buildClaimFieldsFromAudit(finalAudit, aiResult?.fields || localExtraction.fields);
 
     // Save to liveClaims store
     try {
@@ -1204,22 +1831,23 @@ export async function POST(req: Request) {
       
       // Construct ExtractedClaimData
       const getFieldValue = (id: string) => finalFields.find((f: any) => f.id === id)?.value || '';
+      const extracted = finalAudit.extracted_data;
 
       const confirmedData = {
         patient: {
-          full_name: finalAudit.extracted_data.patient.full_name || getFieldValue('patientName') || '',
-          date_of_birth: finalAudit.extracted_data.patient.dob || '',
-          gender: finalAudit.extracted_data.patient.gender || '',
+          full_name: traceValue(extracted.patient.full_name) || getFieldValue('patientName') || '',
+          date_of_birth: traceValue(extracted.patient.dob) || '',
+          gender: traceValue(extracted.patient.gender) || '',
           address: '',
-          contact_phone: finalAudit.extracted_data.patient.contact_number || '',
+          contact_phone: traceValue(extracted.patient.contact_number) || '',
           contact_email: '',
         },
         insurance: {
-          policyholder_name: finalAudit.extracted_data.patient.full_name || getFieldValue('patientName') || '',
-          group_number: finalAudit.extracted_data.insurance.corporate_or_group_id || '',
-          member_id: finalAudit.extracted_data.insurance.member_id || getFieldValue('insuranceNumber') || '',
+          policyholder_name: traceValue(extracted.patient.full_name) || getFieldValue('patientName') || '',
+          group_number: traceValue(extracted.insurance.corporate_or_group_id) || '',
+          member_id: traceValue(extracted.insurance.member_id) || getFieldValue('insuranceNumber') || '',
           payer_id: '',
-          plan_name: finalAudit.extracted_data.insurance.tpa_or_provider_name || '',
+          plan_name: traceValue(extracted.insurance.tpa_or_provider_name) || '',
         },
         pre_authorization: {
           approval_code: '',
@@ -1227,20 +1855,24 @@ export async function POST(req: Request) {
           authorized_to: '',
         },
         clinical: {
-          admission_date: finalAudit.extracted_data.clinical.admission_date || '',
+          admission_date: traceValue(extracted.clinical.admission_date) || '',
           discharge_date: '',
-          attending_physician: finalAudit.extracted_data.hospital.treating_doctor || getFieldValue('doctorName') || '',
+          attending_physician: traceValue(extracted.hospital.treating_doctor) || getFieldValue('doctorName') || '',
           hospital_npi: '',
           hospital_tax_id: '',
-          facility_name: finalAudit.extracted_data.hospital.facility_name || getFieldValue('hospital') || '',
-          principal_diagnosis: finalAudit.extracted_data.clinical.diagnosis || getFieldValue('diagnosis') || '',
+          facility_name: traceValue(extracted.hospital.facility_name) || getFieldValue('hospital') || '',
+          principal_diagnosis: traceValue(extracted.clinical.diagnosis) || getFieldValue('diagnosis') || '',
         },
         coding: {
-          icd10_codes: (finalAudit.extracted_data.clinical.icd_10_codes || []).map((code: string) => ({ code, description: '', confidence: 0.9 })),
+          icd10_codes: (traceValue(extracted.clinical.icd_10_codes) || []).map((code: string) => ({
+            code,
+            description: '',
+            confidence: extracted.clinical.icd_10_codes.confidence / 100,
+          })),
           cpt_codes: [],
         },
         billing: {
-          total_billed_amount: String(finalAudit.extracted_data.financial.expected_total_cost || moneyToNumber(getFieldValue('invoiceTotal')) || '0'),
+          total_billed_amount: String(traceValue(extracted.financial.expected_total_cost) || moneyToNumber(getFieldValue('invoiceTotal')) || '0'),
           line_items: [],
         },
         extraction_meta: {

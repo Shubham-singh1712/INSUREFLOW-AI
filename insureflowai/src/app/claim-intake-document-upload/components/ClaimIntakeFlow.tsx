@@ -37,6 +37,9 @@ export type ClaimField = {
   value: string;
   confidence: number;
   source: string;
+  sourcePage?: number | null;
+  sourceDocType?: string;
+  method?: string;
 };
 
 export type ValidationIssue = {
@@ -98,6 +101,8 @@ export type TraceableField<T = string | number | boolean | null> = {
   value: T;
   confidence: number;
   source_page: number | null;
+  source_doc_type?: string;
+  method?: string;
 };
 
 export type ClaimAudit = {
