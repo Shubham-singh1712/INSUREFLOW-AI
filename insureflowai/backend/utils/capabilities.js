@@ -24,7 +24,7 @@ const checkCapabilities = async () => {
 
   // Check Canvas (needed for advanced PDF rendering or some OCR pipelines)
   try {
-    require.resolve('canvas');
+    require.resolve('@napi-rs/canvas');
     capabilities.canvas_available = true;
   } catch (e) {
     console.warn('⚠️ Canvas capability is missing.');

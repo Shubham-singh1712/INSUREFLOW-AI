@@ -18,6 +18,21 @@ const PDF_WORKER_PATH = path.join(
   'build',
   'pdf.worker.mjs'
 );
+const resolveRuntimeModule = (specifier: string) => {
+  const runtimeRequire = eval('require') as NodeRequire;
+  return runtimeRequire.resolve(specifier);
+};
+
+const getTesseractOptions = () => ({
+  workerPath: resolveRuntimeModule('tesseract.js/src/worker-script/node/index.js'),
+  corePath: path.dirname(resolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js')),
+  langPath: path.dirname(
+    resolveRuntimeModule('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz')
+  ),
+  gzip: true,
+  cacheMethod: 'none',
+  workerBlobURL: false,
+});
 
 type ExtractionMethod = 'pdf_text' | 'ocr' | 'mixed' | 'metadata_only';
 type FieldMethod = 'pdf_text' | 'ocr';
@@ -469,10 +484,15 @@ async function runOcrFallback(buffer: Buffer, pageCount: number): Promise<PageTe
     toBuffer: (type: 'image/png') => Promise<Buffer> | Buffer;
   };
   let Tesseract: {
-    createWorker?: (language?: string) => Promise<{
+    createWorker?: (
+      language?: string,
+      oem?: number,
+      options?: Record<string, unknown>
+    ) => Promise<{
       recognize: (image: Buffer) => Promise<{ data: { text?: string; confidence?: number } }>;
       terminate: () => Promise<unknown>;
     }>;
+    OEM?: { LSTM_ONLY?: number };
     recognize?: (
       image: Buffer,
       language: string
@@ -501,7 +521,8 @@ async function runOcrFallback(buffer: Buffer, pageCount: number): Promise<PageTe
   }
 
   try {
-    Tesseract = (await import('tesseract.js')) as unknown as typeof Tesseract;
+    const imported = await import('tesseract.js');
+    Tesseract = ((imported as any).default || imported) as typeof Tesseract;
   } catch (error) {
     throw new PipelineError(
       'ocr_worker_failed',
@@ -525,7 +546,9 @@ async function runOcrFallback(buffer: Buffer, pageCount: number): Promise<PageTe
     const pages: PageText[] = [];
 
     if (typeof Tesseract.createWorker === 'function') {
-      worker = await Tesseract.createWorker('eng');
+      worker = await Tesseract.createWorker('eng', Tesseract.OEM?.LSTM_ONLY ?? 1, {
+        ...getTesseractOptions(),
+      });
     }
 
     for (let pageNumber = 1; pageNumber <= pagesToOcr; pageNumber += 1) {

@@ -1,8 +1,18 @@
 const fs = require('fs');
+const path = require('path');
 const Document = require('../models/Document');
 const ApiError = require('../utils/ApiError');
 const { recordValidationLog } = require('./validationLog.service');
 const { capabilities } = require('../utils/capabilities');
+
+const getTesseractOptions = () => ({
+  workerPath: require.resolve('tesseract.js/src/worker-script/node/index.js'),
+  corePath: path.dirname(require.resolve('tesseract.js-core/tesseract-core-lstm.wasm.js')),
+  langPath: path.dirname(require.resolve('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz')),
+  gzip: true,
+  cacheMethod: 'none',
+  workerBlobURL: false,
+});
 
 const extractFieldsFromText = (text = '') => {
   const patientName = text.match(/(?:patient|name)[:\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3})/i)?.[1];
@@ -74,7 +84,7 @@ const runOcrExtraction = async ({ documentId, claimId, user }) => {
     } else {
       if (capabilities.ocr_available) {
         const Tesseract = require('tesseract.js');
-        const result = await Tesseract.recognize(source, 'eng');
+        const result = await Tesseract.recognize(source, 'eng', getTesseractOptions());
         text = result.data.text;
         ocrMetadata = {
           extractionMethod: 'tesseract_ocr',
