@@ -244,6 +244,8 @@ type UiValidationReport = {
   extractionMethod: 'pdf_text' | 'ocr_required' | 'ai_ocr';
 };
 
+type PdfJsModule = typeof import('pdfjs-dist/legacy/build/pdf.mjs');
+
 class PipelineError extends Error {
   constructor(
     public stage: PipelineStage,
@@ -357,12 +359,36 @@ const uiSeverity = (severity: Severity): UiSeverity =>
 
 const statusFor = (status: number) => ({ status });
 
+async function ensurePdfJsNodePolyfills() {
+  if (globalThis.DOMMatrix && globalThis.ImageData && globalThis.Path2D) return;
+
+  try {
+    const canvas = await import('@napi-rs/canvas');
+    globalThis.DOMMatrix ||= canvas.DOMMatrix as typeof globalThis.DOMMatrix;
+    globalThis.ImageData ||= canvas.ImageData as typeof globalThis.ImageData;
+    globalThis.Path2D ||= canvas.Path2D as typeof globalThis.Path2D;
+  } catch (error) {
+    throw new PipelineError(
+      'canvas_init_failed',
+      error instanceof Error
+        ? error.message
+        : 'PDF geometry polyfills could not be initialized.',
+      500
+    );
+  }
+}
+
+async function loadPdfJs(): Promise<PdfJsModule> {
+  await ensurePdfJsNodePolyfills();
+  return import('pdfjs-dist/legacy/build/pdf.mjs');
+}
+
 async function parsePdfWithPdfJs(buffer: Buffer): Promise<{
   pageCount: number;
   pages: PageText[];
 }> {
   try {
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const pdfjs = await loadPdfJs();
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(buffer),
       disableWorker: true,
@@ -405,7 +431,7 @@ async function parsePdfWithPdfJs(buffer: Buffer): Promise<{
 
 async function parsePdfMetadata(buffer: Buffer): Promise<number> {
   try {
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const pdfjs = await loadPdfJs();
     const loadingTask = pdfjs.getDocument({
       data: new Uint8Array(buffer),
       disableWorker: true,
@@ -425,7 +451,7 @@ async function parsePdfMetadata(buffer: Buffer): Promise<number> {
 }
 
 async function runOcrFallback(buffer: Buffer, pageCount: number): Promise<PageText[]> {
-  let pdfjs: typeof import('pdfjs-dist/legacy/build/pdf.mjs');
+  let pdfjs: PdfJsModule;
   let Canvas: new (width: number, height: number) => {
     getContext: (type: '2d') => unknown;
     toBuffer: (type: 'image/png') => Promise<Buffer> | Buffer;
@@ -442,7 +468,7 @@ async function runOcrFallback(buffer: Buffer, pageCount: number): Promise<PageTe
   };
 
   try {
-    pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    pdfjs = await loadPdfJs();
   } catch (error) {
     throw new PipelineError(
       'pdf_renderer_failed',
