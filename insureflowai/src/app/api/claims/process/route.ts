@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/api';
 import path from 'path';
 import { pathToFileURL } from 'url';
+import { inflateSync } from 'zlib';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,28 @@ const resolveRuntimeModule = (specifier: string) => {
   return runtimeRequire.resolve(specifier);
 };
 
+const canResolveRuntimeModule = (specifier: string) => {
+  try {
+    resolveRuntimeModule(specifier);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const routeCapabilities: CapabilityMatrix = {
+  pdf_text_available: true,
+  pdf_render_available:
+    canResolveRuntimeModule('pdfjs-dist/legacy/build/pdf.mjs') &&
+    canResolveRuntimeModule('pdfjs-dist/legacy/build/pdf.worker.mjs'),
+  canvas_available: canResolveRuntimeModule('@napi-rs/canvas'),
+  ocr_available:
+    canResolveRuntimeModule('tesseract.js') &&
+    canResolveRuntimeModule('tesseract.js/src/worker-script/node/index.js') &&
+    canResolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js') &&
+    canResolveRuntimeModule('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz'),
+};
+
 const getTesseractOptions = () => ({
   workerPath: resolveRuntimeModule('tesseract.js/src/worker-script/node/index.js'),
   corePath: path.dirname(resolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js')),
@@ -34,7 +57,7 @@ const getTesseractOptions = () => ({
   workerBlobURL: false,
 });
 
-type ExtractionMethod = 'pdf_text' | 'ocr' | 'mixed' | 'metadata_only';
+type ExtractionMethod = 'pdf_text' | 'pdf_text_only' | 'ocr' | 'mixed' | 'metadata_only';
 type FieldMethod = 'pdf_text' | 'ocr';
 type PdfKind = 'text_layer' | 'scanned_or_image';
 type PipelineStage =
@@ -172,6 +195,8 @@ type ClaimSession = {
 type V2Response = {
   success: true;
   extractionMethod: ExtractionMethod;
+  capabilities: CapabilityMatrix;
+  ocrSkippedReason?: string;
   claimId: string;
   uploadSessionId: string;
   pageCount: number;
@@ -185,6 +210,13 @@ type V2Response = {
   repairSuggestions: RepairSuggestion[];
   intake: ClaimSession;
   pdfType: PdfKind;
+};
+
+type CapabilityMatrix = {
+  pdf_text_available: boolean;
+  pdf_render_available: boolean;
+  canvas_available: boolean;
+  ocr_available: boolean;
 };
 
 type PipelineErrorBody = {
@@ -384,6 +416,143 @@ const uiSeverity = (severity: Severity): UiSeverity =>
 
 const statusFor = (status: number) => ({ status });
 
+const countPdfPages = (buffer: Buffer) => {
+  const pdf = buffer.toString('latin1');
+  return Math.max(1, (pdf.match(/\/Type\s*\/Page\b/g) || []).length);
+};
+
+const decodePdfHexText = (hex: string) => {
+  try {
+    return Buffer.from(hex, 'hex').toString('utf8');
+  } catch {
+    return '';
+  }
+};
+
+const decodePdfLiteralText = (value: string) =>
+  value
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\\(/g, '(')
+    .replace(/\\\)/g, ')')
+    .replace(/\\\\/g, '\\');
+
+const pageTextsFromCombinedText = (
+  text: string,
+  pageCount: number,
+  confidence: number,
+  method: FieldMethod = 'pdf_text'
+): PageText[] => {
+  const normalizedText = normalizeWhitespace(text);
+  if (pageCount <= 1) {
+    return [{ page: 1, text: normalizedText, method, confidence }];
+  }
+
+  if (!normalizedText) {
+    return Array.from({ length: pageCount }, (_, index) => ({
+      page: index + 1,
+      text: '',
+      method,
+      confidence: 0,
+    }));
+  }
+
+  return Array.from({ length: pageCount }, (_, index) => ({
+    page: index + 1,
+    text: index === 0 ? normalizedText : '',
+    method,
+    confidence: index === 0 ? confidence : 0,
+  }));
+};
+
+const extractPdfTextWithoutRendering = (buffer: Buffer, pageCount: number) => {
+  const pdf = buffer.toString('latin1');
+  const streamPattern = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  const textChunks: string[] = [];
+  let match: RegExpExecArray | null;
+
+  while ((match = streamPattern.exec(pdf))) {
+    const rawStream = Buffer.from(match[1], 'latin1');
+    let streamText = '';
+
+    try {
+      streamText = inflateSync(rawStream).toString('latin1');
+    } catch {
+      streamText = rawStream.toString('latin1');
+    }
+
+    for (const hexMatch of streamText.matchAll(/<([0-9A-Fa-f]+)>/g)) {
+      const decoded = decodePdfHexText(hexMatch[1]);
+      if (decoded.trim()) textChunks.push(decoded);
+    }
+
+    for (const literalMatch of streamText.matchAll(/\(([^()]*)\)\s*T[Jj]/g)) {
+      const decoded = decodePdfLiteralText(literalMatch[1]);
+      if (decoded.trim()) textChunks.push(decoded);
+    }
+
+    for (const arrayMatch of streamText.matchAll(/\[((?:\([^)]*\)|<[^>]+>|-?\d+(?:\.\d+)?|\s)+)\]\s*TJ/g)) {
+      const arrayText = Array.from(arrayMatch[1].matchAll(/\(([^()]*)\)|<([0-9A-Fa-f]+)>/g))
+        .map((part) => (part[1] ? decodePdfLiteralText(part[1]) : decodePdfHexText(part[2])))
+        .join('');
+      if (arrayText.trim()) textChunks.push(arrayText);
+    }
+  }
+
+  const text = normalizeWhitespace(textChunks.join(' '));
+  return {
+    pageCount,
+    pages: pageTextsFromCombinedText(text, pageCount, text.length >= TEXT_PACKET_THRESHOLD ? 92 : text.length > 0 ? 55 : 0),
+    source: 'raw_pdf_text',
+  };
+};
+
+async function extractPdfTextWithPdfParse(buffer: Buffer, pageCount: number) {
+  try {
+    const runtimeRequire = eval('require') as NodeRequire;
+    const pdfParseModule = runtimeRequire('pdf-parse') as {
+      PDFParse?: new (options: { data: Buffer }) => {
+        getText: () => Promise<{ text?: string; total?: number }>;
+        destroy?: () => Promise<void>;
+      };
+    };
+
+    if (!pdfParseModule.PDFParse) return null;
+
+    const parser = new pdfParseModule.PDFParse({ data: buffer });
+    try {
+      const result = await parser.getText();
+      const text = normalizeWhitespace(result.text || '');
+      return {
+        pageCount: Math.max(1, result.total || pageCount),
+        pages: pageTextsFromCombinedText(text, Math.max(1, result.total || pageCount), text.length >= TEXT_PACKET_THRESHOLD ? 98 : text.length > 0 ? 55 : 0),
+        source: 'pdf_parse',
+      };
+    } finally {
+      await parser.destroy?.();
+    }
+  } catch {
+    return null;
+  }
+}
+
+async function extractPdfTextFirst(buffer: Buffer, pageCount: number): Promise<{
+  pageCount: number;
+  pages: PageText[];
+  source: string;
+}> {
+  const rawExtraction = extractPdfTextWithoutRendering(buffer, pageCount);
+  const rawTextLength = rawExtraction.pages.reduce((sum, page) => sum + page.text.length, 0);
+  if (rawTextLength >= TEXT_PACKET_THRESHOLD) return rawExtraction;
+
+  const parsedExtraction = await extractPdfTextWithPdfParse(buffer, pageCount);
+  if (!parsedExtraction) return rawExtraction;
+
+  const parsedTextLength = parsedExtraction.pages.reduce((sum, page) => sum + page.text.length, 0);
+  return parsedTextLength > rawTextLength ? parsedExtraction : rawExtraction;
+}
+
 async function ensurePdfJsNodePolyfills() {
   if (globalThis.DOMMatrix && globalThis.ImageData && globalThis.Path2D) return;
 
@@ -410,74 +579,17 @@ async function loadPdfJs(): Promise<PdfJsModule> {
   return pdfjs;
 }
 
-async function parsePdfWithPdfJs(buffer: Buffer): Promise<{
-  pageCount: number;
-  pages: PageText[];
-}> {
-  try {
-    const pdfjs = await loadPdfJs();
-    const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(buffer),
-      disableWorker: true,
-      useSystemFonts: true,
-    } as unknown as Parameters<typeof pdfjs.getDocument>[0]);
-    const document = await loadingTask.promise;
-    const pages: PageText[] = [];
-
-    for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
-      const page = await document.getPage(pageNumber);
-      const textContent = await page.getTextContent();
-      const text = normalizeWhitespace(
-        textContent.items
-          .map((item: unknown) =>
-            item && typeof item === 'object' && 'str' in item
-              ? String((item as { str: string }).str)
-              : ''
-          )
-          .join(' ')
-      );
-
-      pages.push({
-        page: pageNumber,
-        text,
-        method: 'pdf_text',
-        confidence: text.length >= TEXT_PAGE_THRESHOLD ? 98 : text.length > 0 ? 55 : 0,
-      });
-    }
-
-    await document.destroy();
-    return { pageCount: document.numPages, pages };
-  } catch (error) {
-    throw new PipelineError(
-      'pdf_text_extract_failed',
-      error instanceof Error ? error.message : 'Unable to extract PDF text.',
-      422
-    );
-  }
-}
-
-async function parsePdfMetadata(buffer: Buffer): Promise<number> {
-  try {
-    const pdfjs = await loadPdfJs();
-    const loadingTask = pdfjs.getDocument({
-      data: new Uint8Array(buffer),
-      disableWorker: true,
-      useSystemFonts: true,
-    } as unknown as Parameters<typeof pdfjs.getDocument>[0]);
-    const document = await loadingTask.promise;
-    const pageCount = document.numPages;
-    await document.destroy();
-    return pageCount;
-  } catch (error) {
-    throw new PipelineError(
-      'pdf_parse_failed',
-      error instanceof Error ? error.message : 'The uploaded PDF could not be parsed.',
-      422
-    );
-  }
-}
-
 async function runOcrFallback(buffer: Buffer, pageCount: number): Promise<PageText[]> {
+  if (!routeCapabilities.pdf_render_available) {
+    throw new PipelineError('pdf_renderer_failed', 'PDF renderer is unavailable in this runtime.', 200);
+  }
+  if (!routeCapabilities.canvas_available) {
+    throw new PipelineError('canvas_init_failed', 'Canvas renderer is unavailable in this runtime.', 200);
+  }
+  if (!routeCapabilities.ocr_available) {
+    throw new PipelineError('ocr_worker_failed', 'OCR worker is unavailable in this runtime.', 200);
+  }
+
   let pdfjs: PdfJsModule;
   let Canvas: new (width: number, height: number) => {
     getContext: (type: '2d') => unknown;
@@ -1787,6 +1899,8 @@ function buildUiValidation(
         helper:
           response.extractionMethod === 'pdf_text'
             ? 'Text layer extraction'
+            : response.extractionMethod === 'pdf_text_only'
+              ? response.ocrSkippedReason || 'Text-only fallback'
             : response.extractionMethod === 'ocr'
               ? 'OCR fallback used'
               : 'Mixed extraction',
@@ -1836,6 +1950,7 @@ function buildUiValidation(
       `01 Source packet: ${filename}`,
       `02 Page count: ${response.pageCount}`,
       `03 Extraction: ${response.extractionMethod}`,
+      ...(response.ocrSkippedReason ? [`03a OCR skipped: ${response.ocrSkippedReason}`] : []),
       `04 Validation issues: ${response.validationErrors.length}`,
       `05 Readiness: ${response.readiness}%`,
     ],
@@ -2042,7 +2157,7 @@ export async function POST(req: Request) {
     const claimId = createId('CLM');
     const uploadSessionId = createId('UPL');
     const uploadedAt = new Date().toISOString();
-    const pageCount = await parsePdfMetadata(buffer);
+    const pageCount = countPdfPages(buffer);
 
     session = {
       claimId,
@@ -2054,7 +2169,7 @@ export async function POST(req: Request) {
       uploadedAt,
     };
 
-    const textExtraction = await parsePdfWithPdfJs(buffer);
+    const textExtraction = await extractPdfTextFirst(buffer, pageCount);
     const usefulTextLength = textExtraction.pages.reduce((sum, page) => sum + page.text.length, 0);
     const textPageCount = textExtraction.pages.filter((page) => page.text.length >= TEXT_PAGE_THRESHOLD).length;
     const pdfType: PdfKind =
@@ -2062,18 +2177,35 @@ export async function POST(req: Request) {
 
     let pages = textExtraction.pages;
     let extractionMethod: ExtractionMethod = 'pdf_text';
+    let ocrSkippedReason: string | undefined;
 
     if (pdfType === 'scanned_or_image') {
-      const ocrPages = await runOcrFallback(buffer, pageCount);
-      const ocrTextLength = ocrPages.reduce((sum, page) => sum + page.text.length, 0);
-      pages =
-        ocrTextLength > usefulTextLength
-          ? [
-              ...ocrPages,
-              ...textExtraction.pages.filter((page) => !ocrPages.some((ocrPage) => ocrPage.page === page.page)),
-            ].sort((a, b) => a.page - b.page)
-          : textExtraction.pages;
-      extractionMethod = ocrTextLength > usefulTextLength ? 'ocr' : 'metadata_only';
+      try {
+        const ocrPages = await runOcrFallback(buffer, pageCount);
+        const ocrTextLength = ocrPages.reduce((sum, page) => sum + page.text.length, 0);
+        pages =
+          ocrTextLength > usefulTextLength
+            ? [
+                ...ocrPages,
+                ...textExtraction.pages.filter((page) => !ocrPages.some((ocrPage) => ocrPage.page === page.page)),
+              ].sort((a, b) => a.page - b.page)
+            : textExtraction.pages;
+        extractionMethod = ocrTextLength > usefulTextLength ? 'ocr' : usefulTextLength > 0 ? 'pdf_text_only' : 'metadata_only';
+        if (ocrTextLength <= usefulTextLength) {
+          ocrSkippedReason = 'ocr_no_usable_text';
+        }
+      } catch (error) {
+        const pipelineError =
+          error instanceof PipelineError
+            ? error
+            : new PipelineError(
+                'ocr_extract_failed',
+                error instanceof Error ? error.message : 'OCR fallback failed.',
+                200
+              );
+        extractionMethod = usefulTextLength > 0 ? 'pdf_text_only' : 'metadata_only';
+        ocrSkippedReason = `${pipelineError.stage}: ${pipelineError.message}`;
+      }
     } else if (textExtraction.pages.some((page) => page.text.length < TEXT_PAGE_THRESHOLD)) {
       extractionMethod = 'mixed';
     }
@@ -2087,7 +2219,7 @@ export async function POST(req: Request) {
       extractedFields,
       pages,
       classifiedPages,
-      extractionMethod === 'pdf_text' ? 0 : averageOcrConfidence
+      extractionMethod === 'ocr' ? averageOcrConfidence : 0
     );
     const scores = scoreClaim(extractedFields, validationErrors, pages);
     const repairSuggestions = buildRepairSuggestions(validationErrors);
@@ -2095,6 +2227,8 @@ export async function POST(req: Request) {
     const responseBody: V2Response = {
       success: true,
       extractionMethod,
+      capabilities: routeCapabilities,
+      ...(ocrSkippedReason ? { ocrSkippedReason } : {}),
       claimId,
       uploadSessionId,
       pageCount,
