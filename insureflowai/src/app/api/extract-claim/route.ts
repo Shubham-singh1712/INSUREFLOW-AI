@@ -135,8 +135,48 @@ const MAX_PROMPT_CHARS = 32000;
 const MIN_PAGE_TEXT_CHARS = 12;
 const MIN_PAGE_OCR_CONFIDENCE = 12;
 
+type PipelineStage =
+  | 'pdf_upload_parse'
+  | 'pdf_page_count'
+  | 'pdf_render'
+  | 'preprocess'
+  | 'ocr_worker'
+  | 'ocr_extract'
+  | 'page_classification'
+  | 'entity_extraction'
+  | 'validation_start';
+
+type UploadDebugContext = {
+  sessionId: string;
+  filename: string;
+  fileBytes: number;
+  pageCount?: number;
+};
+
 const debugUploadLog = (event: string, payload: Record<string, unknown>) => {
   console.info(`[ClaimUploadDebug] ${event} ${JSON.stringify(payload, null, 2)}`);
+};
+
+const debugStageLog = (
+  context: UploadDebugContext,
+  stage: PipelineStage,
+  payload: Record<string, unknown> = {}
+) => {
+  debugUploadLog(stage, {
+    sessionId: context.sessionId,
+    filename: context.filename,
+    fileBytes: context.fileBytes,
+    ...(context.pageCount ? { pageCount: context.pageCount } : {}),
+    ...payload,
+  });
+};
+
+const createUploadSessionId = () => {
+  try {
+    return globalThis.crypto.randomUUID();
+  } catch {
+    return `upload-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  }
 };
 
 // Node-safe Dynamic Loaders using eval('require') to bypass Webpack bundling errors
@@ -174,16 +214,44 @@ type NodeCanvas = import('canvas').Canvas;
 type NodeCanvasImageData = import('canvas').ImageData;
 type CreateCanvas = typeof import('canvas').createCanvas;
 
-class OcrExtractionError extends Error {
-  pageNumber: number;
-  phase?: string;
+class PipelineStageError extends Error {
+  stage: PipelineStage;
+  page: number | null;
+  sessionId: string;
+  details?: Record<string, unknown>;
 
-  constructor(pageNumber: number, cause?: unknown, phase?: string) {
-    super(`OCR extraction failed on page ${pageNumber}`);
-    this.name = 'OcrExtractionError';
-    this.pageNumber = pageNumber;
-    this.phase = phase;
+  constructor({
+    stage,
+    page = null,
+    error,
+    sessionId,
+    details,
+    cause,
+  }: {
+    stage: PipelineStage;
+    page?: number | null;
+    error: string;
+    sessionId: string;
+    details?: Record<string, unknown>;
+    cause?: unknown;
+  }) {
+    super(error);
+    this.name = 'PipelineStageError';
+    this.stage = stage;
+    this.page = page;
+    this.sessionId = sessionId;
+    this.details = details;
     if (cause) this.cause = cause;
+  }
+
+  toResponse() {
+    return {
+      stage: this.stage,
+      page: this.page,
+      error: this.message,
+      sessionId: this.sessionId,
+      ...(this.details ? { details: this.details } : {}),
+    };
   }
 }
 
@@ -292,17 +360,35 @@ const preprocessPageCanvas = (
   canvas: NodeCanvas,
   createCanvas: CreateCanvas
 ) => {
+  const steps: string[] = [];
   const preprocessedCanvas = createCanvas(canvas.width, canvas.height);
   const context = preprocessedCanvas.getContext('2d');
-  context.drawImage(canvas, 0, 0);
 
-  const imageData = context.getImageData(0, 0, preprocessedCanvas.width, preprocessedCanvas.height);
-  context.putImageData(sharpenImageData(denoiseImageData(grayscaleAndContrast(imageData))), 0, 0);
+  try {
+    context.drawImage(canvas, 0, 0);
+    steps.push('raster_copy');
 
-  return {
-    canvas: preprocessedCanvas,
-    steps: ['grayscale', 'contrast_boost', 'denoise', 'sharpen', 'deskew_scan', 'rotate_retry'],
-  };
+    const imageData = context.getImageData(0, 0, preprocessedCanvas.width, preprocessedCanvas.height);
+    grayscaleAndContrast(imageData);
+    steps.push('grayscale', 'contrast_boost');
+    denoiseImageData(imageData);
+    steps.push('denoise');
+    sharpenImageData(imageData);
+    steps.push('sharpen');
+    context.putImageData(imageData, 0, 0);
+    steps.push('deskew_scan', 'rotate_retry');
+
+    return {
+      canvas: preprocessedCanvas,
+      steps,
+    };
+  } catch (error) {
+    throw new Error(
+      `Image preprocessing failed at ${steps[steps.length - 1] || 'raster_copy'}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
 };
 
 const decodePdfHexText = (hex: string) => {
@@ -370,20 +456,42 @@ const extractTextFromPdfBuffer = async (buffer: Buffer) => {
   }
 };
 
-// Real page-wise OCR extraction pipeline. It fails explicitly when a page cannot be read.
-const runOcrOnPdf = async (buffer: Buffer, filename: string) => {
+// Real page-wise OCR extraction pipeline. It emits structured stage failures and preserves usable pages.
+const runOcrOnPdf = async (buffer: Buffer, context: UploadDebugContext) => {
+  const { filename, sessionId } = context;
+  let createCanvas: CreateCanvas;
+  let canvasModule: typeof import('canvas');
+  let Tesseract: typeof import('tesseract.js');
+
+  try {
+    canvasModule = loadCanvas();
+    createCanvas = canvasModule.createCanvas;
+    Tesseract = loadTesseract();
+    debugStageLog(context, 'ocr_worker', { status: 'loaded' });
+  } catch (error) {
+    debugStageLog(context, 'ocr_worker', {
+      status: 'failed',
+      page: null,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new PipelineStageError({
+      stage: 'ocr_worker',
+      error: 'Tesseract worker or canvas dependency failed to initialize',
+      sessionId,
+      cause: error,
+    });
+  }
+
+  let pdfDocument: Awaited<ReturnType<Awaited<ReturnType<typeof loadPdfJs>>['getDocument']>['promise']>;
+  let pageCount = 0;
+
   try {
     const { getDocument } = await loadPdfJs();
-    const canvasModule = loadCanvas();
-    const { createCanvas } = canvasModule;
-    const Tesseract = loadTesseract();
 
-    // Polyfill global Image constructor from the native canvas module for rendering embedded images
     if (typeof global !== 'undefined') {
       (global as any).Image = canvasModule.Image;
     }
 
-    // Custom Canvas Factory to prevent mismatch between legacy node-canvas and @napi-rs/canvas inside pdfjs-dist
     class CustomNodeCanvasFactory {
       create(width: number, height: number) {
         const canvas = createCanvas(width, height);
@@ -402,116 +510,249 @@ const runOcrOnPdf = async (buffer: Buffer, filename: string) => {
       }
     }
 
-    const uint8Array = new Uint8Array(buffer);
+    debugStageLog(context, 'pdf_page_count', { status: 'start' });
     const loadingTask = getDocument({
-      data: uint8Array,
+      data: new Uint8Array(buffer),
       useSystemFonts: true,
       disableFontFace: true,
       disableWorker: true,
       CanvasFactory: CustomNodeCanvasFactory,
     } as any);
 
-    const pdfDocument = await loadingTask.promise;
-    const pageCount = pdfDocument.numPages;
-    console.log(`[OCR Pipeline] Loaded PDF "${filename}" with ${pageCount} pages.`);
-    debugUploadLog('page_count', { filename, pageCount });
+    pdfDocument = await loadingTask.promise;
+    pageCount = pdfDocument.numPages;
 
-    const recognizePreprocessedPage = async (
-      canvas: NodeCanvas,
-      pageNum: number
-    ) => {
-      const candidates = [0, 90, 180, 270];
-      let best:
-        | {
-            text: string;
-            confidence: number;
-            rotation: number;
-          }
-        | null = null;
+    if (!Number.isFinite(pageCount) || pageCount < 1) {
+      throw new Error('PDF contains no renderable pages');
+    }
 
-      for (const rotation of candidates) {
-        const rotatedCanvas = rotateCanvas(canvas, createCanvas, rotation);
-        const imageBuffer = rotatedCanvas.toBuffer('image/png');
-        debugUploadLog('ocr_attempt_start', {
-          filename,
-          page: pageNum,
-          rotation,
-          imageBytes: imageBuffer.byteLength,
-        });
-        const result = await Tesseract.recognize(imageBuffer, 'eng');
-        const text = cleanText(result.data.text || '');
-        const confidence = clamp(result.data.confidence);
-        debugUploadLog('ocr_attempt_result', {
-          filename,
-          page: pageNum,
-          rotation,
-          textLength: text.length,
-          confidence,
-        });
+    context.pageCount = pageCount;
+    debugStageLog(context, 'pdf_page_count', { status: 'success', pageCount });
+  } catch (error) {
+    debugStageLog(context, 'pdf_page_count', {
+      status: 'failed',
+      page: null,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new PipelineStageError({
+      stage: 'pdf_page_count',
+      error: 'Failed to detect PDF page count',
+      sessionId,
+      cause: error,
+    });
+  }
 
-        if (
-          !best ||
-          confidence > best.confidence ||
-          (confidence === best.confidence && text.length > best.text.length)
-        ) {
-          best = { text, confidence, rotation };
-        }
+  const renderPage = async (pageNum: number) => {
+    let lastError: unknown;
 
-        if (text.length >= MIN_PAGE_TEXT_CHARS && confidence >= 45) break;
-      }
-
-      if (
-        !best ||
-        (best.text.length < MIN_PAGE_TEXT_CHARS && best.confidence < MIN_PAGE_OCR_CONFIDENCE)
-      ) {
-        throw new OcrExtractionError(pageNum, undefined, 'recognize');
-      }
-
-      return best;
-    };
-
-    const pagePromises = Array.from({ length: pageCount }, async (_, i) => {
-      const pageNum = i + 1;
-      debugUploadLog('page_processing_start', { filename, page: pageNum });
-
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
       try {
+        debugStageLog(context, 'pdf_render', {
+          status: 'start',
+          page: pageNum,
+          attempt,
+        });
         const page = await pdfDocument.getPage(pageNum);
         const viewport = page.getViewport({ scale: 2 });
-        debugUploadLog('page_render_start', {
-          filename,
+        const estimatedPixels = Math.round(viewport.width * viewport.height);
+        debugStageLog(context, 'pdf_render', {
+          status: 'dimensions',
           page: pageNum,
+          attempt,
           width: viewport.width,
           height: viewport.height,
+          estimatedPixels,
         });
 
         const canvas = createCanvas(viewport.width, viewport.height);
-        const context = canvas.getContext('2d');
+        const context2d = canvas.getContext('2d');
 
         await page.render({
-          canvasContext: context as any,
-          viewport: viewport,
+          canvasContext: context2d as any,
+          viewport,
         } as any).promise;
-        debugUploadLog('page_render_complete', { filename, page: pageNum });
 
-        const preprocessed = preprocessPageCanvas(canvas, createCanvas);
-        debugUploadLog('page_preprocess_complete', {
-          filename,
+        debugStageLog(context, 'pdf_render', {
+          status: 'success',
           page: pageNum,
-          width: preprocessed.canvas.width,
-          height: preprocessed.canvas.height,
-          preprocessing: preprocessed.steps,
+          attempt,
+          width: canvas.width,
+          height: canvas.height,
         });
 
-        const result = await recognizePreprocessedPage(preprocessed.canvas, pageNum);
-        debugUploadLog('page_ocr_complete', {
-          filename,
+        return canvas;
+      } catch (error) {
+        lastError = error;
+        debugStageLog(context, 'pdf_render', {
+          status: 'failed',
           page: pageNum,
-          textLength: result.text.length,
-          confidence: result.confidence,
-          rotationCorrection: result.rotation,
+          attempt,
+          error: error instanceof Error ? error.message : String(error),
         });
-        
-        return {
+      }
+    }
+
+    throw new PipelineStageError({
+      stage: 'pdf_render',
+      page: pageNum,
+      error: 'Failed to render PDF page to image',
+      sessionId,
+      cause: lastError,
+    });
+  };
+
+  const preprocessPage = (canvas: NodeCanvas, pageNum: number) => {
+    try {
+      debugStageLog(context, 'preprocess', {
+        status: 'start',
+        page: pageNum,
+        width: canvas.width,
+        height: canvas.height,
+      });
+      const preprocessed = preprocessPageCanvas(canvas, createCanvas);
+      debugStageLog(context, 'preprocess', {
+        status: 'success',
+        page: pageNum,
+        width: preprocessed.canvas.width,
+        height: preprocessed.canvas.height,
+        preprocessing: preprocessed.steps,
+      });
+
+      return preprocessed;
+    } catch (error) {
+      debugStageLog(context, 'preprocess', {
+        status: 'failed',
+        page: pageNum,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new PipelineStageError({
+        stage: 'preprocess',
+        page: pageNum,
+        error: 'Image sharpening failed',
+        sessionId,
+        cause: error,
+      });
+    }
+  };
+
+  const recognizePreprocessedPage = async (canvas: NodeCanvas, pageNum: number) => {
+    const rotations = [0, 90, 180, 270];
+    let best: { text: string; confidence: number; rotation: number } | null = null;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      debugStageLog(context, 'ocr_worker', {
+        status: 'start',
+        page: pageNum,
+        attempt,
+      });
+
+      for (const rotation of rotations) {
+        try {
+          const rotatedCanvas = rotateCanvas(canvas, createCanvas, rotation);
+          const imageBuffer = rotatedCanvas.toBuffer('image/png');
+          debugStageLog(context, 'ocr_extract', {
+            status: 'start',
+            page: pageNum,
+            attempt,
+            rotation,
+            imageBytes: imageBuffer.byteLength,
+          });
+
+          const result = await Tesseract.recognize(imageBuffer, 'eng');
+          const text = cleanText(result.data.text || '');
+          const confidence = clamp(result.data.confidence);
+          debugStageLog(context, 'ocr_extract', {
+            status: 'result',
+            page: pageNum,
+            attempt,
+            rotation,
+            textLength: text.length,
+            confidence,
+          });
+
+          if (
+            !best ||
+            confidence > best.confidence ||
+            (confidence === best.confidence && text.length > best.text.length)
+          ) {
+            best = { text, confidence, rotation };
+          }
+
+          if (text.length >= MIN_PAGE_TEXT_CHARS && confidence >= 45) {
+            debugStageLog(context, 'ocr_worker', {
+              status: 'success',
+              page: pageNum,
+              attempt,
+              rotation,
+              textLength: text.length,
+              confidence,
+            });
+            return best;
+          }
+        } catch (error) {
+          lastError = error;
+          debugStageLog(context, 'ocr_worker', {
+            status: 'failed',
+            page: pageNum,
+            attempt,
+            rotation,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    }
+
+    if (best && (best.text.length >= MIN_PAGE_TEXT_CHARS || best.confidence >= MIN_PAGE_OCR_CONFIDENCE)) {
+      debugStageLog(context, 'ocr_worker', {
+        status: 'low_text_best_effort',
+        page: pageNum,
+        rotation: best.rotation,
+        textLength: best.text.length,
+        confidence: best.confidence,
+      });
+      return best;
+    }
+
+    throw new PipelineStageError({
+      stage: lastError ? 'ocr_worker' : 'ocr_extract',
+      page: pageNum,
+      error: lastError ? 'Tesseract worker crashed' : 'OCR text extraction produced no readable text',
+      sessionId,
+      cause: lastError,
+      details: best
+        ? {
+            bestTextLength: best.text.length,
+            bestConfidence: best.confidence,
+            bestRotation: best.rotation,
+          }
+        : undefined,
+    });
+  };
+
+  const processPage = async (pageNum: number) => {
+    try {
+      debugUploadLog('page_processing_start', {
+        sessionId,
+        filename,
+        fileBytes: context.fileBytes,
+        pageCount,
+        page: pageNum,
+      });
+      const rendered = await renderPage(pageNum);
+      const preprocessed = preprocessPage(rendered, pageNum);
+      const result = await recognizePreprocessedPage(preprocessed.canvas, pageNum);
+      debugStageLog(context, 'ocr_extract', {
+        status: 'page_complete',
+        page: pageNum,
+        textLength: result.text.length,
+        confidence: result.confidence,
+        rotationCorrection: result.rotation,
+      });
+
+      return {
+        ok: true as const,
+        page: {
           page_number: pageNum,
           extracted_text: result.text,
           ocr_confidence: result.confidence,
@@ -521,62 +762,91 @@ const runOcrOnPdf = async (buffer: Buffer, filename: string) => {
             preprocessing: preprocessed.steps,
             rotation_correction: result.rotation,
           },
-        };
-      } catch (error) {
-        debugUploadLog('page_processing_failed', {
-          filename,
-          page: pageNum,
-          error: error instanceof Error ? error.message : String(error),
-          phase: error instanceof OcrExtractionError ? error.phase || 'ocr' : 'page_processing',
-        });
-        throw error instanceof OcrExtractionError
+        },
+      };
+    } catch (error) {
+      const stageError =
+        error instanceof PipelineStageError
           ? error
-          : new OcrExtractionError(pageNum, error, 'page_processing');
-      }
-    });
+          : new PipelineStageError({
+              stage: 'ocr_extract',
+              page: pageNum,
+              error: 'OCR text extraction failed',
+              sessionId,
+              cause: error,
+            });
 
-    const ocrPages = await Promise.all(pagePromises);
-    const combinedText = ocrPages.map((p) => p.extracted_text).join('\n\n');
-    const averageOcrConfidence = ocrPages.length > 0
-      ? Math.round(ocrPages.reduce((sum, p) => sum + p.ocr_confidence, 0) / ocrPages.length)
-      : 80;
-    debugUploadLog('ocr_pages_summary', {
-      filename,
-      averageOcrConfidence,
-      pages: ocrPages.map((page) => ({
-        page: page.page_number,
-        textLength: page.extracted_text.length,
-        confidence: page.ocr_confidence,
-      })),
-    });
-
-    return {
-      ocrPages,
-      combinedText,
-      averageOcrConfidence,
-      pageCount,
-    };
-  } catch (error) {
-    if (error instanceof OcrExtractionError) {
-      console.error(`[OCR Pipeline] ${error.message}`);
-      debugUploadLog('ocr_failed', {
+      debugUploadLog('page_processing_failed', {
+        sessionId,
         filename,
-        page: error.pageNumber,
-        phase: error.phase || 'ocr',
-        error: error.cause instanceof Error ? error.cause.message : error.message,
+        fileBytes: context.fileBytes,
+        pageCount,
+        page: pageNum,
+        stage: stageError.stage,
+        error: stageError.message,
       });
-      throw error;
-    }
 
-    console.error('[OCR Pipeline] Tesseract OCR failed:', error);
-    debugUploadLog('ocr_failed', {
+      return {
+        ok: false as const,
+        error: stageError,
+      };
+    }
+  };
+
+  const pageResults = await Promise.all(Array.from({ length: pageCount }, (_, i) => processPage(i + 1)));
+  const ocrPages = pageResults.flatMap((result) => (result.ok ? [result.page] : []));
+  const failedPages = pageResults.flatMap((result) => (result.ok ? [] : [result.error.toResponse()]));
+
+  if (failedPages.length > 0) {
+    debugUploadLog('page_failures', {
+      sessionId,
       filename,
-      page: null,
-      phase: 'pipeline',
-      error: error instanceof Error ? error.message : String(error),
+      fileBytes: context.fileBytes,
+      pageCount,
+      failures: failedPages,
+      continuing: ocrPages.length > 0,
     });
-    throw new Error('OCR extraction failed before page processing could complete.');
   }
+
+  if (ocrPages.length === 0) {
+    const firstFailure = pageResults.find((result) => !result.ok);
+    throw (
+      firstFailure && !firstFailure.ok
+        ? firstFailure.error
+        : new PipelineStageError({
+            stage: 'ocr_extract',
+            error: 'OCR text extraction produced no readable pages',
+            sessionId,
+          })
+    );
+  }
+
+  const combinedText = ocrPages.map((p) => p.extracted_text).join('\n\n');
+  const averageOcrConfidence = Math.round(
+    ocrPages.reduce((sum, p) => sum + p.ocr_confidence, 0) / ocrPages.length
+  );
+  debugUploadLog('ocr_pages_summary', {
+    sessionId,
+    filename,
+    fileBytes: context.fileBytes,
+    pageCount,
+    processedPages: ocrPages.length,
+    failedPages: failedPages.length,
+    averageOcrConfidence,
+    pages: ocrPages.map((page) => ({
+      page: page.page_number,
+      textLength: page.extracted_text.length,
+      confidence: page.ocr_confidence,
+    })),
+  });
+
+  return {
+    ocrPages,
+    combinedText,
+    averageOcrConfidence,
+    pageCount,
+    failedPages,
+  };
 };
 
 // Page classification is derived from OCR evidence on the page, not from packet position.
@@ -801,22 +1071,65 @@ const summarizeTraceableFields = (audit: ClaimAudit) => ({
   signatures: audit.extracted_data.signatures,
 });
 
+const countExtractedEntities = (value: unknown): number => {
+  if (Array.isArray(value)) return value.length > 0 ? 1 : 0;
+  if (!value || typeof value !== 'object') return value === null || value === undefined || value === '' ? 0 : 1;
+  if ('value' in value) {
+    const fieldValue = (value as TraceableField<unknown>).value;
+    if (Array.isArray(fieldValue)) return fieldValue.length > 0 ? 1 : 0;
+    if (typeof fieldValue === 'boolean') return fieldValue ? 1 : 0;
+    return fieldValue === null || fieldValue === undefined || fieldValue === '' ? 0 : 1;
+  }
+
+  return Object.values(value).reduce((sum, child) => sum + countExtractedEntities(child), 0);
+};
+
 // Local extraction over page-wise OCR with source-page traceability.
 const runLocalExtraction = (
   ocrPages: Array<{ page_number: number; extracted_text: string; ocr_confidence: number }>,
   ocrConfidence: number,
-  filename: string
+  context: UploadDebugContext
 ) => {
+  const { filename, sessionId } = context;
+  let pageClassifications: Array<{ page_number: number; document_type: string; confidence: number }>;
+
+  try {
+    const combinedLength = ocrPages.reduce((sum, page) => sum + page.extracted_text.length, 0);
+    debugStageLog(context, 'page_classification', {
+      status: 'start',
+      pagesToClassify: ocrPages.length,
+      ocrTextLength: combinedLength,
+    });
+    pageClassifications = ocrPages.map((page) => classifyOcrPage(page.extracted_text, page.page_number));
+    debugStageLog(context, 'page_classification', {
+      status: 'success',
+      pages: pageClassifications.map((classification) => ({
+        page: classification.page_number,
+        documentType: classification.document_type,
+        confidence: classification.confidence,
+      })),
+    });
+  } catch (error) {
+    debugStageLog(context, 'page_classification', {
+      status: 'failed',
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new PipelineStageError({
+      stage: 'page_classification',
+      error: 'Page classification failed',
+      sessionId,
+      cause: error,
+    });
+  }
+
   const combinedText = ocrPages.map((p) => p.extracted_text).join('\n\n');
-  const pageClassifications = ocrPages.map((page) => classifyOcrPage(page.extracted_text, page.page_number));
-  debugUploadLog('page_classification', {
-    filename,
-    pages: pageClassifications.map((classification) => ({
-      page: classification.page_number,
-      documentType: classification.document_type,
-      confidence: classification.confidence,
-    })),
-  });
+
+  try {
+    debugStageLog(context, 'entity_extraction', {
+      status: 'start',
+      pages: ocrPages.length,
+      ocrTextLength: combinedText.length,
+    });
 
   const patientName = findFirstTraced(ocrPages, [
     /(?:patient\s*(?:name)?|name\s+of\s+patient)\s*[:-]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,4})/i,
@@ -1004,17 +1317,50 @@ const runLocalExtraction = (
     validation_errors: [],
   };
 
-  debugUploadLog('extracted_entities', {
-    filename,
-    entities: summarizeTraceableFields(claimAudit),
-  });
-  debugUploadLog('validation_start', {
-    filename,
-    pageCount: ocrPages.length,
-    ocrConfidence,
-  });
-  claimAudit.validation_errors = runCrossDocumentValidation(claimAudit);
-  return claimAudit;
+    const entityCount = countExtractedEntities(claimAudit.extracted_data);
+    debugStageLog(context, 'entity_extraction', {
+      status: 'success',
+      extractedEntityCount: entityCount,
+      entities: summarizeTraceableFields(claimAudit),
+    });
+    debugStageLog(context, 'validation_start', {
+      status: 'start',
+      pageCount: ocrPages.length,
+      ocrConfidence,
+      extractedEntityCount: entityCount,
+    });
+    try {
+      claimAudit.validation_errors = runCrossDocumentValidation(claimAudit);
+    } catch (error) {
+      debugStageLog(context, 'validation_start', {
+        status: 'failed',
+        pageCount: ocrPages.length,
+        ocrConfidence,
+        extractedEntityCount: entityCount,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new PipelineStageError({
+        stage: 'validation_start',
+        error: 'Validation failed to start',
+        sessionId,
+        cause: error,
+      });
+    }
+    return claimAudit;
+  } catch (error) {
+    if (error instanceof PipelineStageError) throw error;
+
+    debugStageLog(context, 'entity_extraction', {
+      status: 'failed',
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new PipelineStageError({
+      stage: 'entity_extraction',
+      error: 'Entity extraction failed',
+      sessionId,
+      cause: error,
+    });
+  }
 };
 
 // Stage 6 — Cross-Document Validation Engine
@@ -1481,33 +1827,69 @@ Return ONLY strict, valid JSON. No markdown code blocks.`,
 };
 
 export async function POST(req: Request) {
+  const sessionId = createUploadSessionId();
+  let uploadContext: UploadDebugContext = {
+    sessionId,
+    filename: 'unknown',
+    fileBytes: 0,
+  };
+
   try {
-    const formData = await req.formData();
+    debugStageLog(uploadContext, 'pdf_upload_parse', { status: 'start' });
+    const formData = await req.formData().catch((error) => {
+      throw new PipelineStageError({
+        stage: 'pdf_upload_parse',
+        error: 'Failed to parse multipart PDF upload',
+        sessionId,
+        cause: error,
+      });
+    });
     const file = formData.get('file') as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+      throw new PipelineStageError({
+        stage: 'pdf_upload_parse',
+        error: 'No file uploaded',
+        sessionId,
+      });
     }
 
     if (file.type && file.type !== 'application/pdf') {
-      return NextResponse.json({ error: 'Only PDF claim packets are supported.' }, { status: 415 });
+      throw new PipelineStageError({
+        stage: 'pdf_upload_parse',
+        error: 'Only PDF claim packets are supported.',
+        sessionId,
+        details: { mimeType: file.type },
+      });
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-    debugUploadLog('upload_received', {
+    const arrayBuffer = await file.arrayBuffer().catch((error) => {
+      throw new PipelineStageError({
+        stage: 'pdf_upload_parse',
+        error: 'Failed to read uploaded PDF into memory',
+        sessionId,
+        cause: error,
+      });
+    });
+    const buffer = Buffer.from(arrayBuffer);
+    uploadContext = {
+      sessionId,
       filename: file.name,
-      mimeType: file.type || 'application/pdf',
       fileBytes: buffer.byteLength,
+    };
+    debugStageLog(uploadContext, 'pdf_upload_parse', {
+      status: 'success',
+      mimeType: file.type || 'application/pdf',
     });
 
     // Stage 1, 2, 3: Ingestion, Image conversion, and Concurrent OCR extraction
-    const ocrData = await runOcrOnPdf(buffer, file.name);
+    const ocrData = await runOcrOnPdf(buffer, uploadContext);
 
     // Stage 4, 5, 6: Dynamic Classification, Entity extraction, and Cross-Document Validation
     const localAudit = runLocalExtraction(
       ocrData.ocrPages,
       ocrData.averageOcrConfidence,
-      file.name
+      uploadContext
     );
 
     const localFields = mapAuditToClaimFields(localAudit, file.name);
@@ -1532,24 +1914,36 @@ export async function POST(req: Request) {
       claimAudit: aiResult?.claimAudit || localAudit,
       extractedTextLength: ocrData.combinedText.length,
       pageCount: ocrData.pageCount,
+      processedPageCount: ocrData.ocrPages.length,
+      failedPages: ocrData.failedPages,
+      uploadSessionId: sessionId,
       extractionSource: aiResult ? 'openrouter' : 'local_ocr_pipeline',
     });
   } catch (error) {
     console.error('[POST Handler] Uncaught exception during claim intake:', error);
-    if (error instanceof OcrExtractionError) {
-      return NextResponse.json(
-        {
-          error: error.message,
-          page: error.pageNumber,
-          extractionFailed: true,
-        },
-        { status: 422 }
-      );
-    }
+    const stageError =
+      error instanceof PipelineStageError
+        ? error
+        : new PipelineStageError({
+            stage: 'pdf_upload_parse',
+            error: error instanceof Error ? error.message : 'Unknown error during extraction',
+            sessionId,
+            cause: error,
+          });
+
+    debugStageLog(uploadContext, stageError.stage, {
+      status: 'failed',
+      page: stageError.page,
+      error: stageError.message,
+      details: stageError.details || null,
+    });
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Unknown error during extraction' },
-      { status: 500 }
+      {
+        ...stageError.toResponse(),
+        extractionFailed: true,
+      },
+      { status: stageError.stage === 'pdf_upload_parse' ? 400 : 422 }
     );
   }
 }
