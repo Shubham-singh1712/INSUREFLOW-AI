@@ -10,6 +10,7 @@ const { apiLimiter } = require('./middleware/rateLimit.middleware');
 const { requestLogger } = require('./middleware/logging.middleware');
 const { notFound } = require('./middleware/notFound.middleware');
 const { errorHandler } = require('./middleware/error.middleware');
+const { checkCapabilities } = require('./utils/capabilities');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
@@ -58,6 +59,9 @@ app.use(notFound);
 app.use(errorHandler);
 
 const startServer = async () => {
+  const capabilities = await checkCapabilities();
+  console.log('System Capabilities:', capabilities);
+
   await connectDB();
   app.listen(PORT, () => {
     console.log(`InsureFlow AI API running on http://localhost:${PORT}`);
