@@ -391,7 +391,7 @@ async function ensurePdfJsNodePolyfills() {
 async function loadPdfJs(): Promise<PdfJsModule> {
   await ensurePdfJsNodePolyfills();
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc ||= pathToFileURL(PDF_WORKER_PATH).href;
+  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(PDF_WORKER_PATH).href;
   return pdfjs;
 }
 
