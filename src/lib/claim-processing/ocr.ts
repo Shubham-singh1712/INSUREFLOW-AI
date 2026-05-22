@@ -5,27 +5,23 @@ import { normalizeWhitespace, clamp } from './utils';
 import { logger } from './logger';
 
 const OCR_MIN_TEXT_LENGTH = 10;
-const PDF_WORKER_PATH = path.join(
-  process.cwd(),
-  'node_modules',
-  'pdfjs-dist',
-  'legacy',
-  'build',
-  'pdf.worker.mjs'
-);
-
-const isVercel = process.env.VERCEL === '1';
-
 const resolveRuntimeModule = (specifier: string) => {
   const runtimeRequire = eval('require') as NodeRequire;
   return runtimeRequire.resolve(specifier);
 };
 
+const isVercel = process.env.VERCEL === '1';
+
+const PDF_WORKER_PATH = isVercel 
+  ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+  : resolveRuntimeModule('pdfjs-dist/legacy/build/pdf.worker.mjs');
+
+
 const getTesseractOptions = () => {
   if (isVercel) {
     return {
-      workerPath: resolveRuntimeModule('tesseract.js/src/worker-script/node/index.js'),
-      corePath: resolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js'),
+      workerPath: 'https://unpkg.com/tesseract.js@5.0.3/dist/worker.min.js',
+      corePath: 'https://unpkg.com/tesseract.js-core@5.0.0',
       langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
       gzip: true,
       cacheMethod: 'none',
@@ -61,7 +57,7 @@ async function ensurePdfJsNodePolyfills() {
 async function loadPdfJs() {
   await ensurePdfJsNodePolyfills();
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(PDF_WORKER_PATH).href;
+  pdfjs.GlobalWorkerOptions.workerSrc = isVercel ? PDF_WORKER_PATH : pathToFileURL(PDF_WORKER_PATH).href;
   return pdfjs;
 }
 
@@ -74,25 +70,25 @@ export async function runOcrFallback(buffer: Buffer, pageCount: number): Promise
 
   try {
     pdfjs = await loadPdfJs();
-  } catch (error) {
+  } catch (error: any) {
     logger.error('OCR', 'Failed to load PDF.js', error);
-    throw new Error('PDF renderer could not be loaded.');
+    throw new Error(`PDF renderer could not be loaded: ${error.message}`);
   }
 
   try {
     const canvasModule = await import('@napi-rs/canvas');
     Canvas = canvasModule.Canvas as typeof Canvas;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('OCR', 'Failed to initialize Canvas', error);
-    throw new Error('Canvas renderer could not be initialized.');
+    throw new Error(`Canvas renderer could not be initialized: ${error.message}`);
   }
 
   try {
     const imported = await import('tesseract.js');
     Tesseract = ((imported as any).default || imported) as typeof Tesseract;
-  } catch (error) {
+  } catch (error: any) {
     logger.error('OCR', 'Failed to initialize Tesseract', error);
-    throw new Error('OCR worker could not be initialized.');
+    throw new Error(`OCR worker could not be initialized: ${error.message}`);
   }
 
   let worker: any = null;
@@ -139,9 +135,9 @@ export async function runOcrFallback(buffer: Buffer, pageCount: number): Promise
     await worker?.terminate();
     await document.destroy();
     return pages;
-  } catch (error) {
+  } catch (error: any) {
     await worker?.terminate().catch(() => undefined);
     logger.error('OCR', 'OCR extraction failed', error);
-    throw new Error('OCR extraction failed.');
+    throw new Error(`OCR extraction failed: ${error.message}`);
   }
 }
