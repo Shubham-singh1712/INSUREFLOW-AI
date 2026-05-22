@@ -37,9 +37,7 @@ const isVercel = process.env.VERCEL === '1';
 
 const routeCapabilities: CapabilityMatrix = {
   pdf_text_available: true,
-  pdf_render_available:
-    canResolveRuntimeModule('pdfjs-dist/legacy/build/pdf.mjs') &&
-    canResolveRuntimeModule('pdfjs-dist/legacy/build/pdf.worker.mjs'),
+  pdf_render_available: true,
   canvas_available: canResolveRuntimeModule('@napi-rs/canvas'),
   ocr_available:
     isVercel || (
@@ -782,78 +780,78 @@ const classifiers: Array<{
 }> = [
   {
     type: 'insurance_card',
-    confidence: 94,
-    patterns: [/insurance\s+card/i, /policy\s*(?:number|no)/i, /member\s*(?:id|number)/i],
+    confidence: 85,
+    patterns: [/insurance/i, /policy/i, /member/i, /card/i, /id\s*(?:number|no|#)/i, /group/i],
   },
   {
     type: 'tpa_card',
-    confidence: 94,
-    patterns: [/\bTPA\b/i, /third\s+party\s+administrator/i, /health\s+card/i],
+    confidence: 85,
+    patterns: [/tpa/i, /third\s*party/i, /administrator/i, /health\s*card/i],
   },
   {
     type: 'aadhaar',
     confidence: 96,
-    patterns: [/aadhaar/i, /\b\d{4}\s+\d{4}\s+\d{4}\b/],
+    patterns: [/aadhaar/i, /\b\d{4}\s*[\s-]?\s*\d{4}\s*[\s-]?\s*\d{4}\b/],
   },
   {
     type: 'pan',
     confidence: 96,
-    patterns: [/\bPAN\b/i, /\b[A-Z]{5}\d{4}[A-Z]\b/],
+    patterns: [/pan\s*card/i, /income\s*tax/i, /\b[a-z]{5}\d{4}[a-z]\b/i],
   },
   {
     type: 'preauth_form',
-    confidence: 95,
-    patterns: [/pre[-\s]?authorization/i, /cashless\s+(?:request|claim)/i, /pre[-\s]?auth/i],
+    confidence: 85,
+    patterns: [/pre[-\s]?auth/i, /authorization/i, /cashless/i, /request/i, /approval/i],
   },
   {
     type: 'claim_form',
-    confidence: 92,
-    patterns: [/claim\s+form/i, /claimant/i, /reimbursement\s+claim/i],
+    confidence: 85,
+    patterns: [/claim\s*form/i, /claimant/i, /reimbursement/i, /part\s*[ab]/i, /declaration/i],
   },
   {
     type: 'final_bill',
-    confidence: 94,
-    patterns: [/final\s+bill/i, /grand\s+total/i, /net\s+amount/i],
+    confidence: 85,
+    patterns: [/final\s*bill/i, /grand\s*total/i, /net\s*amount/i, /receipt/i, /settlement/i],
   },
   {
     type: 'invoice',
-    confidence: 91,
-    patterns: [/invoice/i, /itemi[sz]ed\s+bill/i, /bill\s+no/i, /total\s+(?:amount|charges)/i],
+    confidence: 80,
+    patterns: [/invoice/i, /bill/i, /itemi[sz]ed/i, /total/i, /amount/i, /charges?/i, /qty|quantity/i, /rate/i],
   },
   {
     type: 'discharge_summary',
-    confidence: 95,
-    patterns: [/discharge\s+summary/i, /date\s+of\s+discharge/i, /course\s+in\s+hospital/i],
+    confidence: 85,
+    patterns: [/discharge/i, /summary/i, /admission/i, /course/i, /history/i, /diagnosis/i, /treatment/i],
   },
   {
     type: 'prescription',
-    confidence: 88,
-    patterns: [/prescription/i, /\bRx\b/i, /medicine\s+advised/i],
+    confidence: 85,
+    patterns: [/prescription/i, /rx/i, /medicine/i, /advised/i, /dosage/i, /pharmacy/i],
   },
   {
     type: 'lab_report',
-    confidence: 90,
-    patterns: [/lab(?:oratory)?\s+report/i, /pathology/i, /specimen/i, /reference\s+range/i],
+    confidence: 85,
+    patterns: [/lab/i, /report/i, /pathology/i, /specimen/i, /reference\s*range/i, /test/i, /result/i],
   },
   {
     type: 'radiology',
-    confidence: 90,
-    patterns: [/radiology/i, /\bMRI\b/i, /\bCT\s+scan\b/i, /\bX[-\s]?ray\b/i, /ultrasound/i],
+    confidence: 85,
+    patterns: [/radiology/i, /mri/i, /ct\s*scan/i, /x[-\s]?ray/i, /ultrasound/i, /scan/i, /imaging/i],
   },
   {
     type: 'doctor_notes',
-    confidence: 84,
-    patterns: [/doctor'?s?\s+notes?/i, /progress\s+notes?/i, /clinical\s+notes?/i],
+    confidence: 80,
+    patterns: [/doctor/i, /notes?/i, /progress/i, /clinical/i, /consultation/i, /observations?/i],
   },
   {
     type: 'ub04',
-    confidence: 96,
-    patterns: [/\bUB[-\s]?04\b/i, /\bCMS[-\s]?1450\b/i, /revenue\s+code/i],
+    confidence: 90,
+    patterns: [/ub[-\s]?04/i, /cms[-\s]?1450/i, /revenue\s*code/i, /locator/i],
   },
   {
     type: 'hospital_form',
-    confidence: 78,
-    patterns: [/hospital/i, /admission/i, /registration/i],
+    confidence: 70,
+    patterns: [/hospital/i, /admission/i, /registration/i, /patient\s*details/i, /consent/i],
   },
 ];
 
@@ -870,26 +868,38 @@ function classifyPages(pages: PageText[]): ClassifiedPage[] {
         };
       }
 
+      const matchLogs: any[] = [];
       const matches = classifiers
         .map((classifier) => {
-          const hitCount = classifier.patterns.filter((pattern) => {
+          const hitPatterns = classifier.patterns.filter((pattern) => {
             pattern.lastIndex = 0;
             return pattern.test(normalized);
-          }).length;
+          });
+          if (hitPatterns.length > 0) {
+            matchLogs.push({ type: classifier.type, hits: hitPatterns.map(p => p.source) });
+          }
           return {
             type: classifier.type,
-            score: hitCount > 0 ? classifier.confidence + hitCount * 8 : 0,
+            score: hitPatterns.length > 0 ? classifier.confidence + hitPatterns.length * 8 : 0,
           };
         })
         .filter((match) => match.score > 0)
         .sort((a, b) => b.score - a.score);
 
       const best = matches[0];
-      return {
+      const result = {
         page: page.page,
         type: best?.type || 'unknown',
         confidence: best ? clamp(best.score, 45, 99) : 0,
       };
+
+      console.log(`[classifyPages] Page ${page.page} Debug:
+  Preview: "${normalized.slice(0, 100).replace(/\n/g, ' ')}..."
+  Matches: ${JSON.stringify(matchLogs)}
+  Chosen: ${result.type} (Confidence: ${result.confidence}%)
+`);
+
+      return result;
     });
   } catch (error) {
     throw new PipelineError(
@@ -936,7 +946,7 @@ function findCandidate<T>(
             extractionBonus -
             classificationPenalty
         );
-        candidates.push({
+        const candidate = {
           value,
           raw,
           page: page.page,
@@ -944,7 +954,9 @@ function findCandidate<T>(
           method: page.method,
           confidence,
           priority: (pattern.confidence || 78) + pageBonus - classificationPenalty,
-        });
+        };
+        console.log(`[findCandidate] Match:`, { ...candidate, regex: pattern.regex.source });
+        candidates.push(candidate);
       }
     }
   }
@@ -990,7 +1002,7 @@ function findAllCandidates<T>(
             extractionBonus -
             classificationPenalty
         );
-        all.push({
+        const candidate = {
           value,
           confidence,
           page: page.page,
@@ -998,7 +1010,9 @@ function findAllCandidates<T>(
           method: page.method,
           raw,
           priority: (pattern.confidence || 78) + pageBonus - classificationPenalty,
-        });
+        };
+        console.log(`[findAllCandidates] Match:`, { ...candidate, regex: pattern.regex.source });
+        all.push(candidate);
       }
     }
   }
@@ -1090,7 +1104,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
     const patientFullName = findCandidate(pages, classifications, [
       {
         regex:
-          /(?:patient(?:'s)?\s*name|name\s+of\s+(?:patient|insured)|insured\s+name|beneficiary\s+name)\s*[:\-]?\s*((?:mr|mrs|ms|dr)?\.?\s*[A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){1,5})/i,
+          /(?:name|patient|insured|beneficiary)[^:\n]{0,15}[:\-]?\s*((?:mr|mrs|ms|dr)?\.?\s*[A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){1,5})/i,
         normalize: text,
         confidence: 88,
         pageTypes: ['preauth_form', 'claim_form', 'discharge_summary', 'insurance_card', 'tpa_card'],
@@ -1111,7 +1125,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
           findCandidate(pages, classifications, [
             {
               regex:
-                /(?:d\.?\s*o\.?\s*b|date\s+of\s+birth|birth\s+(?:date|dt)|date\s+birth|born\s+on)\s*[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}|[A-Za-z]{3,9}\s*\d{1,2},?\s*\d{2,4})/i,
+                /(?:dob|date\s*of\s*birth|birth\s*date|born)[^:\n]{0,10}[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}|[A-Za-z]{3,9}\s*\d{1,2},?\s*\d{2,4})/i,
               normalize: date,
               confidence: 90,
               pageTypes: ['aadhaar', 'pan', 'claim_form', 'preauth_form', 'insurance_card'],
@@ -1146,7 +1160,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
           findCandidate(pages, classifications, [
             {
               regex:
-                /(?:phone|mobile|contact|telephone)(?:\s*(?:number|no))?\s*[:\-]?\s*(\+?\d[\d\s().-]{7,})/i,
+                /(?:phone|mobile|contact|tel)[^:\n]{0,10}[:\-]?\s*(\+?\d[\d\s().-]{7,})/i,
               normalize: text,
               confidence: 82,
               pageTypes: ['claim_form', 'preauth_form', 'hospital_form'],
@@ -1194,7 +1208,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
           findCandidate(pages, classifications, [
             {
               regex:
-                /(?:master\s+policy|group\s+policy|policy)\s*(?:number|num|no\.?|id|code|ref|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\s/-]{5,30})/i,
+                /(?:policy|certificate)[^:\n]{0,15}[:\-]?\s*([A-Z0-9][A-Z0-9\s/-]{5,30})/i,
               normalize: identifier,
               confidence: 90,
               pageTypes: ['insurance_card', 'tpa_card', 'preauth_form', 'claim_form'],
