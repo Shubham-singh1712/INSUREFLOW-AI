@@ -9,20 +9,26 @@ export async function POST(request: Request) {
   logger.info('API', 'Received claim submit request');
 
   try {
-    await requireUser();
+    const { response: authResponse } = await requireUser();
+    if (authResponse) {
+      return authResponse;
+    }
 
     const { claimId, action, finalData } = await request.json();
 
     if (!claimId || !action) {
-      return NextResponse.json({ success: false, error: 'Missing claimId or action' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: 'Missing claimId or action' },
+        { status: 400 }
+      );
     }
 
     if (action === 'submit') {
       await saveClaimState(claimId, 'SUBMITTED', {
-        extractedFields: finalData?.extractedFields
+        extractedFields: finalData?.extractedFields,
       });
       logger.info('API', `Claim ${claimId} successfully submitted`);
-      
+
       return NextResponse.json({ success: true, message: 'Claim submitted successfully' });
     } else if (action === 'reject') {
       await saveClaimState(claimId, 'REJECTED');
@@ -31,10 +37,9 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
-
   } catch (error: any) {
     logger.error('API', 'Claim submission error', error);
-    
+
     return NextResponse.json(
       {
         success: false,

@@ -13,7 +13,10 @@ export function calculateScores(
   ocrConfidence: number
 ): { claimHealth: number; readiness: number; rejectionRisk: RejectionRisk } {
   // Claim Health Calculation (100 - penalties)
-  const healthPenalty = validationErrors.reduce((sum, err) => sum + severityWeight(err.severity), 0);
+  const healthPenalty = validationErrors.reduce(
+    (sum, err) => sum + severityWeight(err.severity),
+    0
+  );
   let claimHealth = Math.max(0, 100 - healthPenalty);
 
   // Confidence factor

@@ -139,7 +139,9 @@ export type RepairSuggestion = {
 };
 
 export type ClaimSession = {
-  sessionId: string;
+  claimId: string;
+  uploadSessionId: string;
+  sessionId?: string;
   uploadStartedAt: string;
   originalFileName: string;
   fileSizeBytes: number;
@@ -190,8 +192,10 @@ export type UiClaimField = {
   confidence: number;
   source: string;
   sourcePage: number | null;
+  page?: number | null;
   sourceDocType?: string;
   method?: string;
+  raw?: string | null;
 };
 
 export type UiValidationIssue = {

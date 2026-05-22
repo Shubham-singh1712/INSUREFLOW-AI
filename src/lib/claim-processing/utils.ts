@@ -1,3 +1,4 @@
+/* eslint-disable no-control-regex */
 export const clamp = (value: number, min = 0, max = 100) =>
   Math.max(min, Math.min(max, Math.round(value)));
 
@@ -16,7 +17,7 @@ export const normalizeForEntityMatching = (value = '') =>
 
 export const cleanValue = (value = '') =>
   normalizeWhitespace(value)
-    .replace(/^[\s:;|,-]+|[\s:;|,-]+$/g, '')
+    .replace(/^[\s:;|,\-_]+|[\s:;|,\-_]+$/g, '')
     .replace(/\s+([,.:;])/g, '$1');
 
 export const toGlobalRegex = (regex: RegExp) => {
@@ -42,7 +43,20 @@ export const parseMoney = (value: string) => {
 
 const monthIndex = (value: string) => {
   const key = value.toLowerCase().slice(0, 3);
-  const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(key);
+  const month = [
+    'jan',
+    'feb',
+    'mar',
+    'apr',
+    'may',
+    'jun',
+    'jul',
+    'aug',
+    'sep',
+    'oct',
+    'nov',
+    'dec',
+  ].indexOf(key);
   return month >= 0 ? String(month + 1).padStart(2, '0') : null;
 };
 
@@ -61,13 +75,17 @@ export const normalizeDate = (value: string) => {
   const dayMonthName = cleaned.match(/^(\d{1,2})\s*([A-Za-z]{3,9})\s*(\d{2,4})$/);
   if (dayMonthName) {
     const month = monthIndex(dayMonthName[2]);
-    return month ? `${normalizeYear(dayMonthName[3])}-${month}-${dayMonthName[1].padStart(2, '0')}` : cleaned || null;
+    return month
+      ? `${normalizeYear(dayMonthName[3])}-${month}-${dayMonthName[1].padStart(2, '0')}`
+      : cleaned || null;
   }
 
   const monthNameDay = cleaned.match(/^([A-Za-z]{3,9})\s*(\d{1,2}),?\s*(\d{2,4})$/);
   if (monthNameDay) {
     const month = monthIndex(monthNameDay[1]);
-    return month ? `${normalizeYear(monthNameDay[3])}-${month}-${monthNameDay[2].padStart(2, '0')}` : cleaned || null;
+    return month
+      ? `${normalizeYear(monthNameDay[3])}-${month}-${monthNameDay[2].padStart(2, '0')}`
+      : cleaned || null;
   }
 
   return cleaned || null;
@@ -82,6 +100,4 @@ export const daysBetween = (from?: string | null, to?: string | null) => {
 };
 
 export const textFingerprint = (text: string) =>
-  cleanValue(text.toLowerCase())
-    .replace(/\d+/g, '#')
-    .slice(0, 900);
+  cleanValue(text.toLowerCase()).replace(/\d+/g, '#').slice(0, 900);

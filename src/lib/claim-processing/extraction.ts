@@ -1,5 +1,21 @@
-import { PageText, ClassifiedPage, ExtractedFields, TraceableField, Pattern, Candidate, PageDocType } from './types';
-import { cleanValue, capturedValue, toGlobalRegex, clamp, parseMoney, normalizeDate, normalizeWhitespace } from './utils';
+import {
+  PageText,
+  ClassifiedPage,
+  ExtractedFields,
+  TraceableField,
+  Pattern,
+  Candidate,
+  PageDocType,
+} from './types';
+import {
+  cleanValue,
+  capturedValue,
+  toGlobalRegex,
+  clamp,
+  parseMoney,
+  normalizeDate,
+  normalizeWhitespace,
+} from './utils';
 import { logger } from './logger';
 
 const makeEmptyTrace = <T>(value: T): TraceableField<T> => ({
@@ -8,7 +24,7 @@ const makeEmptyTrace = <T>(value: T): TraceableField<T> => ({
   page: null,
   docType: null,
   method: null,
-  raw: null
+  raw: null,
 });
 
 const makeTrace = <T>(candidate: Candidate<T> | null, emptyValue: T): TraceableField<T> => {
@@ -19,7 +35,7 @@ const makeTrace = <T>(candidate: Candidate<T> | null, emptyValue: T): TraceableF
     page: candidate.page,
     docType: candidate.docType,
     method: candidate.method,
-    raw: candidate.raw
+    raw: candidate.raw,
   };
 };
 
@@ -68,7 +84,7 @@ function findCandidate<T>(
           method: page.method,
           confidence,
         };
-        
+
         candidates.push(candidate);
       }
     }
@@ -133,14 +149,23 @@ function findAllCandidates<T>(
 const text = (v: string) => v;
 const identifier = (v: string) => v.toUpperCase().replace(/[^A-Z0-9-]/g, '');
 
-export function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): ExtractedFields {
+export function extractEntities(
+  pages: PageText[],
+  classifications: ClassifiedPage[]
+): ExtractedFields {
   logger.info('EXTRACTION', 'Starting entity extraction');
 
   const icdCandidates = findAllCandidates<string>(pages, classifications, [
     {
-      regex: /(?:icd[- ]?10|code)[\s:]*([A-Z][0-9][0-9A-Z]?(?:\.[0-9A-Z]{1,4})?)/gi,
+      regex: /(?:icd[- ]?10|code)[\s:\-_]*([A-Z][0-9][0-9A-Z]?(?:\.[0-9A-Z]{1,4})?)/gi,
       normalize: identifier,
       confidence: 90,
+      pageTypes: ['discharge_summary', 'preauth_form', 'ub04', 'claim_form'],
+    },
+    {
+      regex: /\b([A-Z][0-9][0-9A-Z]?\.[0-9A-Z]{1,4})\b/g,
+      normalize: identifier,
+      confidence: 80,
       pageTypes: ['discharge_summary', 'preauth_form', 'ub04', 'claim_form'],
     },
   ]);
@@ -150,120 +175,436 @@ export function extractEntities(pages: PageText[], classifications: ClassifiedPa
 
   const extracted: ExtractedFields = {
     patient: {
-      full_name: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:patient|insured|beneficiary)\s*name\s*[:\-]\s*([A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){1,4})/i, normalize: text, confidence: 95, pageTypes: ['preauth_form', 'claim_form', 'discharge_summary'] },
-        { regex: /(?:name\s*of\s*(?:the\s*)?patient)\s*[:\-]\s*([A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){1,4})/i, normalize: text, confidence: 92 },
-        { regex: /\bname\s*[:\-]\s*([A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){1,4})/i, normalize: text, confidence: 85 }
-      ]), null),
-      dob: makeTrace(findCandidate(pages, classifications, [
-        { regex: /\b(?:dob|date\s*of\s*birth|birth\s*date)\s*[:\-]\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i, normalize: normalizeDate, confidence: 95 },
-        { regex: /\bborn\s*on\s*[:\-]\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i, normalize: normalizeDate, confidence: 90 }
-      ]), null),
-      gender: makeTrace(findCandidate(pages, classifications, [
-        { regex: /\b(?:sex|gender)\s*[:\-]\s*\b(male|female|other|m|f)\b/i, normalize: (v) => (v.charAt(0).toUpperCase() === 'M' ? 'Male' : v.charAt(0).toUpperCase() === 'F' ? 'Female' : 'Other'), confidence: 90 }
-      ]), null),
-      age: makeTrace(findCandidate(pages, classifications, [
-        { regex: /\bage\s*[:\-]\s*(\d{1,2})\b/i, normalize: (v) => parseInt(v, 10) || null, confidence: 90 },
-        { regex: /\b(\d{1,2})\s*(?:years|yrs|y\.o\.)\b/i, normalize: (v) => parseInt(v, 10) || null, confidence: 85 }
-      ]), null),
-      phone: makeTrace(findCandidate(pages, classifications, [
-        { regex: /\b(?:phone|mobile|contact|tel|telephone)\s*(?:no|number)?\s*[:\-]\s*(\+?\d[\d\s().-]{7,18})/i, normalize: text, confidence: 90 }
-      ]), null),
-      address: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:residence|address|addr)\s*[:\-]\s*([^\n:]{10,80})/i, normalize: text, confidence: 85 }
-      ]), null)
+      full_name: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:patient|insured|beneficiary)\s*name\s*[:\-_]*[_\s]*([A-Za-z_.-]+(?:[ \t]+[A-Za-z_.-]+)*)/i,
+            normalize: text,
+            confidence: 95,
+            pageTypes: ['preauth_form', 'claim_form', 'discharge_summary'],
+          },
+          {
+            regex:
+              /(?:name\s*of\s*(?:the\s*)?patient)\s*[:\-_]*[_\s]*([A-Za-z_.-]+(?:[ \t]+[A-Za-z_.-]+)*)/i,
+            normalize: text,
+            confidence: 92,
+          },
+          {
+            regex: /\bname\s*[:\-_]*[_\s]*([A-Za-z_.-]+(?:[ \t]+[A-Za-z_.-]+)*)/i,
+            normalize: text,
+            confidence: 85,
+          },
+        ]),
+        null
+      ),
+      dob: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /\b(?:dob|date\s*of\s*birth|birth\s*date)\s*[:\-_]*[_\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i,
+            normalize: normalizeDate,
+            confidence: 95,
+          },
+          {
+            regex:
+              /\bborn\s*on\s*[:\-_]*[_\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i,
+            normalize: normalizeDate,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      gender: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /\b(?:sex|gender)\s*[:\-_]*[_\s]*\b(male|female|other|m|f)\b/i,
+            normalize: (v) =>
+              v.charAt(0).toUpperCase() === 'M'
+                ? 'Male'
+                : v.charAt(0).toUpperCase() === 'F'
+                  ? 'Female'
+                  : 'Other',
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      age: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /\bage\s*[:\-_]*[_\s]*(?:years|yrs|y\.o\.)?\s*(\d{1,2})\b/i,
+            normalize: (v) => parseInt(v, 10) || null,
+            confidence: 90,
+          },
+          {
+            regex: /\b(\d{1,2})\s*(?:years|yrs|y\.o\.)\b/i,
+            normalize: (v) => parseInt(v, 10) || null,
+            confidence: 85,
+          },
+        ]),
+        null
+      ),
+      phone: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /\b(?:phone|mobile|contact|tel|telephone)\s*(?:no|number)?\s*[:\-_]*[_\s]*(\+?\d[\d\s().-]{7,18})/i,
+            normalize: text,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      address: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /(?:residence|address|addr)\s*[:\-_]*[_\s]*([^\n:]{10,80})/i,
+            normalize: text,
+            confidence: 85,
+          },
+        ]),
+        null
+      ),
     },
     insurance: {
-      provider_name: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:insurance\s*company|insurer|provider\s*name|insurance\s*provider)\s*[:\-]\s*([A-Za-z0-9\s.,-]{3,40})/i, normalize: text, confidence: 90 }
-      ]), null),
-      tpa_name: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:tpa\s*name|tpa|third\s*party\s*administrator)\s*[:\-]\s*([A-Za-z0-9\s.,-]{3,40})/i, normalize: text, confidence: 90 }
-      ]), null),
-      policy_number: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:policy\s*(?:no|number|num)?)\s*[:\-]\s*([A-Z0-9-]{5,20})/i, normalize: identifier, confidence: 95 }
-      ]), null),
-      member_id: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:member\s*(?:id|no|number|num)?|health\s*id|uhid)\s*[:\-]\s*([A-Z0-9-]{5,25})/i, normalize: identifier, confidence: 95 }
-      ]), null),
-      corporate_or_group_id: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:group\s*(?:id|no|number|num)?|corporate\s*id)\s*[:\-]\s*([A-Z0-9-]{4,20})/i, normalize: identifier, confidence: 90 }
-      ]), null),
-      insurance_id: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:insurance\s*id|policy\s*id)\s*[:\-]\s*([A-Z0-9-]{5,25})/i, normalize: identifier, confidence: 90 }
-      ]), null)
+      provider_name: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:insurance\s*company|insurer|provider\s*name|insurance\s*provider)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{3,50})/i,
+            normalize: text,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      tpa_name: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:tpa\s*name|tpa|third\s*party\s*administrator)\b\s*[/_\s\w]*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{3,60})/i,
+            normalize: text,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      policy_number: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /(?:policy\s*(?:no|number|num)?)\s*[:\-_]*[_\s]*([A-Z0-9-]{5,20})/i,
+            normalize: identifier,
+            confidence: 95,
+          },
+        ]),
+        null
+      ),
+      member_id: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:member\s*(?:id|no|number|num)?|insured\s*card\s*(?:id|no|number|num)?|health\s*id|uhid|card\s*(?:id|no|number|num)?)\s*[:\-_]*[_\s]*([A-Z0-9-]{5,25})/i,
+            normalize: identifier,
+            confidence: 95,
+          },
+        ]),
+        null
+      ),
+      corporate_or_group_id: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:group\s*(?:id|no|number|num)?|corporate\s*id)\s*[:\-_]*[_\s]*([A-Z0-9-]{4,20})/i,
+            normalize: identifier,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      insurance_id: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /(?:insurance\s*id|policy\s*id)\s*[:\-_]*[_\s]*([A-Z0-9-]{5,25})/i,
+            normalize: identifier,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
     },
     hospital: {
-      facility_name: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:hospital|facility|clinic|nursing\s*home)\s*name\s*[:\-]\s*([A-Za-z0-9\s.,-]{4,55})/i, normalize: text, confidence: 90 }
-      ]), null),
-      doctor_name: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:doctor|physician|surgeon|consultant)\s*name\s*[:\-]\s*([A-Za-z\s.'-]{4,40})/i, normalize: text, confidence: 90 },
-        { regex: /\b(?:dr\.?|doctor)\s*([A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){1,3})/i, normalize: text, confidence: 85 }
-      ]), null),
-      registration_number: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:reg\s*(?:no|number)?|registration|rohini\s*id)\s*[:\-]\s*([A-Z0-9/-]{5,20})/i, normalize: identifier, confidence: 90 }
-      ]), null),
-      admission_date: makeTrace(findCandidate(pages, classifications, [
-        { regex: /\b(?:doa|date\s*of\s*admission|admission\s*date|admitted\s*on)\s*[:\-]\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i, normalize: normalizeDate, confidence: 95 }
-      ]), null),
-      discharge_date: makeTrace(findCandidate(pages, classifications, [
-        { regex: /\b(?:dod|date\s*of\s*discharge|discharge\s*date|discharged\s*on)\s*[:\-]\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i, normalize: normalizeDate, confidence: 95 }
-      ]), null),
+      facility_name: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:(?:hospital|facility|clinic|nursing\s*home)\s*name|name\s*of\s*(?:the\s*)?(?:hospital|facility|clinic|nursing\s*home))\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{4,60})/i,
+            normalize: text,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      doctor_name: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:(?:doctor|physician|surgeon|consultant)\s*name|name\s*of\s*(?:the\s*)?(?:doctor|physician|surgeon|consultant))\s*[:\-_]*[_\s]*([A-Za-z\s_.'&-]{4,45})/i,
+            normalize: text,
+            confidence: 90,
+          },
+          {
+            regex: /\b(?:dr\.?|doctor)\s*[:\-_]*[_\s]*([A-Za-z_.-]+(?:[ \t]+[A-Za-z_.-]+)*)/i,
+            normalize: text,
+            confidence: 85,
+          },
+        ]),
+        null
+      ),
+      registration_number: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:reg\s*(?:no|number)?|registration|rohini\s*id)\s*[:\-_]*[_\s]*([A-Z0-9/\s_-]{4,25})/i,
+            normalize: identifier,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      admission_date: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /\b(?:doa|date\s*of\s*admission|admission\s*date|admitted\s*on)\s*[:\-_]*[_\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i,
+            normalize: normalizeDate,
+            confidence: 95,
+          },
+        ]),
+        null
+      ),
+      discharge_date: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /\b(?:dod|date\s*of\s*discharge|discharge\s*date|discharged\s*on)\s*[:\-_]*[_\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i,
+            normalize: normalizeDate,
+            confidence: 95,
+          },
+        ]),
+        null
+      ),
     },
     clinical: {
-      diagnosis: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:diagnosis|ailment|provisional\s*diagnosis|disease)\s*[:\-]\s*([A-Za-z0-9\s.,()-]{4,80})/i, normalize: text, confidence: 90 }
-      ]), null),
-      icd10_codes: makeTrace({ value: uniqueIcd.length ? uniqueIcd : null, confidence: icdCandidates[0]?.confidence || 0, page: icdCandidates[0]?.page || 1, docType: icdCandidates[0]?.docType || 'unknown', method: icdCandidates[0]?.method || 'ocr', raw: icdCandidates[0]?.raw || '' }, null),
-      symptoms: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:symptoms|complaints|presenting\s*with)\s*[:\-]\s*([A-Za-z0-9\s.,()-]{4,80})/i, normalize: text, confidence: 90 }
-      ]), null),
-      surgery: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:surgery|operation)\s*[:\-]\s*([A-Za-z0-9\s.,()-]{3,80})/i, normalize: text, confidence: 90 }
-      ]), null),
-      procedure: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:procedure)\s*[:\-]\s*([A-Za-z0-9\s.,()-]{3,80})/i, normalize: text, confidence: 90 }
-      ]), null),
-      length_of_stay: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:length\s*of\s*stay|los|days\s*in\s*hospital|stay\s*duration)\s*[:\-]\s*(\d{1,2})\b/i, normalize: (v) => parseInt(v, 10), confidence: 90 }
-      ]), null),
-      emergency_case: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:emergency|casualty|urgent)\s*case?\s*[:\-]\s*(yes|no|true|false|1|0)/i, normalize: isChecked, confidence: 90 }
-      ]), null),
+      diagnosis: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:diagnosis|ailment|provisional\s*diagnosis|disease)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{4,80})/i,
+            normalize: text,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      icd10_codes: makeTrace(
+        {
+          value: uniqueIcd.length ? uniqueIcd : null,
+          confidence: icdCandidates[0]?.confidence || 0,
+          page: icdCandidates[0]?.page || 1,
+          docType: icdCandidates[0]?.docType || 'unknown',
+          method: icdCandidates[0]?.method || 'ocr',
+          raw: icdCandidates[0]?.raw || '',
+        },
+        null
+      ),
+      symptoms: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:symptoms|complaints|presenting\s*with)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{4,80})/i,
+            normalize: text,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      surgery: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /(?:surgery|operation)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{3,80})/i,
+            normalize: text,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      procedure: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /(?:procedure)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{3,80})/i,
+            normalize: text,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      length_of_stay: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:length\s*of\s*stay|los|days\s*in\s*hospital|stay\s*duration)\s*[:\-_]*[_\s]*(\d{1,2})\b/i,
+            normalize: (v) => parseInt(v, 10),
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      emergency_case: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /(?:emergency|casualty|urgent)\s*case?\s*[:\-_]*[_\s]*(yes|no|true|false|1|0)/i,
+            normalize: isChecked,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
     },
     financial: {
-      room_rent: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:room\s*rent|ward\s*charges|room\s*charges)\s*[:\-]?\s*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i, normalize: parseMoney, confidence: 90 }
-      ]), null),
-      icu_charges: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:icu\s*charges|icu\s*rent|intensive\s*care\s*charges)\s*[:\-]?\s*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i, normalize: parseMoney, confidence: 90 }
-      ]), null),
-      ot_charges: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:ot\s*charges|operation\s*theatre\s*charges)\s*[:\-]?\s*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i, normalize: parseMoney, confidence: 90 }
-      ]), null),
-      medicine: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:medicine|pharmacy|drugs|pharmacy\s*charges)\s*[:\-]?\s*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i, normalize: parseMoney, confidence: 90 }
-      ]), null),
-      investigations: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:investigation|lab|pathology|radiology|diagnostics)\s*charges?\s*[:\-]?\s*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i, normalize: parseMoney, confidence: 90 }
-      ]), null),
-      professional_fees: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:professional\s*fees?|doctor\s*fees?|consultation\s*fees?)\s*[:\-]?\s*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i, normalize: parseMoney, confidence: 90 }
-      ]), null),
-      final_bill: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:final\s*bill|grand\s*total|net\s*amount|total\s*invoice)\s*[:\-]?\s*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i, normalize: parseMoney, confidence: 95 }
-      ]), null),
-      total_claimed: makeTrace(findCandidate(pages, classifications, [
-        { regex: /(?:amount\s*claimed|total\s*claim|claim\s*amount)\s*[:\-]?\s*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i, normalize: parseMoney, confidence: 95 }
-      ]), null),
+      room_rent: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:room\s*rent|ward\s*charges|room\s*charges)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      icu_charges: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:icu\s*charges|icu\s*rent|intensive\s*care\s*charges)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      ot_charges: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:ot\s*charges|operation\s*theatre\s*charges)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      medicine: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:medicine|pharmacy|drugs|pharmacy\s*charges)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      investigations: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:investigation|lab|pathology|radiology|diagnostics)\s*charges?\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      professional_fees: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:professional\s*fees?|doctor\s*fees?|consultation\s*fees?)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 90,
+          },
+        ]),
+        null
+      ),
+      final_bill: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:final\s*bill|grand\s*total|net\s*amount|total\s*invoice)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 95,
+          },
+        ]),
+        null
+      ),
+      total_claimed: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:amount\s*claimed|total\s*claim|claim\s*amount)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 95,
+          },
+        ]),
+        null
+      ),
     },
     authorization: {
-      patient_signature: makeTrace(findCandidate(pages, classifications, [{ regex: /(?:signature\s*of\s*(?:the\s*)?patient|patient\s*signature)/i, normalize: () => true, confidence: 60 }]), null),
-      doctor_signature: makeTrace(findCandidate(pages, classifications, [{ regex: /(?:signature\s*of\s*(?:the\s*)?doctor|doctor\s*signature)/i, normalize: () => true, confidence: 60 }]), null),
-      hospital_seal: makeTrace(findCandidate(pages, classifications, [{ regex: /(?:hospital\s*seal|official\s*seal|stamp)/i, normalize: () => true, confidence: 60 }]), null),
-      approval_stamp: makeTrace(findCandidate(pages, classifications, [{ regex: /(?:approved\s*by|approval\s*signature)/i, normalize: () => true, confidence: 60 }]), null),
-    }
+      patient_signature: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:signature\s*(?:of|of\s*the)?\s*(?:patient|insured)|(?:patient|insured)\s*signature)/i,
+            normalize: () => true,
+            confidence: 60,
+          },
+        ]),
+        null
+      ),
+      doctor_signature: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex:
+              /(?:signature\s*(?:of|of\s*the)?\s*(?:doctor|physician|surgeon|attending)|(?:doctor|physician|surgeon|attending)\s*signature)/i,
+            normalize: () => true,
+            confidence: 60,
+          },
+        ]),
+        null
+      ),
+      hospital_seal: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /(?:hospital\s*seal|official\s*seal|stamp)/i,
+            normalize: () => true,
+            confidence: 60,
+          },
+        ]),
+        null
+      ),
+      approval_stamp: makeTrace(
+        findCandidate(pages, classifications, [
+          {
+            regex: /(?:approved\s*by|approval\s*signature)/i,
+            normalize: () => true,
+            confidence: 60,
+          },
+        ]),
+        null
+      ),
+    },
   };
 
   logger.info('EXTRACTION', 'Entity extraction completed');

@@ -48,7 +48,10 @@ export async function processClaimPipeline(
     const extractedFields = extractEntities(finalPages, classifiedPages);
 
     // 4. Validation
-    const { errors: validationErrors, repairSuggestions } = validateExtractedData(extractedFields, pageCount);
+    const { errors: validationErrors, repairSuggestions } = validateExtractedData(
+      extractedFields,
+      pageCount
+    );
 
     // 5. Scoring
     const { claimHealth, readiness, rejectionRisk } = calculateScores(
@@ -59,14 +62,14 @@ export async function processClaimPipeline(
 
     // 6. Final State Update
     const nextState = claimHealth >= 80 && readiness === 100 ? 'READY' : 'REVIEW_REQUIRED';
-    
+
     await saveClaimState(claimId, nextState, {
       extractedFields,
       validationErrors,
       repairSuggestions,
       claimHealth,
       readiness,
-      ocrConfidence
+      ocrConfidence,
     });
 
     const packet: ClaimPacket = {
@@ -85,12 +88,11 @@ export async function processClaimPipeline(
       repairSuggestions,
       intake: session,
       pdfType: source === 'pdf_parse' ? 'text_layer' : 'scanned_or_image',
-      state: nextState
+      state: nextState,
     };
 
     logger.info('PIPELINE', `Pipeline complete for claim ${claimId}. Status: ${nextState}`);
     return packet;
-
   } catch (error) {
     logger.error('PIPELINE', `Pipeline failed for claim ${claimId}`, error);
     throw error;

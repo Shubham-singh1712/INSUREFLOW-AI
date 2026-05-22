@@ -22,5 +22,5 @@ export const logger = {
   },
   finalUiMapping: (fields: any[]) => {
     console.log(`[UI_MAPPING] Final UI Fields:`, JSON.stringify(fields, null, 2));
-  }
+  },
 };

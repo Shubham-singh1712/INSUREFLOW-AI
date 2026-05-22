@@ -4,8 +4,6 @@ import { PageText } from './types';
 import { normalizeWhitespace, clamp } from './utils';
 import { logger } from './logger';
 
-
-
 const OCR_MIN_TEXT_LENGTH = 10;
 
 async function ensurePdfJsNodePolyfills() {
@@ -29,7 +27,7 @@ async function loadPdfJs() {
 
 export async function runOcrFallback(buffer: Buffer, pageCount: number): Promise<PageText[]> {
   logger.info('OCR', `Starting OCR for ${pageCount} pages`);
-  
+
   let pdfjs: any;
   let Canvas: any;
   let Tesseract: any;

@@ -2,21 +2,21 @@
 
 import React, { useState, useEffect } from 'react';
 import { ClaimPacket, UiClaimField, ClaimState } from '@/lib/claim-processing/types';
-import { 
-  UploadCloud, 
-  CheckCircle, 
-  AlertTriangle, 
-  FileText, 
-  Loader2, 
-  User, 
-  Shield, 
-  Hospital, 
-  Activity, 
-  DollarSign, 
-  CheckSquare, 
-  FileCheck2, 
+import {
+  UploadCloud,
+  CheckCircle,
+  AlertTriangle,
+  FileText,
+  Loader2,
+  User,
+  Shield,
+  Hospital,
+  Activity,
+  DollarSign,
+  CheckSquare,
+  FileCheck2,
   ArrowRight,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react';
 
 export default function ClaimIntakeFlow() {
@@ -24,10 +24,15 @@ export default function ClaimIntakeFlow() {
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [step, setStep] = useState<'upload' | 'processing' | 'review' | 'submitted'>('upload');
-  const [claimData, setClaimData] = useState<{ packet: ClaimPacket; uiFields: UiClaimField[] } | null>(null);
-  const [activeTab, setActiveTab] = useState<'patient' | 'insurance' | 'hospital' | 'clinical' | 'financial' | 'authorization'>('patient');
+  const [claimData, setClaimData] = useState<{
+    packet: ClaimPacket;
+    uiFields: UiClaimField[];
+  } | null>(null);
+  const [activeTab, setActiveTab] = useState<
+    'patient' | 'insurance' | 'hospital' | 'clinical' | 'financial' | 'authorization'
+  >('patient');
 
   // Clean up Object URL when component unmounts
   useEffect(() => {
@@ -101,7 +106,9 @@ export default function ClaimIntakeFlow() {
     const parts = fieldId.split('.'); // e.g. "patient.full_name" or "authorization.patient_signature"
     if (parts.length === 2 && updatedPacket.extractedFields) {
       const [category, key] = parts;
-      const cat = updatedPacket.extractedFields[category as keyof typeof updatedPacket.extractedFields] as any;
+      const cat = updatedPacket.extractedFields[
+        category as keyof typeof updatedPacket.extractedFields
+      ] as any;
       if (cat && cat[key]) {
         cat[key].value = newValue;
       }
@@ -139,7 +146,8 @@ export default function ClaimIntakeFlow() {
             InsureFlow AI
           </h1>
           <p className="mt-3 text-lg text-muted-foreground">
-            Production-grade insurance claim intake. Upload scanned or digital claim packets for instant processing.
+            Production-grade insurance claim intake. Upload scanned or digital claim packets for
+            instant processing.
           </p>
         </div>
 
@@ -154,12 +162,15 @@ export default function ClaimIntakeFlow() {
         )}
 
         <div
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
           className={`relative border-2 border-dashed rounded-2xl p-16 text-center cursor-pointer transition-all duration-300 ${
-            isDragging 
-              ? 'border-indigo-500 bg-indigo-50/30 shadow-inner scale-[0.99]' 
+            isDragging
+              ? 'border-indigo-500 bg-indigo-50/30 shadow-inner scale-[0.99]'
               : 'border-slate-200 hover:border-indigo-400 hover:bg-slate-50/50 hover:shadow-lg'
           }`}
         >
@@ -168,7 +179,8 @@ export default function ClaimIntakeFlow() {
           </div>
           <h3 className="text-2xl font-bold text-slate-800 mb-2">Drag & drop claim PDF here</h3>
           <p className="text-muted-foreground mb-8 max-w-md mx-auto text-sm leading-relaxed">
-            Support for multi-page native PDFs, mixed layouts, and completely scanned bills up to 30MB.
+            Support for multi-page native PDFs, mixed layouts, and completely scanned bills up to
+            30MB.
           </p>
           <label className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-8 py-3.5 rounded-xl cursor-pointer hover:shadow-lg active:scale-95 transition-all font-semibold">
             Browse Local Files
@@ -194,7 +206,8 @@ export default function ClaimIntakeFlow() {
         </div>
         <h2 className="text-3xl font-extrabold text-slate-800 mb-3">Processing Document</h2>
         <p className="text-slate-500 leading-relaxed text-sm mb-6">
-          Analyzing document layout, resolving OCR layers via Tesseract, classifying document pages, and extracting semantic entity nodes.
+          Analyzing document layout, resolving OCR layers via Tesseract, classifying document pages,
+          and extracting semantic entity nodes.
         </p>
         <div className="space-y-2 max-w-xs mx-auto">
           <div className="flex justify-between text-xs font-semibold text-indigo-600">
@@ -202,7 +215,10 @@ export default function ClaimIntakeFlow() {
             <span className="animate-pulse">Active...</span>
           </div>
           <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-            <div className="bg-indigo-600 h-1.5 rounded-full animate-[loading_15s_ease-in-out_infinite]" style={{ width: '60%' }}></div>
+            <div
+              className="bg-indigo-600 h-1.5 rounded-full animate-[loading_15s_ease-in-out_infinite]"
+              style={{ width: '60%' }}
+            ></div>
           </div>
         </div>
       </div>
@@ -215,12 +231,20 @@ export default function ClaimIntakeFlow() {
         <div className="w-20 h-20 bg-emerald-50 rounded-3xl flex items-center justify-center text-emerald-500 mx-auto mb-8 shadow-sm">
           <CheckCircle className="w-10 h-10" />
         </div>
-        <h2 className="text-3xl font-extrabold text-slate-800 mb-3">Claim Submitted Successfully</h2>
+        <h2 className="text-3xl font-extrabold text-slate-800 mb-3">
+          Claim Submitted Successfully
+        </h2>
         <p className="text-slate-500 text-sm leading-relaxed mb-8">
-          The claim dataset has been parsed, repaired, verified, and successfully committed. It is now routed for adjudicator review.
+          The claim dataset has been parsed, repaired, verified, and successfully committed. It is
+          now routed for adjudicator review.
         </p>
         <button
-          onClick={() => { setStep('upload'); setClaimData(null); setFile(null); setFileUrl(null); }}
+          onClick={() => {
+            setStep('upload');
+            setClaimData(null);
+            setFile(null);
+            setFileUrl(null);
+          }}
           className="w-full sm:w-auto bg-slate-900 hover:bg-slate-800 text-white px-8 py-3.5 rounded-xl font-semibold shadow-md hover:shadow-lg transition-all"
         >
           Process Another Claim
@@ -240,10 +264,10 @@ export default function ClaimIntakeFlow() {
       { id: 'hospital', label: 'Hospital & Care', icon: Hospital },
       { id: 'clinical', label: 'Clinical Node', icon: Activity },
       { id: 'financial', label: 'Financial Info', icon: DollarSign },
-      { id: 'authorization', label: 'Signatures / Seal', icon: CheckSquare }
+      { id: 'authorization', label: 'Signatures / Seal', icon: CheckSquare },
     ] as const;
 
-    const filteredFields = uiFields.filter(f => f.id.startsWith(activeTab + '.'));
+    const filteredFields = uiFields.filter((f) => f.id.startsWith(activeTab + '.'));
 
     return (
       <div className="flex h-[calc(100vh-4rem)] bg-slate-50 overflow-hidden">
@@ -260,7 +284,11 @@ export default function ClaimIntakeFlow() {
           </div>
           <div className="flex-1 bg-slate-800 p-2 flex">
             {fileUrl ? (
-              <iframe src={fileUrl} className="w-full h-full rounded-lg shadow-inner bg-slate-900" title="Source Document" />
+              <iframe
+                src={fileUrl}
+                className="w-full h-full rounded-lg shadow-inner bg-slate-900"
+                title="Source Document"
+              />
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-slate-500 border border-slate-700 rounded-lg m-4 border-dashed">
                 <AlertTriangle className="w-8 h-8 mb-2" />
@@ -277,16 +305,21 @@ export default function ClaimIntakeFlow() {
               <h2 className="text-xl font-extrabold text-slate-800">Review & Repair Workspace</h2>
               <div className="flex items-center gap-4 mt-1.5">
                 <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                  Claim ID: <span className="font-mono text-slate-700">{packet.claimId.slice(0, 8)}...</span>
+                  Claim ID:{' '}
+                  <span className="font-mono text-slate-700">{packet.claimId.slice(0, 8)}...</span>
                 </span>
                 <span className="h-3 w-px bg-slate-200"></span>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-semibold text-slate-500">Intake Score:</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                    packet.claimHealth >= 80 ? 'bg-emerald-50 text-emerald-700' :
-                    packet.claimHealth >= 50 ? 'bg-amber-50 text-amber-700' :
-                    'bg-rose-50 text-rose-700'
-                  }`}>
+                  <span
+                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      packet.claimHealth >= 80
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : packet.claimHealth >= 50
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-rose-50 text-rose-700'
+                    }`}
+                  >
                     {packet.claimHealth}%
                   </span>
                 </div>
@@ -300,7 +333,7 @@ export default function ClaimIntakeFlow() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
-          
+
           {/* Navigation Category Tabs */}
           <div className="flex border-b border-slate-100 bg-slate-50/30 overflow-x-auto shrink-0 select-none scrollbar-none">
             {categories.map((cat) => {
@@ -311,8 +344,8 @@ export default function ClaimIntakeFlow() {
                   key={cat.id}
                   onClick={() => setActiveTab(cat.id)}
                   className={`flex items-center gap-2 px-5 py-4 border-b-2 font-medium text-xs tracking-wide uppercase transition-all whitespace-nowrap ${
-                    isActive 
-                      ? 'border-indigo-600 text-indigo-600 bg-white font-bold' 
+                    isActive
+                      ? 'border-indigo-600 text-indigo-600 bg-white font-bold'
                       : 'border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50/50'
                   }`}
                 >
@@ -347,7 +380,10 @@ export default function ClaimIntakeFlow() {
             {/* Editable Form Inputs Grid */}
             <div className="grid grid-cols-1 gap-5">
               {filteredFields.map((field) => (
-                <div key={field.id} className="relative p-4 bg-white border border-slate-150 rounded-xl hover:shadow-sm transition-all flex flex-col group">
+                <div
+                  key={field.id}
+                  className="relative p-4 bg-white border border-slate-150 rounded-xl hover:shadow-sm transition-all flex flex-col group"
+                >
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       {field.label}
@@ -358,11 +394,15 @@ export default function ClaimIntakeFlow() {
                           Page {field.page}
                         </span>
                       )}
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        field.confidence >= 80 ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' :
-                        field.confidence >= 50 ? 'bg-amber-50 text-amber-700 border border-amber-100' :
-                        'bg-rose-50 text-rose-700 border border-rose-100'
-                      }`}>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          field.confidence >= 80
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                            : field.confidence >= 50
+                              ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                              : 'bg-rose-50 text-rose-700 border border-rose-100'
+                        }`}
+                      >
                         {field.confidence}% Confidence
                       </span>
                     </div>
@@ -375,10 +415,12 @@ export default function ClaimIntakeFlow() {
                     placeholder={`Enter ${field.label.toLowerCase()}`}
                   />
                   <div className="text-[9px] text-slate-400 mt-1.5 flex justify-between">
-                    <span>Source Node: <span className="font-mono">{field.source.toUpperCase()}</span></span>
+                    <span>
+                      Source Node: <span className="font-mono">{field.source.toUpperCase()}</span>
+                    </span>
                     {field.raw && (
                       <span className="truncate max-w-[70%] italic text-slate-400">
-                        Raw match: "{field.raw}"
+                        Raw match: &quot;{field.raw}&quot;
                       </span>
                     )}
                   </div>
@@ -388,7 +430,9 @@ export default function ClaimIntakeFlow() {
               {filteredFields.length === 0 && (
                 <div className="text-center py-12 border border-dashed rounded-xl text-slate-400 flex flex-col items-center justify-center bg-slate-50/20">
                   <FileCheck2 className="w-10 h-10 mb-2 text-slate-300" />
-                  <p className="text-sm font-medium">No extracted fields in this node classification</p>
+                  <p className="text-sm font-medium">
+                    No extracted fields in this node classification
+                  </p>
                 </div>
               )}
             </div>

@@ -45,12 +45,29 @@ const classifiers: Array<{
   {
     type: 'invoice',
     confidence: 80,
-    patterns: [/invoice/i, /bill/i, /itemi[sz]ed/i, /total/i, /amount/i, /charges?/i, /qty|quantity/i, /rate/i],
+    patterns: [
+      /invoice/i,
+      /bill/i,
+      /itemi[sz]ed/i,
+      /total/i,
+      /amount/i,
+      /charges?/i,
+      /qty|quantity/i,
+      /rate/i,
+    ],
   },
   {
     type: 'discharge_summary',
     confidence: 85,
-    patterns: [/discharge/i, /summary/i, /admission/i, /course/i, /history/i, /diagnosis/i, /treatment/i],
+    patterns: [
+      /discharge/i,
+      /summary/i,
+      /admission/i,
+      /course/i,
+      /history/i,
+      /diagnosis/i,
+      /treatment/i,
+    ],
   },
   {
     type: 'prescription',
@@ -60,12 +77,28 @@ const classifiers: Array<{
   {
     type: 'lab_report',
     confidence: 85,
-    patterns: [/lab/i, /report/i, /pathology/i, /specimen/i, /reference\s*range/i, /test/i, /result/i],
+    patterns: [
+      /lab/i,
+      /report/i,
+      /pathology/i,
+      /specimen/i,
+      /reference\s*range/i,
+      /test/i,
+      /result/i,
+    ],
   },
   {
     type: 'radiology',
     confidence: 85,
-    patterns: [/radiology/i, /mri/i, /ct\s*scan/i, /x[-\s]?ray/i, /ultrasound/i, /scan/i, /imaging/i],
+    patterns: [
+      /radiology/i,
+      /mri/i,
+      /ct\s*scan/i,
+      /x[-\s]?ray/i,
+      /ultrasound/i,
+      /scan/i,
+      /imaging/i,
+    ],
   },
   {
     type: 'doctor_notes',
@@ -106,11 +139,11 @@ export function classifyPages(pages: PageText[]): ClassifiedPage[] {
             pattern.lastIndex = 0;
             return pattern.test(normalized);
           });
-          
+
           if (hitPatterns.length > 0) {
-            matchLogs.push({ type: classifier.type, hits: hitPatterns.map(p => p.source) });
+            matchLogs.push({ type: classifier.type, hits: hitPatterns.map((p) => p.source) });
           }
-          
+
           return {
             type: classifier.type,
             score: hitPatterns.length > 0 ? classifier.confidence + hitPatterns.length * 8 : 0,

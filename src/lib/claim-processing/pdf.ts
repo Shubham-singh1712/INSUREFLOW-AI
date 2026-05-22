@@ -80,7 +80,9 @@ const extractPdfTextWithoutRendering = (buffer: Buffer, pageCount: number) => {
       if (decoded.trim()) textChunks.push(decoded);
     }
 
-    for (const arrayMatch of streamText.matchAll(/\[((?:\([^)]*\)|<[^>]+>|-?\d+(?:\.\d+)?|\s)+)\]\s*TJ/g)) {
+    for (const arrayMatch of streamText.matchAll(
+      /\[((?:\([^)]*\)|<[^>]+>|-?\d+(?:\.\d+)?|\s)+)\]\s*TJ/g
+    )) {
       const arrayText = Array.from(arrayMatch[1].matchAll(/\(([^()]*)\)|<([0-9A-Fa-f]+)>/g))
         .map((part) => (part[1] ? decodePdfLiteralText(part[1]) : decodePdfHexText(part[2])))
         .join('');
@@ -91,7 +93,11 @@ const extractPdfTextWithoutRendering = (buffer: Buffer, pageCount: number) => {
   const text = normalizeWhitespace(textChunks.join(' '));
   return {
     pageCount,
-    pages: pageTextsFromCombinedText(text, pageCount, text.length >= TEXT_PACKET_THRESHOLD ? 92 : text.length > 0 ? 55 : 0),
+    pages: pageTextsFromCombinedText(
+      text,
+      pageCount,
+      text.length >= TEXT_PACKET_THRESHOLD ? 92 : text.length > 0 ? 55 : 0
+    ),
     source: 'raw_pdf_text',
   };
 };
@@ -120,7 +126,8 @@ async function extractPdfTextWithPdfParse(buffer: Buffer, pageCount: number) {
       const pageResults = result.pages || [];
       const pages = Array.from({ length: totalPages }, (_, index) => {
         const pageNumber = index + 1;
-        const pageResult = pageResults.find((page) => page.num === pageNumber) || pageResults[index];
+        const pageResult =
+          pageResults.find((page) => page.num === pageNumber) || pageResults[index];
         const pageText = normalizeWhitespace(pageResult?.text || '');
 
         return {
@@ -158,7 +165,7 @@ export async function extractPdfTextFirst(buffer: Buffer): Promise<{
   const pageCount = countPdfPages(buffer);
   const rawExtraction = extractPdfTextWithoutRendering(buffer, pageCount);
   const rawTextLength = rawExtraction.pages.reduce((sum, page) => sum + page.text.length, 0);
-  
+
   const parsedExtraction = await extractPdfTextWithPdfParse(buffer, pageCount);
   if (!parsedExtraction) return rawExtraction;
 

@@ -37,10 +37,7 @@ export const saveClaimState = async (
     updatePayload.classified_pages = data.classifiedPages;
   }
 
-  const { error } = await supabase
-    .from('claims')
-    .update(updatePayload)
-    .eq('id', claimId);
+  const { error } = await supabase.from('claims').update(updatePayload).eq('id', claimId);
 
   if (error) {
     logger.error('DB', `Failed to update claim ${claimId} state`, error);

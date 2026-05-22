@@ -15,7 +15,10 @@ export async function POST(request: Request) {
   logger.info('API', 'Received claim process request');
 
   try {
-    const user = await requireUser();
+    const { user, response: authResponse } = await requireUser();
+    if (authResponse) {
+      return authResponse;
+    }
 
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
@@ -34,7 +37,7 @@ export async function POST(request: Request) {
 
     const claimId = createId('claim');
     const buffer = Buffer.from(await file.arrayBuffer());
-    
+
     // Create DB Record
     await createClaim(user.id, claimId, uploadSessionId, file.name, file.size);
 
@@ -43,7 +46,7 @@ export async function POST(request: Request) {
       uploadSessionId,
       originalFileName: file.name,
       fileSizeBytes: file.size,
-      uploadStartedAt: new Date().toISOString()
+      uploadStartedAt: new Date().toISOString(),
     };
 
     // Run modular pipeline
@@ -54,12 +57,11 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ...packet,
-      uiFields
+      uiFields,
     });
-
   } catch (error: any) {
     logger.error('API', 'Claim processing error', error);
-    
+
     return NextResponse.json(
       {
         success: false,
