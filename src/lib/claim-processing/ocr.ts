@@ -4,37 +4,9 @@ import { PageText } from './types';
 import { normalizeWhitespace, clamp } from './utils';
 import { logger } from './logger';
 
+
+
 const OCR_MIN_TEXT_LENGTH = 10;
-const resolveRuntimeModule = (specifier: string) => {
-  const runtimeRequire = eval('require') as NodeRequire;
-  return runtimeRequire.resolve(specifier);
-};
-
-const isVercel = process.env.VERCEL === '1';
-
-const getTesseractOptions = () => {
-  if (isVercel) {
-    return {
-      workerPath: 'https://unpkg.com/tesseract.js@5.0.3/dist/worker.min.js',
-      corePath: 'https://unpkg.com/tesseract.js-core@5.0.0',
-      langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
-      gzip: true,
-      cacheMethod: 'none',
-      workerBlobURL: false,
-    };
-  }
-
-  return {
-    workerPath: resolveRuntimeModule('tesseract.js/src/worker-script/node/index.js'),
-    corePath: path.dirname(resolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js')),
-    langPath: path.dirname(
-      resolveRuntimeModule('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz')
-    ),
-    gzip: true,
-    cacheMethod: 'none',
-    workerBlobURL: false,
-  };
-};
 
 async function ensurePdfJsNodePolyfills() {
   if (globalThis.DOMMatrix && globalThis.ImageData && globalThis.Path2D) return;
@@ -97,9 +69,7 @@ export async function runOcrFallback(buffer: Buffer, pageCount: number): Promise
     const pages: PageText[] = [];
 
     if (typeof Tesseract.createWorker === 'function') {
-      worker = await Tesseract.createWorker('eng', Tesseract.OEM?.LSTM_ONLY ?? 1, {
-        ...getTesseractOptions(),
-      });
+      worker = await Tesseract.createWorker('eng', Tesseract.OEM?.LSTM_ONLY ?? 1);
     }
 
     for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
