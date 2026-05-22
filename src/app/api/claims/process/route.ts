@@ -54,6 +54,8 @@ const getTesseractOptions = () => {
   if (isVercel) {
     return {
       workerPath: resolveRuntimeModule('tesseract.js/src/worker-script/node/index.js'),
+      corePath: resolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js'),
+      langPath: 'https://tessdata.projectnaptha.com/4.0.0_best',
       gzip: true,
       cacheMethod: 'none',
       workerBlobURL: false,
@@ -2397,13 +2399,65 @@ export async function POST(req: Request) {
         ? ocrPagesOnly.reduce((sum, page) => sum + page.confidence, 0) / ocrPagesOnly.length
         : 0
     );
+    let finalExtractedFields = extractedFields;
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    const allText = pages.map(p => p.text).join('\n');
+    
+    if (apiKey && allText.trim().length > 100) {
+      try {
+        const aiRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: process.env.OPENROUTER_MODEL || 'openai/gpt-4o',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are an expert Medical Claims Auditor. Return ONLY strict JSON. Extract values exactly as they appear in the text, use null for missing values. Update the provided extractedFields object by filling in any missing values based on the document text.'
+              },
+              {
+                role: 'user',
+                content: JSON.stringify({
+                  task: 'Populate the extractedFields object using the provided document text.',
+                  extractedFields: finalExtractedFields,
+                  documentText: allText.slice(0, 30000),
+                })
+              }
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.1,
+          })
+        });
+        
+        if (aiRes.ok) {
+          const payload = await aiRes.json();
+          const content = payload?.choices?.[0]?.message?.content;
+          if (content) {
+            const parsed = JSON.parse(content.replace(/```json/g, '').replace(/```/g, ''));
+            if (parsed.extractedFields) {
+              finalExtractedFields = parsed.extractedFields as ExtractedFields;
+              extractionMethod = 'ocr'; // To indicate AI was used
+            } else if (parsed.patient) {
+              finalExtractedFields = parsed as ExtractedFields;
+              extractionMethod = 'ocr';
+            }
+          }
+        }
+      } catch (e) {
+        console.error('OpenRouter AI extraction failed:', e);
+      }
+    }
+
     const validationErrors = validateClaim(
-      extractedFields,
+      finalExtractedFields,
       pages,
       classifiedPages,
       ocrPagesOnly.length > 0 ? averageOcrConfidence : 0
     );
-    const scores = scoreClaim(extractedFields, validationErrors, pages);
+    const scores = scoreClaim(finalExtractedFields, validationErrors, pages);
     const repairSuggestions = buildRepairSuggestions(validationErrors);
 
     const responseBody: V2Response = {
@@ -2415,7 +2469,7 @@ export async function POST(req: Request) {
       uploadSessionId,
       pageCount,
       classifiedPages,
-      extractedFields,
+      extractedFields: finalExtractedFields,
       validationErrors,
       claimHealth: scores.claimHealth,
       readiness: scores.readiness,
@@ -2426,7 +2480,7 @@ export async function POST(req: Request) {
       pdfType,
     };
 
-    const fields = buildUiFields(extractedFields);
+    const fields = buildUiFields(finalExtractedFields);
     const validation = buildUiValidation(responseBody, pages, file.name);
     const claimAudit = buildClaimAudit(responseBody);
 
