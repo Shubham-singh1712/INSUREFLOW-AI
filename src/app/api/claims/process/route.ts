@@ -33,6 +33,8 @@ const canResolveRuntimeModule = (specifier: string) => {
   }
 };
 
+const isVercel = process.env.VERCEL === '1';
+
 const routeCapabilities: CapabilityMatrix = {
   pdf_text_available: true,
   pdf_render_available:
@@ -40,22 +42,35 @@ const routeCapabilities: CapabilityMatrix = {
     canResolveRuntimeModule('pdfjs-dist/legacy/build/pdf.worker.mjs'),
   canvas_available: canResolveRuntimeModule('@napi-rs/canvas'),
   ocr_available:
-    canResolveRuntimeModule('tesseract.js') &&
-    canResolveRuntimeModule('tesseract.js/src/worker-script/node/index.js') &&
-    canResolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js') &&
-    canResolveRuntimeModule('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz'),
+    isVercel || (
+      canResolveRuntimeModule('tesseract.js') &&
+      canResolveRuntimeModule('tesseract.js/src/worker-script/node/index.js') &&
+      canResolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js') &&
+      canResolveRuntimeModule('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz')
+    ),
 };
 
-const getTesseractOptions = () => ({
-  workerPath: resolveRuntimeModule('tesseract.js/src/worker-script/node/index.js'),
-  corePath: path.dirname(resolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js')),
-  langPath: path.dirname(
-    resolveRuntimeModule('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz')
-  ),
-  gzip: true,
-  cacheMethod: 'none',
-  workerBlobURL: false,
-});
+const getTesseractOptions = () => {
+  if (isVercel) {
+    return {
+      workerPath: resolveRuntimeModule('tesseract.js/src/worker-script/node/index.js'),
+      gzip: true,
+      cacheMethod: 'none',
+      workerBlobURL: false,
+    };
+  }
+
+  return {
+    workerPath: resolveRuntimeModule('tesseract.js/src/worker-script/node/index.js'),
+    corePath: path.dirname(resolveRuntimeModule('tesseract.js-core/tesseract-core-lstm.wasm.js')),
+    langPath: path.dirname(
+      resolveRuntimeModule('@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz')
+    ),
+    gzip: true,
+    cacheMethod: 'none',
+    workerBlobURL: false,
+  };
+};
 
 type ExtractionMethod = 'pdf_text' | 'pdf_text_only' | 'ocr' | 'mixed' | 'metadata_only';
 type FieldMethod = 'pdf_text' | 'ocr';
