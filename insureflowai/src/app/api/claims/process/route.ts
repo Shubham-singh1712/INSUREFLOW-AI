@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 const MAX_UPLOAD_BYTES = 30 * 1024 * 1024;
 const TEXT_PAGE_THRESHOLD = 40;
 const TEXT_PACKET_THRESHOLD = 180;
-const OCR_PAGE_LIMIT = Number.parseInt(process.env.CLAIM_OCR_PAGE_LIMIT || '8', 10);
+const OCR_MIN_TEXT_LENGTH = 10;
 const PDF_WORKER_PATH = path.join(
   process.cwd(),
   'node_modules',
@@ -324,10 +324,26 @@ const normalizeWhitespace = (value = '') =>
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
+const normalizeForEntityMatching = (value = '') =>
+  normalizeWhitespace(value)
+    .replace(/(^|[^A-Za-z0-9])pt\.?(?=\s|$)/gi, '$1patient')
+    .replace(/[^\S\r\n]{2,}/g, ' ');
+
 const cleanValue = (value = '') =>
   normalizeWhitespace(value)
     .replace(/^[\s:;|,-]+|[\s:;|,-]+$/g, '')
     .replace(/\s+([,.:;])/g, '$1');
+
+const toGlobalRegex = (regex: RegExp) => {
+  regex.lastIndex = 0;
+  return regex.global ? regex : new RegExp(regex.source, `${regex.flags}g`);
+};
+
+const capturedValue = (match: RegExpMatchArray) =>
+  [...match]
+    .slice(1)
+    .reverse()
+    .find((value) => value !== undefined && value.trim().length > 0) || match[0];
 
 const hasValue = (field: TraceableField<unknown>) => {
   if (field.value === null || field.value === undefined) return false;
@@ -373,15 +389,37 @@ const parseMoney = (value: string) => {
 const formatMoney = (value: number | null) =>
   value && value > 0 ? `INR ${Math.round(value).toLocaleString('en-IN')}` : '';
 
+const monthIndex = (value: string) => {
+  const key = value.toLowerCase().slice(0, 3);
+  const month = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(key);
+  return month >= 0 ? String(month + 1).padStart(2, '0') : null;
+};
+
+const normalizeYear = (value: string) => (value.length === 2 ? `20${value}` : value);
+
 const normalizeDate = (value: string) => {
   const cleaned = cleanValue(value);
-  const iso = cleaned.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  const iso = cleaned.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/);
   if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
 
   const parts = cleaned.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/);
-  if (!parts) return cleaned || null;
-  const year = parts[3].length === 2 ? `20${parts[3]}` : parts[3];
-  return `${year}-${parts[2].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+  if (parts) {
+    return `${normalizeYear(parts[3])}-${parts[2].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+  }
+
+  const dayMonthName = cleaned.match(/^(\d{1,2})\s*([A-Za-z]{3,9})\s*(\d{2,4})$/);
+  if (dayMonthName) {
+    const month = monthIndex(dayMonthName[2]);
+    return month ? `${normalizeYear(dayMonthName[3])}-${month}-${dayMonthName[1].padStart(2, '0')}` : cleaned || null;
+  }
+
+  const monthNameDay = cleaned.match(/^([A-Za-z]{3,9})\s*(\d{1,2}),?\s*(\d{2,4})$/);
+  if (monthNameDay) {
+    const month = monthIndex(monthNameDay[1]);
+    return month ? `${normalizeYear(monthNameDay[3])}-${month}-${monthNameDay[2].padStart(2, '0')}` : cleaned || null;
+  }
+
+  return cleaned || null;
 };
 
 const daysBetween = (from?: string | null, to?: string | null) => {
@@ -445,9 +483,6 @@ const pageTextsFromCombinedText = (
   method: FieldMethod = 'pdf_text'
 ): PageText[] => {
   const normalizedText = normalizeWhitespace(text);
-  if (pageCount <= 1) {
-    return [{ page: 1, text: normalizedText, method, confidence }];
-  }
 
   if (!normalizedText) {
     return Array.from({ length: pageCount }, (_, index) => ({
@@ -458,11 +493,13 @@ const pageTextsFromCombinedText = (
     }));
   }
 
+  const chunkSize = Math.ceil(normalizedText.length / pageCount);
+
   return Array.from({ length: pageCount }, (_, index) => ({
     page: index + 1,
-    text: index === 0 ? normalizedText : '',
+    text: normalizedText.slice(index * chunkSize, (index + 1) * chunkSize),
     method,
-    confidence: index === 0 ? confidence : 0,
+    confidence,
   }));
 };
 
@@ -513,7 +550,11 @@ async function extractPdfTextWithPdfParse(buffer: Buffer, pageCount: number) {
     const runtimeRequire = eval('require') as NodeRequire;
     const pdfParseModule = runtimeRequire('pdf-parse') as {
       PDFParse?: new (options: { data: Buffer }) => {
-        getText: () => Promise<{ text?: string; total?: number }>;
+        getText: () => Promise<{
+          text?: string;
+          total?: number;
+          pages?: Array<{ num?: number; text?: string }>;
+        }>;
         destroy?: () => Promise<void>;
       };
     };
@@ -524,9 +565,30 @@ async function extractPdfTextWithPdfParse(buffer: Buffer, pageCount: number) {
     try {
       const result = await parser.getText();
       const text = normalizeWhitespace(result.text || '');
+      const totalPages = Math.max(1, result.total || pageCount, result.pages?.length || 0);
+      const pageResults = result.pages || [];
+      const pages = Array.from({ length: totalPages }, (_, index) => {
+        const pageNumber = index + 1;
+        const pageResult = pageResults.find((page) => page.num === pageNumber) || pageResults[index];
+        const pageText = normalizeWhitespace(pageResult?.text || '');
+
+        return {
+          page: pageNumber,
+          text: pageText,
+          method: 'pdf_text' as const,
+          confidence: pageText.length >= TEXT_PAGE_THRESHOLD ? 98 : pageText.length > 0 ? 55 : 0,
+        };
+      });
+
       return {
-        pageCount: Math.max(1, result.total || pageCount),
-        pages: pageTextsFromCombinedText(text, Math.max(1, result.total || pageCount), text.length >= TEXT_PACKET_THRESHOLD ? 98 : text.length > 0 ? 55 : 0),
+        pageCount: totalPages,
+        pages: pages.some((page) => page.text.length > 0)
+          ? pages
+          : pageTextsFromCombinedText(
+              text,
+              totalPages,
+              text.length >= TEXT_PACKET_THRESHOLD ? 98 : text.length > 0 ? 55 : 0
+            ),
         source: 'pdf_parse',
       };
     } finally {
@@ -544,12 +606,11 @@ async function extractPdfTextFirst(buffer: Buffer, pageCount: number): Promise<{
 }> {
   const rawExtraction = extractPdfTextWithoutRendering(buffer, pageCount);
   const rawTextLength = rawExtraction.pages.reduce((sum, page) => sum + page.text.length, 0);
-  if (rawTextLength >= TEXT_PACKET_THRESHOLD) return rawExtraction;
-
   const parsedExtraction = await extractPdfTextWithPdfParse(buffer, pageCount);
   if (!parsedExtraction) return rawExtraction;
 
   const parsedTextLength = parsedExtraction.pages.reduce((sum, page) => sum + page.text.length, 0);
+  if (parsedTextLength >= TEXT_PACKET_THRESHOLD) return parsedExtraction;
   return parsedTextLength > rawTextLength ? parsedExtraction : rawExtraction;
 }
 
@@ -654,7 +715,7 @@ async function runOcrFallback(buffer: Buffer, pageCount: number): Promise<PageTe
       useSystemFonts: true,
     } as unknown as Parameters<typeof pdfjs.getDocument>[0]);
     const document = await loadingTask.promise;
-    const pagesToOcr = Math.min(pageCount || document.numPages, OCR_PAGE_LIMIT);
+    const pagesToOcr = pageCount;
     const pages: PageText[] = [];
 
     if (typeof Tesseract.createWorker === 'function') {
@@ -674,12 +735,13 @@ async function runOcrFallback(buffer: Buffer, pageCount: number): Promise<PageTe
       const result = worker
         ? await worker.recognize(imageBuffer)
         : await Tesseract.recognize?.(imageBuffer, 'eng');
+      const cleaned = normalizeWhitespace(result?.data.text || '');
 
       pages.push({
         page: pageNumber,
-        text: normalizeWhitespace(result?.data.text || ''),
+        text: cleaned.length >= OCR_MIN_TEXT_LENGTH ? cleaned : '',
         method: 'ocr',
-        confidence: clamp(result?.data.confidence || 0),
+        confidence: cleaned.length >= OCR_MIN_TEXT_LENGTH ? clamp(result?.data.confidence || 0) : 0,
       });
     }
 
@@ -781,12 +843,25 @@ const classifiers: Array<{
 function classifyPages(pages: PageText[]): ClassifiedPage[] {
   try {
     return pages.map((page) => {
+      const normalized = normalizeWhitespace(page.text.toLowerCase());
+
+      if (!normalized || normalized.length < 20) {
+        return {
+          page: page.page,
+          type: 'unknown',
+          confidence: 0,
+        };
+      }
+
       const matches = classifiers
         .map((classifier) => {
-          const hitCount = classifier.patterns.filter((pattern) => pattern.test(page.text)).length;
+          const hitCount = classifier.patterns.filter((pattern) => {
+            pattern.lastIndex = 0;
+            return pattern.test(normalized);
+          }).length;
           return {
             type: classifier.type,
-            score: hitCount ? classifier.confidence + hitCount * 2 : 0,
+            score: hitCount > 0 ? classifier.confidence + hitCount * 8 : 0,
           };
         })
         .filter((match) => match.score > 0)
@@ -796,7 +871,7 @@ function classifyPages(pages: PageText[]): ClassifiedPage[] {
       return {
         page: page.page,
         type: best?.type || 'unknown',
-        confidence: best ? clamp(best.score, 45, 99) : page.text.length > 30 ? 35 : 0,
+        confidence: best ? clamp(best.score, 45, 99) : 0,
       };
     });
   } catch (error) {
@@ -816,35 +891,44 @@ function findCandidate<T>(
   const candidates: Array<Candidate<T> & { priority: number }> = [];
 
   for (const page of pages) {
+    const pageText = normalizeForEntityMatching(page.text);
+    if (!pageText) continue;
+
     const classification =
       classifications.find((item) => item.page === page.page) ||
       ({ type: 'unknown', confidence: 0, page: page.page } satisfies ClassifiedPage);
 
     for (const pattern of patterns) {
-      if (pattern.pageTypes && !pattern.pageTypes.includes(classification.type)) continue;
+      const isPreferredPageType = Boolean(
+        pattern.pageTypes?.includes(classification.type)
+      );
+      const classificationPenalty = pattern.pageTypes && !isPreferredPageType ? 6 : 0;
+      const regex = toGlobalRegex(pattern.regex);
 
-      const match = page.text.match(pattern.regex);
-      if (!match) continue;
+      for (const match of pageText.matchAll(regex)) {
+        const raw = cleanValue(capturedValue(match));
+        const value = pattern.normalize ? pattern.normalize(raw, pageText) : (raw as T);
+        if (value === null || value === undefined || String(value).trim().length === 0) continue;
 
-      const raw = cleanValue(match[1] || match[0]);
-      const value = pattern.normalize ? pattern.normalize(raw, page.text) : (raw as T);
-      if (value === null || value === undefined || String(value).trim().length === 0) continue;
-
-      const pageBonus = pattern.pageTypes?.includes(classification.type) ? 8 : 0;
-      candidates.push({
-        value,
-        raw,
-        page: page.page,
-        docType: classification.type,
-        method: page.method,
-        confidence: clamp(
+        const pageBonus = isPreferredPageType ? 8 : 0;
+        const extractionBonus = page.method === 'pdf_text' ? 4 : Math.round(page.confidence / 12);
+        const confidence = clamp(
           (pattern.confidence || 78) +
             pageBonus +
             Math.min(8, Math.round(classification.confidence / 16)) +
-            (page.method === 'pdf_text' ? 4 : Math.round(page.confidence / 20))
-        ),
-        priority: pageBonus + (pattern.confidence || 78),
-      });
+            extractionBonus -
+            classificationPenalty
+        );
+        candidates.push({
+          value,
+          raw,
+          page: page.page,
+          docType: classification.type,
+          method: page.method,
+          confidence,
+          priority: (pattern.confidence || 78) + pageBonus - classificationPenalty,
+        });
+      }
     }
   }
 
@@ -860,30 +944,50 @@ function findAllCandidates<T>(
   classifications: ClassifiedPage[],
   patterns: Array<Pattern<T>>
 ): Candidate<T>[] {
-  const all: Candidate<T>[] = [];
-  for (const pattern of patterns) {
-    for (const page of pages) {
-      const classification = classifications.find((item) => item.page === page.page);
-      if (pattern.pageTypes && (!classification || !pattern.pageTypes.includes(classification.type))) {
-        continue;
-      }
+  const all: Array<Candidate<T> & { priority: number }> = [];
+  for (const page of pages) {
+    const pageText = normalizeForEntityMatching(page.text);
+    if (!pageText) continue;
 
-      for (const match of page.text.matchAll(pattern.regex)) {
-        const raw = cleanValue(match[1] || match[0]);
-        const value = pattern.normalize ? pattern.normalize(raw, page.text) : (raw as T);
+    const classification =
+      classifications.find((item) => item.page === page.page) ||
+      ({ type: 'unknown', confidence: 0, page: page.page } satisfies ClassifiedPage);
+
+    for (const pattern of patterns) {
+      const isPreferredPageType = Boolean(
+        pattern.pageTypes?.includes(classification.type)
+      );
+      const classificationPenalty = pattern.pageTypes && !isPreferredPageType ? 6 : 0;
+      const regex = toGlobalRegex(pattern.regex);
+
+      for (const match of pageText.matchAll(regex)) {
+        const raw = cleanValue(capturedValue(match));
+        const value = pattern.normalize ? pattern.normalize(raw, pageText) : (raw as T);
         if (value === null || value === undefined || String(value).trim().length === 0) continue;
+        const pageBonus = isPreferredPageType ? 8 : 0;
+        const extractionBonus = page.method === 'pdf_text' ? 4 : Math.round(page.confidence / 12);
+        const confidence = clamp(
+          (pattern.confidence || 78) +
+            pageBonus +
+            Math.min(8, Math.round(classification.confidence / 16)) +
+            extractionBonus -
+            classificationPenalty
+        );
         all.push({
           value,
-          confidence: pattern.confidence || 78,
+          confidence,
           page: page.page,
-          docType: classification?.type || 'unknown',
+          docType: classification.type,
           method: page.method,
           raw,
+          priority: (pattern.confidence || 78) + pageBonus - classificationPenalty,
         });
       }
     }
   }
-  return all;
+  return all.sort(
+    (a, b) => b.priority - a.priority || b.confidence - a.confidence || a.page - b.page
+  );
 }
 
 function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): ExtractedFields {
@@ -891,6 +995,12 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
     const date = (value: string) => normalizeDate(value);
     const money = (value: string) => parseMoney(value);
     const text = (value: string) => cleanValue(value).slice(0, 240) || null;
+    const identifier = (value: string) => cleanValue(value).replace(/\s+/g, '').slice(0, 64) || null;
+    const diagnosisText = (value: string) => {
+      const cleaned = cleanValue(value).slice(0, 180);
+      if (/^[A-TV-Z][0-9][0-9AB](?:\.[A-Z0-9]{1,4})?$/i.test(cleaned)) return null;
+      return cleaned || null;
+    };
     const boolYesNo = (value: string) => {
       if (/^(yes|y|true|emergency)$/i.test(value.trim())) return true;
       if (/^(no|n|false|planned|elective)$/i.test(value.trim())) return false;
@@ -900,7 +1010,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
     const admission = findCandidate(pages, classifications, [
       {
         regex:
-          /(?:date\s+of\s+admission|admission\s+date|admitted\s+on|doa)\s*[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2})/i,
+          /(?:date\s+of\s+(?:hospital\s+)?admission|admission\s+(?:date|dt)|admit(?:ted)?\s+(?:on|date)?|date\s+admitted|d\s*o\s*a)\s*[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}|[A-Za-z]{3,9}\s*\d{1,2},?\s*\d{2,4})/i,
         normalize: date,
         confidence: 88,
         pageTypes: ['preauth_form', 'claim_form', 'discharge_summary', 'hospital_form'],
@@ -909,9 +1019,16 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
     const discharge = findCandidate(pages, classifications, [
       {
         regex:
-          /(?:date\s+of\s+discharge|discharge\s+date|discharged\s+on|dod)\s*[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2})/i,
+          /(?:date\s+of\s+discharge|discharge\s+(?:date|dt)|date\s+discharged|discharged\s+on|date\s+of\s+release|release\s+date|released\s+on)\s*[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}|[A-Za-z]{3,9}\s*\d{1,2},?\s*\d{2,4})/i,
         normalize: date,
         confidence: 88,
+        pageTypes: ['discharge_summary', 'final_bill', 'claim_form'],
+      },
+      {
+        regex:
+          /(?:d\s*o\s*d)\s*[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}|[A-Za-z]{3,9}\s*\d{1,2},?\s*\d{2,4})/i,
+        normalize: date,
+        confidence: 68,
         pageTypes: ['discharge_summary', 'final_bill', 'claim_form'],
       },
     ]);
@@ -924,20 +1041,46 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         confidence: 86,
         pageTypes: ['discharge_summary', 'claim_form', 'preauth_form', 'ub04'],
       },
-    ]);
+    ])
+      .map((candidate) => {
+        const sourcePage = pages.find((page) => page.page === candidate.page);
+        const sourceText = normalizeForEntityMatching(sourcePage?.text || '').toLowerCase();
+        const hasClinicalContext =
+          /diagnos(?:is|es)|icd(?:\s*-?\s*10)?|clinical|discharge\s+summary|provisional|final\s+diagnosis|ailment|disease/i.test(
+            sourceText
+          );
+        const hasAdministrativeContext =
+          /invoice|bill\s*no|receipt|gst|tax|policy|member|customer|uhid|authorization\s*no|reference/i.test(
+            sourceText
+          );
+        const docTypeBonus = ['discharge_summary', 'claim_form', 'preauth_form', 'ub04'].includes(
+          candidate.docType
+        )
+          ? 10
+          : 0;
+        const contextBonus = hasClinicalContext ? 14 : 0;
+        const adminPenalty = hasAdministrativeContext && !hasClinicalContext ? 16 : 0;
+
+        return {
+          ...candidate,
+          confidence: clamp(candidate.confidence + docTypeBonus + contextBonus - adminPenalty),
+        };
+      })
+      .sort((a, b) => b.confidence - a.confidence || a.page - b.page);
     const uniqueIcd = Array.from(new Set(icdCandidates.map((item) => item.value))).slice(0, 12);
     const bestIcd = icdCandidates[0] || null;
 
     const patientFullName = findCandidate(pages, classifications, [
       {
         regex:
-          /(?:patient\s*(?:name)?|name\s+of\s+patient|insured\s+name|beneficiary\s+name)\s*[:\-]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,5})/i,
+          /(?:patient(?:'s)?\s*name|name\s+of\s+(?:patient|insured)|insured\s+name|beneficiary\s+name)\s*[:\-]?\s*((?:mr|mrs|ms|dr)?\.?\s*[A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){1,5})/i,
         normalize: text,
         confidence: 88,
         pageTypes: ['preauth_form', 'claim_form', 'discharge_summary', 'insurance_card', 'tpa_card'],
       },
       {
-        regex: /(?:name)\s*[:\-]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,5})/i,
+        regex:
+          /(?:^|\n)\s*name\s*[:\-]?\s*((?:mr|mrs|ms|dr)?\.?\s*[A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){1,5})(?=\n|$)/im,
         normalize: text,
         confidence: 70,
         pageTypes: ['aadhaar', 'pan'],
@@ -951,7 +1094,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
           findCandidate(pages, classifications, [
             {
               regex:
-                /(?:DOB|date\s+of\s+birth|birth\s+date)\s*[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}-\d{1,2}-\d{1,2})/i,
+                /(?:d\.?\s*o\.?\s*b|date\s+of\s+birth|birth\s+(?:date|dt)|date\s+birth|born\s+on)\s*[:\-]?\s*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}\s*[A-Za-z]{3,9}\s*\d{2,4}|[A-Za-z]{3,9}\s*\d{1,2},?\s*\d{2,4})/i,
               normalize: date,
               confidence: 90,
               pageTypes: ['aadhaar', 'pan', 'claim_form', 'preauth_form', 'insurance_card'],
@@ -997,7 +1140,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         address: makeTrace(
           findCandidate(pages, classifications, [
             {
-              regex: /(?:address)\s*[:\-]\s*([^\n\r]{8,220})/i,
+              regex: /(?:address)\s*[:\-]?\s*([^\n\r]{8,220})/i,
               normalize: text,
               confidence: 75,
               pageTypes: ['claim_form', 'preauth_form', 'aadhaar'],
@@ -1011,7 +1154,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
           findCandidate(pages, classifications, [
             {
               regex:
-                /(?:insurance\s*(?:company|provider|name)|insurer|payer)\s*[:\-]\s*([^\n\r]{3,140})/i,
+                /(?:insurance\s*(?:company|provider|name)|insurer|payer)\s*[:\-]?\s*([^\n\r]{3,140})/i,
               normalize: text,
               confidence: 84,
               pageTypes: ['insurance_card', 'tpa_card', 'preauth_form', 'claim_form'],
@@ -1022,7 +1165,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         tpa_name: makeTrace(
           findCandidate(pages, classifications, [
             {
-              regex: /(?:TPA|third\s+party\s+administrator)\s*(?:name)?\s*[:\-]\s*([^\n\r]{3,140})/i,
+              regex: /(?:TPA|third\s+party\s+administrator)\s*(?:name)?\s*[:\-]?\s*([^\n\r]{3,140})/i,
               normalize: text,
               confidence: 86,
               pageTypes: ['tpa_card', 'preauth_form', 'claim_form'],
@@ -1033,8 +1176,9 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         policy_number: makeTrace(
           findCandidate(pages, classifications, [
             {
-              regex: /policy\s*(?:number|no|id|#)?\s*[:\-]\s*([A-Z0-9][A-Z0-9/-]{5,})/i,
-              normalize: text,
+              regex:
+                /(?:master\s+policy|group\s+policy|policy)\s*(?:number|num|no\.?|id|code|ref|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\s/-]{5,30})/i,
+              normalize: identifier,
               confidence: 90,
               pageTypes: ['insurance_card', 'tpa_card', 'preauth_form', 'claim_form'],
             },
@@ -1045,8 +1189,8 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
           findCandidate(pages, classifications, [
             {
               regex:
-                /(?:member|subscriber|card|health\s*card)\s*(?:id|number|no|#)?\s*[:\-]\s*([A-Z0-9][A-Z0-9/-]{5,})/i,
-              normalize: text,
+                /(?:member|subscriber|insured|beneficiary|health\s*card|customer|uhid)\s*(?:id|number|no\.?|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\s/-]{5,30})/i,
+              normalize: identifier,
               confidence: 90,
               pageTypes: ['insurance_card', 'tpa_card', 'preauth_form', 'claim_form'],
             },
@@ -1056,8 +1200,9 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         corporate_or_group_id: makeTrace(
           findCandidate(pages, classifications, [
             {
-              regex: /(?:corporate|group)\s*(?:id|number|no|#)?\s*[:\-]\s*([A-Z0-9][A-Z0-9/-]{2,})/i,
-              normalize: text,
+              regex:
+                /(?:corporate|group)\s*(?:id|number|no\.?|code|#)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9\s/-]{4,25})/i,
+              normalize: identifier,
               confidence: 84,
               pageTypes: ['insurance_card', 'tpa_card', 'claim_form'],
             },
@@ -1068,8 +1213,8 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
           findCandidate(pages, classifications, [
             {
               regex:
-                /(?:insurance|insured)\s*(?:id|number|no|#)?\s*[:\-]\s*([A-Z0-9][A-Z0-9/-]{5,})/i,
-              normalize: text,
+                /(?:insurance|insured)\s*(?:member\s*)?(?:id|number|no\.?|#)\s*[:\-]?\s*([A-Z0-9][A-Z0-9\s/-]{5,30})/i,
+              normalize: identifier,
               confidence: 84,
               pageTypes: ['insurance_card', 'tpa_card', 'claim_form'],
             },
@@ -1081,7 +1226,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         facility_name: makeTrace(
           findCandidate(pages, classifications, [
             {
-              regex: /(?:hospital|facility|provider)\s*(?:name)?\s*[:\-]\s*([^\n\r]{3,140})/i,
+              regex: /(?:hospital|facility|provider)\s*(?:name)?\s*[:\-]?\s*([^\n\r]{3,140})/i,
               normalize: text,
               confidence: 84,
               pageTypes: ['preauth_form', 'claim_form', 'discharge_summary', 'invoice', 'final_bill'],
@@ -1098,7 +1243,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
           findCandidate(pages, classifications, [
             {
               regex:
-                /(?:treating|attending|consulting)?\s*(?:doctor|physician|consultant)\s*[:\-]\s*(Dr\.?\s+[A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){0,4})/i,
+                /(?:treating|attending|consulting)?\s*(?:doctor|physician|consultant)\s*[:\-]?\s*(Dr\.?\s+[A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){0,4})/i,
               normalize: text,
               confidence: 86,
               pageTypes: ['preauth_form', 'claim_form', 'discharge_summary', 'doctor_notes'],
@@ -1115,7 +1260,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
           findCandidate(pages, classifications, [
             {
               regex:
-                /(?:registration|reg\.?|license)\s*(?:number|no|#)?\s*[:\-]\s*([A-Z0-9/-]{4,})/i,
+                /(?:registration|reg\.?|license)\s*(?:number|no|#)?\s*[:\-]?\s*([A-Z0-9/-]{4,})/i,
               normalize: text,
               confidence: 78,
               pageTypes: ['hospital_form', 'preauth_form', 'discharge_summary'],
@@ -1130,14 +1275,22 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         diagnosis: makeTrace(
           findCandidate(pages, classifications, [
             {
-              regex: /(?:principal\s*)?diagnosis(?:\s*code)?\s*[:\-]\s*([^\n\r]{3,180})/i,
-              normalize: text,
+              regex:
+                /(?:principal|primary|final|clinical|provisional)?\s*diagnosis\s*[:\-]?\s*([^\n\r]{3,180})/i,
+              normalize: diagnosisText,
               confidence: 88,
               pageTypes: ['discharge_summary', 'preauth_form', 'claim_form', 'ub04'],
             },
             {
-              regex: /\b[A-TV-Z][0-9][0-9AB](?:\.[A-Z0-9]{1,4})?\s*[-:]\s*([^\n\r]{3,140})/i,
-              normalize: text,
+              regex:
+                /(?:principal|primary|final|clinical|provisional)?\s*diagnosis\s*code\s*[:\-]?\s*([^\n\r]{3,180})/i,
+              normalize: diagnosisText,
+              confidence: 72,
+              pageTypes: ['discharge_summary', 'preauth_form', 'claim_form', 'ub04'],
+            },
+            {
+              regex: /\b[A-TV-Z][0-9][0-9AB](?:\.[A-Z0-9]{1,4})?\s*(?:[-:()]|\s)\s*([^\n\r]{3,140})/gi,
+              normalize: diagnosisText,
               confidence: 82,
               pageTypes: ['discharge_summary', 'ub04'],
             },
@@ -1157,7 +1310,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         symptoms: makeTrace(
           findCandidate(pages, classifications, [
             {
-              regex: /(?:symptoms?|chief\s+complaints?|presenting\s+complaints?)\s*[:\-]\s*([^\n\r]{3,220})/i,
+              regex: /(?:symptoms?|chief\s+complaints?|presenting\s+complaints?)\s*[:\-]?\s*([^\n\r]{3,220})/i,
               normalize: text,
               confidence: 80,
               pageTypes: ['preauth_form', 'discharge_summary', 'doctor_notes'],
@@ -1168,7 +1321,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         surgery: makeTrace(
           findCandidate(pages, classifications, [
             {
-              regex: /(?:surgery|operation)\s*[:\-]\s*([^\n\r]{3,180})/i,
+              regex: /(?:surgery|operation)\s*[:\-]?\s*([^\n\r]{3,180})/i,
               normalize: text,
               confidence: 82,
               pageTypes: ['preauth_form', 'discharge_summary', 'final_bill'],
@@ -1179,7 +1332,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
         procedure: makeTrace(
           findCandidate(pages, classifications, [
             {
-              regex: /(?:procedure|treatment|proposed\s+treatment|planned\s+procedure)\s*[:\-]\s*([^\n\r]{3,180})/i,
+              regex: /(?:procedure|treatment|proposed\s+treatment|planned\s+procedure)\s*[:\-]?\s*([^\n\r]{3,180})/i,
               normalize: text,
               confidence: 84,
               pageTypes: ['preauth_form', 'claim_form', 'discharge_summary', 'ub04'],
@@ -1199,7 +1352,7 @@ function extractEntities(pages: PageText[], classifications: ClassifiedPage[]): 
               pageTypes: ['preauth_form', 'claim_form', 'discharge_summary'],
             },
           ]) ||
-            (losFromDates && admission
+            (losFromDates !== null && admission
               ? {
                   value: losFromDates,
                   confidence: 82,
@@ -1421,7 +1574,7 @@ function validateClaim(
     const nameCandidates = findAllCandidates<string>(pages, classifications, [
       {
         regex:
-          /(?:patient\s*(?:name)?|name\s+of\s+patient|insured\s+name|beneficiary\s+name)\s*[:\-]\s*([A-Z][A-Za-z.'-]+(?:\s+[A-Z][A-Za-z.'-]+){1,5})/gi,
+          /(?:patient(?:'s)?\s*name|name\s+of\s+(?:patient|insured)|insured\s+name|beneficiary\s+name)\s*[:\-]?\s*((?:mr|mrs|ms|dr)?\.?\s*[A-Za-z][A-Za-z.'-]+(?:\s+[A-Za-z][A-Za-z.'-]+){1,5})/gi,
         normalize: (value) => cleanValue(value),
         confidence: 80,
       },
@@ -2178,20 +2331,25 @@ export async function POST(req: Request) {
     let pages = textExtraction.pages;
     let extractionMethod: ExtractionMethod = 'pdf_text';
     let ocrSkippedReason: string | undefined;
+    const weakPages = textExtraction.pages.some((page) => page.text.length < TEXT_PAGE_THRESHOLD);
 
-    if (pdfType === 'scanned_or_image') {
+    if (pdfType === 'scanned_or_image' || weakPages) {
       try {
         const ocrPages = await runOcrFallback(buffer, pageCount);
-        const ocrTextLength = ocrPages.reduce((sum, page) => sum + page.text.length, 0);
-        pages =
-          ocrTextLength > usefulTextLength
-            ? [
-                ...ocrPages,
-                ...textExtraction.pages.filter((page) => !ocrPages.some((ocrPage) => ocrPage.page === page.page)),
-              ].sort((a, b) => a.page - b.page)
-            : textExtraction.pages;
-        extractionMethod = ocrTextLength > usefulTextLength ? 'ocr' : usefulTextLength > 0 ? 'pdf_text_only' : 'metadata_only';
-        if (ocrTextLength <= usefulTextLength) {
+        pages = textExtraction.pages.map((pdfPage) => {
+          const ocrPage = ocrPages.find((page) => page.page === pdfPage.page);
+          if (!ocrPage) return pdfPage;
+          return ocrPage.text.length > pdfPage.text.length ? ocrPage : pdfPage;
+        });
+        const hasOcrPages = pages.some((page) => page.method === 'ocr');
+        extractionMethod = hasOcrPages
+          ? pdfType === 'text_layer'
+            ? 'mixed'
+            : 'ocr'
+          : usefulTextLength > 0
+            ? 'pdf_text_only'
+            : 'metadata_only';
+        if (!hasOcrPages) {
           ocrSkippedReason = 'ocr_no_usable_text';
         }
       } catch (error) {
@@ -2206,20 +2364,21 @@ export async function POST(req: Request) {
         extractionMethod = usefulTextLength > 0 ? 'pdf_text_only' : 'metadata_only';
         ocrSkippedReason = `${pipelineError.stage}: ${pipelineError.message}`;
       }
-    } else if (textExtraction.pages.some((page) => page.text.length < TEXT_PAGE_THRESHOLD)) {
-      extractionMethod = 'mixed';
     }
 
     const classifiedPages = classifyPages(pages);
     const extractedFields = extractEntities(pages, classifiedPages);
+    const ocrPagesOnly = pages.filter((page) => page.method === 'ocr');
     const averageOcrConfidence = clamp(
-      pages.length === 0 ? 0 : pages.reduce((sum, page) => sum + page.confidence, 0) / pages.length
+      ocrPagesOnly.length
+        ? ocrPagesOnly.reduce((sum, page) => sum + page.confidence, 0) / ocrPagesOnly.length
+        : 0
     );
     const validationErrors = validateClaim(
       extractedFields,
       pages,
       classifiedPages,
-      extractionMethod === 'ocr' ? averageOcrConfidence : 0
+      ocrPagesOnly.length > 0 ? averageOcrConfidence : 0
     );
     const scores = scoreClaim(extractedFields, validationErrors, pages);
     const repairSuggestions = buildRepairSuggestions(validationErrors);
