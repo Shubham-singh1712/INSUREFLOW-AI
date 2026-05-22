@@ -17,6 +17,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import {
+  ClaimAudit,
   ClaimField,
   ClaimFieldKey,
   Packet,
@@ -29,6 +30,7 @@ interface AnalysisResultsProps {
   packet: Packet;
   claimFields: ClaimField[];
   validationReport: ValidationReport;
+  claimAudit: ClaimAudit;
   onUpdateField: (id: ClaimFieldKey, value: string) => void;
   onReset: () => void;
 }
@@ -48,6 +50,7 @@ export default function AnalysisResults({
   packet,
   claimFields,
   validationReport,
+  claimAudit,
   onUpdateField,
   onReset,
 }: AnalysisResultsProps) {
@@ -281,34 +284,47 @@ export default function AnalysisResults({
               </span>
             </div>
             <div className="space-y-3">
-              {claimFields.map((field) => (
-                <label key={field.id} className="block">
-                  <span className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {field.label}
+              {claimFields.map((field) => {
+                const hasValue = field.value.trim().length > 0;
+                const confidence = hasValue ? field.confidence : 0;
+                const sourceText = hasValue
+                  ? field.sourcePage
+                    ? `${field.sourceDocType || field.source} · page ${field.sourcePage}${
+                        field.method ? ` · ${field.method}` : ''
+                      }`
+                    : field.source
+                  : 'No source page extracted';
+
+                return (
+                  <label key={field.id} className="block">
+                    <span className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        {field.label}
+                      </span>
+                      <span
+                        className={`text-xs font-tabular font-semibold ${
+                          confidence >= 95
+                            ? 'text-success-foreground'
+                            : confidence >= 75
+                              ? 'text-warning-foreground'
+                              : 'text-danger-foreground'
+                        }`}
+                      >
+                        {confidence}% AI
+                      </span>
                     </span>
-                    <span
-                      className={`text-xs font-tabular font-semibold ${
-                        field.confidence >= 95
-                          ? 'text-success-foreground'
-                          : field.confidence >= 75
-                            ? 'text-warning-foreground'
-                            : 'text-danger-foreground'
-                      }`}
-                    >
-                      {field.confidence}% AI
+                    <input
+                      className="input-field"
+                      value={field.value}
+                      placeholder="No value extracted"
+                      onChange={(event) => onUpdateField(field.id, event.target.value)}
+                    />
+                    <span className="text-xs text-muted-foreground mt-0.5 block">
+                      Source: {sourceText}
                     </span>
-                  </span>
-                  <input
-                    className="input-field"
-                    value={field.value}
-                    onChange={(event) => onUpdateField(field.id, event.target.value)}
-                  />
-                  <span className="text-xs text-muted-foreground mt-0.5 block">
-                    Source: {field.source}
-                  </span>
-                </label>
-              ))}
+                  </label>
+                );
+              })}
             </div>
           </div>
 
@@ -441,6 +457,25 @@ export default function AnalysisResults({
             ))
           )}
         </div>
+      </div>
+
+      <div className="card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 className="section-header">Medical Claim Audit JSON</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Strict extraction schema with actionable validation errors
+            </p>
+          </div>
+          <span className={claimAudit.validation_errors.length ? 'badge-warning' : 'badge-success'}>
+            {claimAudit.validation_errors.length
+              ? `${claimAudit.validation_errors.length} validation errors`
+              : 'No audit errors'}
+          </span>
+        </div>
+        <pre className="max-h-[520px] overflow-auto rounded-xl border border-border bg-muted/50 p-4 text-xs leading-5 text-foreground">
+          {JSON.stringify(claimAudit, null, 2)}
+        </pre>
       </div>
     </div>
   );

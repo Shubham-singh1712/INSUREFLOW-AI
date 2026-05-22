@@ -8,6 +8,7 @@ type DemoModePayload = {
   enabled: boolean;
   hasLiveProvider: boolean;
   providerLabel: string;
+  provider: 'openrouter' | 'openai' | 'gemini' | 'local_ocr';
   isManualOverride: boolean;
 };
 
@@ -53,6 +54,7 @@ export default function DemoModeCard() {
   };
 
   const enabled = Boolean(state?.enabled);
+  const isLocalOcr = state?.provider === 'local_ocr';
 
   return (
     <div
@@ -77,7 +79,9 @@ export default function DemoModeCard() {
       <p className="text-sm text-muted-foreground">
         {enabled
           ? 'Mock dashboard, claim register, and extraction fixtures are visible.'
-          : `${state?.providerLabel || 'Live AI'} is active. Mock fixtures stay hidden unless you turn demo mode on.`}
+          : isLocalOcr
+            ? 'Local OCR extraction is active. Mock fixtures stay hidden unless you turn demo mode on.'
+            : `${state?.providerLabel || 'Live AI'} is active. Mock fixtures stay hidden unless you turn demo mode on.`}
       </p>
 
       <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1">
@@ -116,6 +120,7 @@ export default function DemoModeCard() {
           className={state?.hasLiveProvider ? 'text-success-foreground' : 'text-warning-foreground'}
         >
           Provider: {state?.providerLabel || 'Checking...'}
+          {isLocalOcr ? ' (no external LLM key)' : ''}
         </span>
         {saving && <Loader2 size={13} className="animate-spin text-muted-foreground" />}
       </div>

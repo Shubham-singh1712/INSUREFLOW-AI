@@ -75,7 +75,7 @@ export default function AIExtractionStep({
     const runPhase = () => {
       if (!active) return;
       if (idx >= extractionPhases.length) {
-        fetch('/api/claims/extract', {
+        fetch((process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8787') + '/api/claims/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ documents: uploadedDocs }),
@@ -83,8 +83,8 @@ export default function AIExtractionStep({
           .then(async (response) => ({ response, payload: await response.json() }))
           .then(({ response, payload }) => {
             if (!active) return;
-            if (response.ok && payload.ok) {
-              setExtractedData(payload.data.extractedData);
+            if (response.ok && payload.success) {
+              setExtractedData((payload.data.extractedFields || payload.data.extractedData || payload.data));
             } else {
               setExtractionError(payload.error || 'Live extraction failed.');
             }
@@ -254,7 +254,7 @@ export default function AIExtractionStep({
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl border border-border bg-muted/20 p-3">
                   <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-                  <p className="text-sm text-foreground mt-1">{value || 'Not found'}</p>
+                  <p className="text-sm text-foreground mt-1">{value || 'No value extracted'}</p>
                 </div>
               ))}
             </div>
@@ -286,3 +286,4 @@ export default function AIExtractionStep({
     </div>
   );
 }
+
