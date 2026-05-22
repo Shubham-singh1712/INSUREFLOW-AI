@@ -12,11 +12,6 @@ const resolveRuntimeModule = (specifier: string) => {
 
 const isVercel = process.env.VERCEL === '1';
 
-const PDF_WORKER_PATH = isVercel 
-  ? 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
-  : resolveRuntimeModule('pdfjs-dist/legacy/build/pdf.worker.mjs');
-
-
 const getTesseractOptions = () => {
   if (isVercel) {
     return {
@@ -57,7 +52,6 @@ async function ensurePdfJsNodePolyfills() {
 async function loadPdfJs() {
   await ensurePdfJsNodePolyfills();
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc = isVercel ? PDF_WORKER_PATH : pathToFileURL(PDF_WORKER_PATH).href;
   return pdfjs;
 }
 
