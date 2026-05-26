@@ -2,12 +2,15 @@ import { ExtractedFields, TraceableField, UiClaimField, ClaimPacket } from './ty
 import { logger } from './logger';
 
 const buildField = (id: string, label: string, field: TraceableField<any>): UiClaimField => {
+  // MODIFIED
+  const isExtracted = field.value !== null && field.value !== undefined && String(field.value).trim().length > 0; // MODIFIED
+  const sourceStr = field.page ? `Page ${field.page}` : isExtracted ? 'AI Pipeline' : 'Not extracted'; // MODIFIED
   return {
     id,
     label,
     value: field.value !== null && field.value !== undefined ? String(field.value) : '',
     confidence: field.confidence || 0,
-    source: field.page ? `Page ${field.page}` : 'Not extracted',
+    source: sourceStr, // MODIFIED
     sourcePage: field.page,
     page: field.page,
     sourceDocType: field.docType || undefined,

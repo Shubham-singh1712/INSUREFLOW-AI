@@ -96,29 +96,43 @@ export default function ClaimIntakeFlow() {
   const handleFieldChange = (fieldId: string, newValue: string) => {
     if (!claimData) return;
 
-    // Update inside uiFields list
+    // Update inside uiFields list // MODIFIED
     const updatedUiFields = claimData.uiFields.map((f) =>
-      f.id === fieldId ? { ...f, value: newValue } : f
+      f.id === fieldId ? { ...f, value: newValue, confidence: 100 } : f // MODIFIED
     );
 
-    // Update structured nested path inside the packet
-    const updatedPacket = { ...claimData.packet };
-    const parts = fieldId.split('.'); // e.g. "patient.full_name" or "authorization.patient_signature"
-    if (parts.length === 2 && updatedPacket.extractedFields) {
-      const [category, key] = parts;
-      const cat = updatedPacket.extractedFields[
-        category as keyof typeof updatedPacket.extractedFields
-      ] as any;
-      if (cat && cat[key]) {
-        cat[key].value = newValue;
-      }
-    }
+    // Update structured nested path inside the packet // MODIFIED
+    const updatedPacket = { ...claimData.packet }; // MODIFIED
+    const parts = fieldId.split('.'); // e.g. "patient.full_name" or "authorization.patient_signature" // MODIFIED
+    if (parts.length === 2 && updatedPacket.extractedFields) { // MODIFIED
+      const [category, key] = parts; // MODIFIED
+      const cat = updatedPacket.extractedFields[ // MODIFIED
+        category as keyof typeof updatedPacket.extractedFields // MODIFIED
+      ] as any; // MODIFIED
+      if (cat && cat[key]) { // MODIFIED
+        let typedValue: any = newValue; // MODIFIED
+        // Sync correct types // MODIFIED
+        if (typeof cat[key].value === 'boolean' || category === 'authorization' || key === 'emergency_case') { // MODIFIED
+          typedValue = newValue === 'true' || newValue === 'yes' || newValue === '1' || newValue === 'checked'; // MODIFIED
+        } else if (typeof cat[key].value === 'number' || ['age', 'length_of_stay', 'room_rent', 'icu_charges', 'ot_charges', 'medicine', 'investigations', 'professional_fees', 'final_bill', 'total_claimed'].includes(key)) { // MODIFIED
+          const num = parseFloat(newValue.replace(/[^0-9.]/g, '')); // MODIFIED
+          typedValue = isNaN(num) ? null : num; // MODIFIED
+        } else if (key === 'icd10_codes') { // MODIFIED
+          typedValue = newValue.split(',').map(s => s.trim().toUpperCase()).filter(Boolean); // MODIFIED
+        } else { // MODIFIED
+          typedValue = newValue === '' ? null : newValue; // MODIFIED
+        } // MODIFIED
+        
+        cat[key].value = typedValue; // MODIFIED
+        cat[key].confidence = 100; // MODIFIED - OCR/UI confidence sync // MODIFIED
+      } // MODIFIED
+    } // MODIFIED
 
-    setClaimData({
-      packet: updatedPacket,
-      uiFields: updatedUiFields,
-    });
-  };
+    setClaimData({ // MODIFIED
+      packet: updatedPacket, // MODIFIED
+      uiFields: updatedUiFields, // MODIFIED
+    }); // MODIFIED
+  }; // MODIFIED
 
   const handleSubmit = async () => {
     if (!claimData) return;

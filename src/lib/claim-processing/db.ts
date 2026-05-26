@@ -73,3 +73,14 @@ export const createClaim = async (
     logger.info('DB', 'Proceeding without database persistence.');
   }
 };
+
+export const getClaimById = async (claimId: string) => { // MODIFIED
+  const supabase = await createClient(); // MODIFIED
+  logger.info('DB', `Fetching claim detail for ${claimId}`); // MODIFIED
+  const { data, error } = await supabase.from('claims').select('*').eq('id', claimId).single(); // MODIFIED
+  if (error) { // MODIFIED
+    logger.error('DB', `Failed to fetch claim ${claimId}`, error); // MODIFIED
+    throw error; // MODIFIED
+  } // MODIFIED
+  return data; // MODIFIED
+}; // MODIFIED

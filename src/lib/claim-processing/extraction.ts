@@ -149,10 +149,11 @@ function findAllCandidates<T>(
 const text = (v: string) => v;
 const identifier = (v: string) => v.toUpperCase().replace(/[^A-Z0-9-]/g, '');
 
-export function extractEntities(
-  pages: PageText[],
-  classifications: ClassifiedPage[]
-): ExtractedFields {
+export function extractEntities( // MODIFIED
+  pages: PageText[], // MODIFIED
+  classifications: ClassifiedPage[], // MODIFIED
+  pythonResult?: any // MODIFIED
+): ExtractedFields { // MODIFIED
   logger.info('EXTRACTION', 'Starting entity extraction');
 
   const icdCandidates = findAllCandidates<string>(pages, classifications, [
@@ -160,13 +161,13 @@ export function extractEntities(
       regex: /(?:icd[- ]?10|code)[\s:\-_]*([A-Z][0-9][0-9A-Z]?(?:\.[0-9A-Z]{1,4})?)/gi,
       normalize: identifier,
       confidence: 90,
-      pageTypes: ['discharge_summary', 'preauth_form', 'ub04', 'claim_form'],
+      pageTypes: ['discharge summary', 'preauth', 'UB04'], // MODIFIED
     },
     {
       regex: /\b([A-Z][0-9][0-9A-Z]?\.[0-9A-Z]{1,4})\b/g,
       normalize: identifier,
       confidence: 80,
-      pageTypes: ['discharge_summary', 'preauth_form', 'ub04', 'claim_form'],
+      pageTypes: ['discharge summary', 'preauth', 'UB04'], // MODIFIED
     },
   ]);
   const uniqueIcd = Array.from(new Set(icdCandidates.map((item) => item.value))).slice(0, 12);
@@ -182,7 +183,7 @@ export function extractEntities(
               /(?:patient|insured|beneficiary)\s*name\s*[:\-_]*[_\s]*([A-Za-z_.-]+(?:[ \t]+[A-Za-z_.-]+)*)/i,
             normalize: text,
             confidence: 95,
-            pageTypes: ['preauth_form', 'claim_form', 'discharge_summary'],
+            pageTypes: ['preauth', 'discharge summary'], // MODIFIED
           },
           {
             regex:
@@ -606,6 +607,66 @@ export function extractEntities(
       ),
     },
   };
+
+  if (pythonResult) { // MODIFIED
+    const mapPythonField = <T>(value: T, confidenceKey: string, rawValue: string): TraceableField<T> => { // MODIFIED
+      const conf = pythonResult.confidence && typeof pythonResult.confidence[confidenceKey] === 'number' // MODIFIED
+        ? Math.round(pythonResult.confidence[confidenceKey] * 100) // MODIFIED
+        : 85; // MODIFIED
+      return { // MODIFIED
+        value, // MODIFIED
+        confidence: conf, // MODIFIED
+        page: 1, // MODIFIED
+        docType: 'preauth', // MODIFIED
+        method: 'ocr', // MODIFIED
+        raw: rawValue || (value !== null && value !== undefined ? String(value) : null), // MODIFIED
+      }; // MODIFIED
+    }; // MODIFIED
+
+    if (pythonResult.patient_name !== undefined && pythonResult.patient_name !== '') { // MODIFIED
+      extracted.patient.full_name = mapPythonField(pythonResult.patient_name || null, 'patient_name', pythonResult.patient_name); // MODIFIED
+    } // MODIFIED
+    if (pythonResult.date_of_birth !== undefined && pythonResult.date_of_birth !== '') { // MODIFIED
+      extracted.patient.dob = mapPythonField(pythonResult.date_of_birth || null, 'date_of_birth', pythonResult.date_of_birth); // MODIFIED
+    } // MODIFIED
+    if (pythonResult.policy_number !== undefined && pythonResult.policy_number !== '') { // MODIFIED
+      extracted.insurance.policy_number = mapPythonField(pythonResult.policy_number || null, 'policy_number', pythonResult.policy_number); // MODIFIED
+    } // MODIFIED
+    if (pythonResult.customer_id !== undefined && pythonResult.customer_id !== '') { // MODIFIED
+      extracted.insurance.member_id = mapPythonField(pythonResult.customer_id || null, 'customer_id', pythonResult.customer_id); // MODIFIED
+    } // MODIFIED
+    if (pythonResult.hospital_name !== undefined && pythonResult.hospital_name !== '') { // MODIFIED
+      extracted.hospital.facility_name = mapPythonField(pythonResult.hospital_name || null, 'hospital_name', pythonResult.hospital_name); // MODIFIED
+    } // MODIFIED
+    if (pythonResult.treating_doctor !== undefined && pythonResult.treating_doctor !== '') { // MODIFIED
+      extracted.hospital.doctor_name = mapPythonField(pythonResult.treating_doctor || null, 'treating_doctor', pythonResult.treating_doctor); // MODIFIED
+    } // MODIFIED
+    if (pythonResult.admission_date !== undefined && pythonResult.admission_date !== '') { // MODIFIED
+      extracted.hospital.admission_date = mapPythonField(pythonResult.admission_date || null, 'admission_date', pythonResult.admission_date); // MODIFIED
+    } // MODIFIED
+    if (pythonResult.discharge_date !== undefined && pythonResult.discharge_date !== '') { // MODIFIED
+      extracted.hospital.discharge_date = mapPythonField(pythonResult.discharge_date || null, 'discharge_date', pythonResult.discharge_date); // MODIFIED
+    } // MODIFIED
+    if (pythonResult.diagnosis_code !== undefined && pythonResult.diagnosis_code !== '') { // MODIFIED
+      extracted.clinical.diagnosis = mapPythonField(pythonResult.diagnosis_code || null, 'diagnosis_code', pythonResult.diagnosis_code); // MODIFIED
+      if (pythonResult.diagnosis_code) { // MODIFIED
+        const icdList = [pythonResult.diagnosis_code].filter((code: string) => /^[A-Z][0-9]/i.test(code)); // MODIFIED
+        if (icdList.length > 0) { // MODIFIED
+          extracted.clinical.icd10_codes = mapPythonField(icdList, 'diagnosis_code', pythonResult.diagnosis_code); // MODIFIED
+        } // MODIFIED
+      } // MODIFIED
+    } // MODIFIED
+    if (pythonResult.procedure_code !== undefined && pythonResult.procedure_code !== '') { // MODIFIED
+      extracted.clinical.procedure = mapPythonField(pythonResult.procedure_code || null, 'procedure_code', pythonResult.procedure_code); // MODIFIED
+    } // MODIFIED
+    if (pythonResult.claim_amount !== undefined && pythonResult.claim_amount !== '') { // MODIFIED
+      const claimVal = pythonResult.claim_amount ? parseInt(pythonResult.claim_amount.replace(/[^0-9]/g, ''), 10) : null; // MODIFIED
+      if (claimVal !== null && !isNaN(claimVal)) { // MODIFIED
+        extracted.financial.total_claimed = mapPythonField(claimVal, 'claim_amount', pythonResult.claim_amount); // MODIFIED
+        extracted.financial.final_bill = mapPythonField(claimVal, 'claim_amount', pythonResult.claim_amount); // MODIFIED
+      } // MODIFIED
+    } // MODIFIED
+  } // MODIFIED
 
   logger.info('EXTRACTION', 'Entity extraction completed');
   return extracted;

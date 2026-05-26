@@ -49,11 +49,11 @@ export async function POST(request: Request) {
       uploadStartedAt: new Date().toISOString(),
     };
 
-    // Run modular pipeline
-    const packet = await processClaimPipeline(buffer, sessionData);
+    // Run modular pipeline // MODIFIED
+    const packet = await processClaimPipeline(buffer, sessionData); // MODIFIED
 
-    // Map the deep ExtractedFields structure to a flat array for the UI Review Screen
-    const uiFields = mapExtractedFieldsToUi(packet.extractedFields, packet);
+    // Map the deep ExtractedFields structure to a flat array for the UI Review Screen // MODIFIED
+    const uiFields = mapExtractedFieldsToUi(packet.extractedFields, packet); // MODIFIED
 
     return NextResponse.json({
       ...packet,

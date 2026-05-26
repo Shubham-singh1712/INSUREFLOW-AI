@@ -30,13 +30,52 @@ export function validateExtractedData(
     suggestions.push({ fieldId, suggestion, reason, confidence });
   };
 
-  // Patient validation
+  // 1. Patient validations (Missing fields + Invalid dates) // MODIFIED
   if (!extracted.patient.full_name.value) {
     addError('patient.full_name', 'Patient name is missing', 'critical', []);
   }
 
-  // Hospital Validation
+  const today = new Date(); // MODIFIED
+  if (extracted.patient.dob.value) { // MODIFIED
+    const dob = new Date(extracted.patient.dob.value); // MODIFIED
+    if (isNaN(dob.getTime())) { // MODIFIED
+      addError('patient.dob', 'Patient Date of Birth is invalid', 'high', [extracted.patient.dob.page || 1]); // MODIFIED
+    } else if (dob > today) { // MODIFIED
+      addError('patient.dob', 'Patient Date of Birth is in the future', 'critical', [extracted.patient.dob.page || 1]); // MODIFIED
+    } // MODIFIED
+  } else { // MODIFIED
+    addError('patient.dob', 'Patient Date of Birth is missing', 'critical', []); // MODIFIED
+  } // MODIFIED
+
+  // 2. Hospital & Care validations (LOS mismatch + negative stay + future stay) // MODIFIED
   const { admission_date, discharge_date } = extracted.hospital;
+  if (admission_date.value) { // MODIFIED
+    const adm = new Date(admission_date.value); // MODIFIED
+    if (isNaN(adm.getTime())) { // MODIFIED
+      addError('hospital.admission_date', 'Admission Date is invalid', 'high', [admission_date.page || 1]); // MODIFIED
+    } else if (adm > today) { // MODIFIED
+      addError('hospital.admission_date', 'Admission Date is in the future', 'high', [admission_date.page || 1]); // MODIFIED
+    } // MODIFIED
+
+    if (extracted.patient.dob.value) { // MODIFIED
+      const dob = new Date(extracted.patient.dob.value); // MODIFIED
+      if (!isNaN(dob.getTime()) && !isNaN(adm.getTime()) && dob >= adm) { // MODIFIED
+        addError('patient.dob', 'Date of Birth must be before admission date', 'critical', [extracted.patient.dob.page || 1, admission_date.page || 1]); // MODIFIED
+      } // MODIFIED
+    } // MODIFIED
+  } else { // MODIFIED
+    addError('hospital.admission_date', 'Admission Date is missing', 'high', []); // MODIFIED
+  } // MODIFIED
+
+  if (discharge_date.value) { // MODIFIED
+    const dis = new Date(discharge_date.value); // MODIFIED
+    if (isNaN(dis.getTime())) { // MODIFIED
+      addError('hospital.discharge_date', 'Discharge Date is invalid', 'high', [discharge_date.page || 1]); // MODIFIED
+    } else if (dis > today) { // MODIFIED
+      addError('hospital.discharge_date', 'Discharge Date is in the future', 'high', [discharge_date.page || 1]); // MODIFIED
+    } // MODIFIED
+  } // MODIFIED
+
   if (admission_date.value && discharge_date.value) {
     const los = daysBetween(admission_date.value, discharge_date.value);
     if (los !== null && los < 0) {
@@ -71,7 +110,26 @@ export function validateExtractedData(
     }
   }
 
-  // Clinical Validation
+  // 3. Policy Mismatch validations // MODIFIED
+  const { policy_number, member_id } = extracted.insurance; // MODIFIED
+  if (policy_number.value && member_id.value && policy_number.value === member_id.value) { // MODIFIED
+    addError( // MODIFIED
+      'insurance.policy_number', // MODIFIED
+      'Policy Number and Member ID are identical (potential merged field or copy-paste error)', // MODIFIED
+      'critical', // MODIFIED
+      [policy_number.page || 1, member_id.page || 1].filter(Boolean) as number[], // MODIFIED
+      ['insurance.member_id'] // MODIFIED
+    ); // MODIFIED
+  } // MODIFIED
+  if (!policy_number.value && !member_id.value) { // MODIFIED
+    addError('insurance.policy_number', 'Both Policy Number and Member ID are missing', 'critical', []); // MODIFIED
+  } else if (!policy_number.value) { // MODIFIED
+    addError('insurance.policy_number', 'Policy Number is missing', 'high', []); // MODIFIED
+  } else if (!member_id.value) { // MODIFIED
+    addError('insurance.member_id', 'Member ID is missing', 'high', []); // MODIFIED
+  } // MODIFIED
+
+  // 4. Clinical validations (Primary diagnosis + Duplicate ICD-10) // MODIFIED
   if (!extracted.clinical.diagnosis.value) {
     addError('clinical.diagnosis', 'Primary diagnosis is missing', 'high', []);
   }
@@ -94,8 +152,8 @@ export function validateExtractedData(
     }
   }
 
-  // Financial Validation
-  const { total_claimed, final_bill, room_rent, icu_charges, medicine, investigations } =
+  // 5. Financial validations (Billing mismatch) // MODIFIED
+  const { total_claimed, final_bill, room_rent, icu_charges, medicine, investigations, professional_fees } = // MODIFIED
     extracted.financial;
   if (!total_claimed.value && !final_bill.value) {
     addError(
@@ -113,12 +171,13 @@ export function validateExtractedData(
     );
   }
 
-  // Calculate sum of parts
+  // Calculate sum of parts // MODIFIED
   let sumOfParts = 0;
   if (room_rent.value) sumOfParts += room_rent.value;
   if (icu_charges.value) sumOfParts += icu_charges.value;
   if (medicine.value) sumOfParts += medicine.value;
   if (investigations.value) sumOfParts += investigations.value;
+  if (professional_fees.value) sumOfParts += professional_fees.value; // MODIFIED
 
   const referenceTotal = total_claimed.value || final_bill.value;
   if (referenceTotal && sumOfParts > referenceTotal) {
@@ -130,12 +189,12 @@ export function validateExtractedData(
     );
   }
 
-  // Authorization Validation
+  // 6. Authorization validations (Missing signatures) // MODIFIED
   if (!extracted.authorization.patient_signature.value) {
-    addError('authorization.patient_signature', 'Patient signature is missing', 'medium', []);
+    addError('authorization.patient_signature', 'Patient signature is missing', 'medium', []); // MODIFIED
   }
   if (!extracted.authorization.doctor_signature.value) {
-    addError('authorization.doctor_signature', 'Doctor signature is missing', 'high', []);
+    addError('authorization.doctor_signature', 'Doctor signature is missing', 'high', []); // MODIFIED
   }
 
   return { errors, repairSuggestions: suggestions };

@@ -12,38 +12,29 @@ export type ClaimState =
 export type ExtractionMethod = 'pdf_text' | 'pdf_text_only' | 'ocr' | 'mixed' | 'metadata_only';
 export type FieldMethod = 'pdf_text' | 'ocr';
 export type PdfKind = 'text_layer' | 'scanned_or_image';
-export type PipelineStage =
-  | 'upload_parse_failed'
-  | 'pdf_parse_failed'
-  | 'pdf_text_extract_failed'
-  | 'pdf_renderer_failed'
-  | 'canvas_init_failed'
-  | 'ocr_worker_failed'
-  | 'ocr_extract_failed'
-  | 'classification_failed'
-  | 'entity_extraction_failed'
-  | 'validation_failed';
+export type PipelineStage = // MODIFIED
+  | 'upload_parse_failed' // MODIFIED
+  | 'pdf_parse_failed' // MODIFIED
+  | 'pdf_text_extract_failed' // MODIFIED
+  | 'canvas_init_failed' // MODIFIED
+  | 'ocr_worker_failed' // MODIFIED
+  | 'ocr_extract_failed' // MODIFIED
+  | 'classification_failed' // MODIFIED
+  | 'entity_extraction_failed' // MODIFIED
+  | 'validation_failed'; // MODIFIED
 
-export type PageDocType =
-  | 'insurance_card'
-  | 'tpa_card'
-  | 'aadhaar'
-  | 'pan'
-  | 'preauth_form'
-  | 'claim_form'
-  | 'invoice'
-  | 'final_bill'
-  | 'discharge_summary'
-  | 'prescription'
-  | 'lab_report'
-  | 'radiology'
-  | 'doctor_notes'
-  | 'ub04'
-  | 'hospital_form'
-  | 'diagnosis_sheet'
-  | 'id_proof'
-  | 'clinical_note'
-  | 'unknown';
+export type PageDocType = // MODIFIED
+  | 'preauth' // MODIFIED
+  | 'invoice' // MODIFIED
+  | 'discharge summary' // MODIFIED
+  | 'diagnosis' // MODIFIED
+  | 'prescription' // MODIFIED
+  | 'lab report' // MODIFIED
+  | 'insurance card' // MODIFIED
+  | 'ID proof' // MODIFIED
+  | 'clinical note' // MODIFIED
+  | 'UB04' // MODIFIED
+  | 'unknown'; // MODIFIED
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
 export type UiSeverity = 'Critical' | 'High' | 'Medium' | 'Low';
@@ -147,24 +138,25 @@ export type ClaimSession = {
   fileSizeBytes: number;
 };
 
-export type ClaimPacket = {
-  success: boolean;
-  extractionMethod: ExtractionMethod;
-  ocrSkippedReason?: string;
-  claimId: string;
-  uploadSessionId: string;
-  pageCount: number;
-  classifiedPages: ClassifiedPage[];
-  extractedFields: ExtractedFields;
-  validationErrors: ValidationError[];
-  claimHealth: number;
-  readiness: number;
-  ocrConfidence: number;
-  rejectionRisk: RejectionRisk;
-  repairSuggestions: RepairSuggestion[];
-  intake: ClaimSession;
-  pdfType: PdfKind;
-  state: ClaimState;
+export type ClaimPacket = { // MODIFIED
+  success: boolean; // MODIFIED
+  extractionMethod: ExtractionMethod; // MODIFIED
+  ocrSkippedReason?: string; // MODIFIED
+  claimId: string; // MODIFIED
+  uploadSessionId: string; // MODIFIED
+  pageCount: number; // MODIFIED
+  classifiedPages: ClassifiedPage[]; // MODIFIED
+  extractedFields: ExtractedFields; // MODIFIED
+  validationErrors: ValidationError[]; // MODIFIED
+  claimHealth: number; // MODIFIED
+  readiness: number; // MODIFIED
+  ocrConfidence: number; // MODIFIED
+  extractionConfidence: number; // MODIFIED
+  rejectionRisk: RejectionRisk; // MODIFIED
+  repairSuggestions: RepairSuggestion[]; // MODIFIED
+  intake: ClaimSession; // MODIFIED
+  pdfType: PdfKind; // MODIFIED
+  state: ClaimState; // MODIFIED
 };
 
 export type Pattern<T> = {
