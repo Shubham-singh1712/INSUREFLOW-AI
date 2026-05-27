@@ -27,7 +27,7 @@ export async function POST( // // MODIFIED
       return NextResponse.json({ success: false, error: 'Claim record not found' }, { status: 404 }); // // MODIFIED
     } // // MODIFIED
 
-    const savedPdfPath = path.join(process.cwd(), 'scratch', 'temp_claims', `${claimId}.pdf`); // // MODIFIED
+    const savedPdfPath = path.join('/tmp', 'temp_claims', `${claimId}.pdf`); // MODIFIED — /tmp matches where pipeline.ts writes the file
     if (!fs.existsSync(savedPdfPath)) { // // MODIFIED
       return NextResponse.json( // // MODIFIED
         { success: false, error: 'Original uploaded PDF document is not available on disk for reprocessing' }, // // MODIFIED

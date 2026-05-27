@@ -29,8 +29,8 @@ async function renderPdfPagesToPng(buffer: Buffer, claimId: string): Promise<str
   const canvasModule = await import('@napi-rs/canvas'); // // MODIFIED
   const Canvas = canvasModule.Canvas; // // MODIFIED
 
-  const tempDir = path.join(process.cwd(), 'scratch', 'temp_pages', claimId); // // MODIFIED
-  fs.mkdirSync(tempDir, { recursive: true }); // // MODIFIED
+  const tempDir = path.join('/tmp', 'temp_pages', claimId); // MODIFIED — use /tmp (only writable dir in serverless/Vercel)
+  fs.mkdirSync(tempDir, { recursive: true }); // MODIFIED
 
   const loadingTask = pdfjs.getDocument({ // // MODIFIED
     data: new Uint8Array(buffer), // // MODIFIED
@@ -48,7 +48,7 @@ async function renderPdfPagesToPng(buffer: Buffer, claimId: string): Promise<str
 
     await page.render({ canvasContext: context, viewport }).promise; // // MODIFIED
     const imageBuffer = await canvas.toBuffer('image/png'); // // MODIFIED
-    const imagePath = path.join(tempDir, `page_${pageNumber}.png`); // // MODIFIED
+    const imagePath = path.join(tempDir, `page_${pageNumber}.png`); // MODIFIED
     fs.writeFileSync(imagePath, imageBuffer); // // MODIFIED
     imagePaths.push(imagePath); // // MODIFIED
   } // // MODIFIED
@@ -64,12 +64,12 @@ export async function processClaimPipeline( // // MODIFIED
   const { claimId } = session; // // MODIFIED
   logger.info('PIPELINE', `Starting pipeline for claim ${claimId}`); // // MODIFIED
 
-  // Create local folders if they do not exist // // MODIFIED
-  fs.mkdirSync(path.join(process.cwd(), 'scratch', 'temp_claims'), { recursive: true }); // // MODIFIED
+  // Create writable temp folder — /tmp is the only writable dir on serverless (Vercel) // MODIFIED
+  fs.mkdirSync(path.join('/tmp', 'temp_claims'), { recursive: true }); // MODIFIED
 
-  // 0. Save original PDF for future reprocessing support // // MODIFIED
-  const savedPdfPath = path.join(process.cwd(), 'scratch', 'temp_claims', `${claimId}.pdf`); // // MODIFIED
-  fs.writeFileSync(savedPdfPath, buffer); // // MODIFIED
+  // 0. Save original PDF for future reprocessing support // MODIFIED
+  const savedPdfPath = path.join('/tmp', 'temp_claims', `${claimId}.pdf`); // MODIFIED — /tmp instead of scratch/
+  fs.writeFileSync(savedPdfPath, buffer); // MODIFIED
 
   let renderedPngPaths: string[] = []; // // MODIFIED
 
@@ -199,7 +199,7 @@ export async function processClaimPipeline( // // MODIFIED
     // Clean up temporary rendered PNG page images // // MODIFIED
     if (renderedPngPaths.length > 0) { // // MODIFIED
       try { // // MODIFIED
-        const tempDir = path.join(process.cwd(), 'scratch', 'temp_pages', claimId); // // MODIFIED
+        const tempDir = path.join('/tmp', 'temp_pages', claimId); // MODIFIED — /tmp instead of scratch/
         if (fs.existsSync(tempDir)) { // // MODIFIED
           fs.rmSync(tempDir, { recursive: true, force: true }); // // MODIFIED
           logger.info('PIPELINE', `Cleaned up rendered temp folder for claim ${claimId}`); // // MODIFIED
