@@ -202,16 +202,23 @@ export function extractEntities( // MODIFIED
       dob: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Primary: DOB label + date with any common separator (/ - . space)
             regex:
-              /\b(?:dob|date\s*of\s*birth|birth\s*date)\s*[:\-_]*[_\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i,
+              /\b(?:dob|date\s*of\s*birth|birth\s*date|d\.o\.b)\s*[:\-_\.]*\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})/i,
             normalize: normalizeDate,
             confidence: 95,
           },
           {
             regex:
-              /\bborn\s*on\s*[:\-_]*[_\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i,
+              /\bborn\s*on\s*[:\-_\.]*\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})/i,
             normalize: normalizeDate,
             confidence: 90,
+          },
+          {
+            // Fallback: Age field to at least give approximate year
+            regex: /\bdate\s*of\s*birth[\s\S]{0,20}?(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+            normalize: normalizeDate,
+            confidence: 82,
           },
         ]),
         null
@@ -365,10 +372,17 @@ export function extractEntities( // MODIFIED
       registration_number: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Must contain at least one digit so bare label words like "REG" are rejected
             regex:
-              /(?:reg\s*(?:no|number)?|registration|rohini\s*id)\s*[:\-_]*[_\s]*([A-Z0-9/\s_-]{4,25})/i,
+              /(?:reg\s*(?:no|number)?|registration(?:\s*no|\.)?|rohini\s*id)\s*[:\-_]+\s*([A-Z0-9][A-Z0-9/\s_-]{2,24}(?:[0-9][A-Z0-9/\s_-]*))/i,
             normalize: identifier,
             confidence: 90,
+          },
+          {
+            // Fallback: reg followed by alphanumeric that contains a digit
+            regex: /\breg\s*[:\-.]?\s*([A-Z0-9-]{3,20}\d[A-Z0-9-]*)/i,
+            normalize: identifier,
+            confidence: 82,
           },
         ]),
         null
@@ -376,10 +390,18 @@ export function extractEntities( // MODIFIED
       admission_date: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Primary: labelled admission date with common separators including dot
             regex:
-              /\b(?:doa|date\s*of\s*admission|admission\s*date|admitted\s*on)\s*[:\-_]*[_\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i,
+              /\b(?:doa|date\s*of\s*admission|admission\s*date|admitted\s*on|date\s*of\s*admit)\s*[:\-_\.]*\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})/i,
             normalize: normalizeDate,
             confidence: 95,
+          },
+          {
+            // Fallback: "Admission" anywhere followed by date on same line
+            regex: /admission[\s\S]{0,30}?(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+            normalize: normalizeDate,
+            confidence: 80,
+            pageTypes: ['preauth', 'discharge summary', 'UB04'],
           },
         ]),
         null
@@ -387,10 +409,18 @@ export function extractEntities( // MODIFIED
       discharge_date: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Primary: labelled discharge date with common separators including dot
             regex:
-              /\b(?:dod|date\s*of\s*discharge|discharge\s*date|discharged\s*on)\s*[:\-_]*[_\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2})/i,
+              /\b(?:dod|date\s*of\s*discharge|discharge\s*date|discharged\s*on|date\s*of\s*discharge)\s*[:\-_\.]*\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})/i,
             normalize: normalizeDate,
             confidence: 95,
+          },
+          {
+            // Fallback: "Discharge" anywhere followed by date on same line
+            regex: /discharge[\s\S]{0,30}?(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+            normalize: normalizeDate,
+            confidence: 80,
+            pageTypes: ['preauth', 'discharge summary', 'UB04'],
           },
         ]),
         null
@@ -554,9 +584,22 @@ export function extractEntities( // MODIFIED
         findCandidate(pages, classifications, [
           {
             regex:
-              /(?:amount\s*claimed|total\s*claim|claim\s*amount)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+              /(?:amount\s*claimed|total\s*claim|claim\s*amount)\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
             normalize: parseMoney,
             confidence: 95,
+          },
+          {
+            // Broader fallback: "Total" or "Grand Total" followed by rupee amount
+            regex:
+              /(?:grand\s*total|net\s*payable|total\s*amount|amount\s*payable|total\s*bill)\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 88,
+          },
+          {
+            // Last resort: any rupee/INR amount over 1000 near a total keyword
+            regex: /(?:total|payable|bill)(?:[^\n]{0,30})(?:rs\.?|inr|₹)\s*([\d,]{4,})/i,
+            normalize: parseMoney,
+            confidence: 72,
           },
         ]),
         null
@@ -566,10 +609,17 @@ export function extractEntities( // MODIFIED
       patient_signature: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Strict: explicit signature label for patient
             regex:
-              /(?:signature\s*(?:of|of\s*the)?\s*(?:patient|insured)|(?:patient|insured)\s*signature)/i,
+              /(?:signature\s*(?:of|of\s*the)?\s*(?:patient|insured|claimant)|(?:patient|insured|claimant)\s*(?:['s]\s*)?signature)/i,
             normalize: () => true,
-            confidence: 60,
+            confidence: 65,
+          },
+          {
+            // Lenient: any "signature" label present on the form (scanned forms may not repeat the word per-section)
+            regex: /\bsignature\b/i,
+            normalize: () => true,
+            confidence: 45,
           },
         ]),
         null
@@ -577,10 +627,17 @@ export function extractEntities( // MODIFIED
       doctor_signature: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Strict: explicit signature label for doctor/physician
             regex:
-              /(?:signature\s*(?:of|of\s*the)?\s*(?:doctor|physician|surgeon|attending)|(?:doctor|physician|surgeon|attending)\s*signature)/i,
+              /(?:signature\s*(?:of|of\s*the)?\s*(?:doctor|physician|surgeon|attending|medical\s*officer)|(?:doctor|physician|surgeon|attending)\s*(?:['s]\s*)?signature)/i,
             normalize: () => true,
-            confidence: 60,
+            confidence: 65,
+          },
+          {
+            // Lenient: Doctor/Physician present with any signature mention on page
+            regex: /(?:dr\.?|doctor|physician|surgeon)(?:[\s\S]{0,120})signature/i,
+            normalize: () => true,
+            confidence: 42,
           },
         ]),
         null
@@ -588,7 +645,7 @@ export function extractEntities( // MODIFIED
       hospital_seal: makeTrace(
         findCandidate(pages, classifications, [
           {
-            regex: /(?:hospital\s*seal|official\s*seal|stamp)/i,
+            regex: /(?:hospital\s*seal|official\s*seal|stamp|round\s*seal)/i,
             normalize: () => true,
             confidence: 60,
           },
@@ -598,7 +655,7 @@ export function extractEntities( // MODIFIED
       approval_stamp: makeTrace(
         findCandidate(pages, classifications, [
           {
-            regex: /(?:approved\s*by|approval\s*signature)/i,
+            regex: /(?:approved\s*by|approval\s*signature|tpa\s*approval)/i,
             normalize: () => true,
             confidence: 60,
           },

@@ -191,10 +191,10 @@ export function validateExtractedData(
 
   // 6. Authorization validations (Missing signatures) // MODIFIED
   if (!extracted.authorization.patient_signature.value) {
-    addError('authorization.patient_signature', 'Patient signature is missing', 'medium', []); // MODIFIED
+    addError('authorization.patient_signature', 'Patient signature is missing or not detected', 'low', []); // Cannot be reliably detected from text OCR
   }
   if (!extracted.authorization.doctor_signature.value) {
-    addError('authorization.doctor_signature', 'Doctor signature is missing', 'high', []); // MODIFIED
+    addError('authorization.doctor_signature', 'Doctor signature is missing or not detected', 'low', []); // Cannot be reliably detected from text OCR
   }
 
   return { errors, repairSuggestions: suggestions };
