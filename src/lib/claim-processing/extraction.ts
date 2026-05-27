@@ -158,16 +158,25 @@ export function extractEntities( // MODIFIED
 
   const icdCandidates = findAllCandidates<string>(pages, classifications, [
     {
-      regex: /(?:icd[- ]?10|code)[\s:\-_]*([A-Z][0-9][0-9A-Z]?(?:\.[0-9A-Z]{1,4})?)/gi,
+      // Exact label "ICD 10 code" as seen on the form
+      regex: /(?:icd[\s-]?10(?:[\s-]?(?:pcs)?)?\s*code)\s*[:\-_]*\s*([A-Z][0-9][0-9A-Z]?(?:\.[0-9A-Z]{1,4})?)/gi,
       normalize: identifier,
-      confidence: 90,
-      pageTypes: ['discharge summary', 'preauth', 'UB04'], // MODIFIED
+      confidence: 95,
+      pageTypes: ['discharge summary', 'preauth', 'UB04'],
     },
     {
+      // Generic ICD label
+      regex: /(?:icd[- ]?10|diagnosis\s*code)[\s:\-_]*([A-Z][0-9][0-9A-Z]?(?:\.[0-9A-Z]{1,4})?)/gi,
+      normalize: identifier,
+      confidence: 88,
+      pageTypes: ['discharge summary', 'preauth', 'UB04'],
+    },
+    {
+      // Bare ICD-10 pattern (e.g. K35.2, J18.9)
       regex: /\b([A-Z][0-9][0-9A-Z]?\.[0-9A-Z]{1,4})\b/g,
       normalize: identifier,
-      confidence: 80,
-      pageTypes: ['discharge summary', 'preauth', 'UB04'], // MODIFIED
+      confidence: 78,
+      pageTypes: ['discharge summary', 'preauth', 'UB04'],
     },
   ]);
   const uniqueIcd = Array.from(new Set(icdCandidates.map((item) => item.value))).slice(0, 12);
@@ -179,20 +188,31 @@ export function extractEntities( // MODIFIED
       full_name: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount form: "Name of the Patient:"
             regex:
-              /(?:patient|insured|beneficiary)\s*name\s*[:\-_]*[_\s]*([A-Za-z_.-]+(?:[ \t]+[A-Za-z_.-]+)*)/i,
+              /(?:name\s*of\s*(?:the\s*)?patient|patient['\'s]*\s*(?:\/\s*insured['\'s]*)?\s*name)\s*[:\-_]*[_\s]*([A-Za-z][A-Za-z\s._-]{2,50})/i,
+            normalize: text,
+            confidence: 97,
+            pageTypes: ['preauth'],
+          },
+          {
+            // Medi Assist Part C: "a) Name of the patient:"
+            regex:
+              /(?:a\)?\s*)?name\s*of\s*the\s*patient\s*[:\-_]*[_\s]*([A-Za-z][A-Za-z\s._-]{2,50})/i,
             normalize: text,
             confidence: 95,
-            pageTypes: ['preauth', 'discharge summary'], // MODIFIED
           },
           {
+            // Declaration section: "Patient's / Insured's Name"
             regex:
-              /(?:name\s*of\s*(?:the\s*)?patient)\s*[:\-_]*[_\s]*([A-Za-z_.-]+(?:[ \t]+[A-Za-z_.-]+)*)/i,
+              /(?:patient['\'s\s]+\/\s*insured['\'s\s]+name|patient['\'s\s]+name)\s*[:\-_]*[_\s]*([A-Za-z][A-Za-z\s._-]{2,50})/i,
             normalize: text,
-            confidence: 92,
+            confidence: 90,
           },
           {
-            regex: /\bname\s*[:\-_]*[_\s]*([A-Za-z_.-]+(?:[ \t]+[A-Za-z_.-]+)*)/i,
+            // Generic fallback
+            regex:
+              /(?:insured|beneficiary)\s*name\s*[:\-_]*[_\s]*([A-Za-z][A-Za-z\s._-]{2,50})/i,
             normalize: text,
             confidence: 85,
           },
@@ -202,21 +222,21 @@ export function extractEntities( // MODIFIED
       dob: makeTrace(
         findCandidate(pages, classifications, [
           {
-            // Primary: DOB label + date with any common separator (/ - . space)
+            // Both forms: "Date of Birth" with DD/MM/YYYY or DD|MM|YYYY
             regex:
-              /\b(?:dob|date\s*of\s*birth|birth\s*date|d\.o\.b)\s*[:\-_\.]*\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})/i,
+              /\b(?:f\s*\)?\s*)?(?:date\s*of\s*birth|dob|d\.o\.b)\s*[:\-_\.]*\s*(\d{1,2}[/\-.|\s]\d{1,2}[/\-.|\s]\d{2,4})/i,
             normalize: normalizeDate,
             confidence: 95,
           },
           {
             regex:
-              /\bborn\s*on\s*[:\-_\.]*\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})/i,
+              /\bborn\s*on\s*[:\-_\.]*\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
             normalize: normalizeDate,
-            confidence: 90,
+            confidence: 88,
           },
           {
-            // Fallback: Age field to at least give approximate year
-            regex: /\bdate\s*of\s*birth[\s\S]{0,20}?(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+            // Policy schedule: "Date of birth" in table (e.g. 27/04/198...)
+            regex: /date\s*of\s*birth[\s\S]{0,30}?(\d{1,2}\/\d{1,2}\/\d{4})/i,
             normalize: normalizeDate,
             confidence: 82,
           },
@@ -226,6 +246,19 @@ export function extractEntities( // MODIFIED
       gender: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount form: checkbox style "Gender: [✓]Male  [ ]Female"
+            regex: /\b(?:sex|gender)\s*[:\-_]*\s*\[?(?:✓|x|v|\/)\]?\s*(male|female|other)\b/i,
+            normalize: (v) =>
+              v.toLowerCase() === 'male' ? 'Male' : v.toLowerCase() === 'female' ? 'Female' : 'Other',
+            confidence: 95,
+          },
+          {
+            // Medi Assist Part C: "Gender: [✓]Male [ ]Female [ ]Third gender"
+            regex: /gender\s*[:\-_]*\s*(?:\[?(?:✓|x|v|\/)?\]?\s*)?(male|female)/i,
+            normalize: (v) => (v.toLowerCase() === 'male' ? 'Male' : 'Female'),
+            confidence: 90,
+          },
+          {
             regex: /\b(?:sex|gender)\s*[:\-_]*[_\s]*\b(male|female|other|m|f)\b/i,
             normalize: (v) =>
               v.charAt(0).toUpperCase() === 'M'
@@ -233,7 +266,7 @@ export function extractEntities( // MODIFIED
                 : v.charAt(0).toUpperCase() === 'F'
                   ? 'Female'
                   : 'Other',
-            confidence: 90,
+            confidence: 85,
           },
         ]),
         null
@@ -241,14 +274,27 @@ export function extractEntities( // MODIFIED
       age: makeTrace(
         findCandidate(pages, classifications, [
           {
-            regex: /\bage\s*[:\-_]*[_\s]*(?:years|yrs|y\.o\.)?\s*(\d{1,2})\b/i,
+            // Paramount form: "Age: Years 31  Months 03"
+            regex: /\bage\s*[:\-_]*\s*(?:years?|yrs?)?\.?\s*(\d{1,3})\s*(?:years?|yrs?|months?|mo)?/i,
             normalize: (v) => parseInt(v, 10) || null,
             confidence: 90,
           },
           {
-            regex: /\b(\d{1,2})\s*(?:years|yrs|y\.o\.)\b/i,
+            // Medi Assist: "e) Age: Years [38] Months [11]"
+            regex: /age\s*[:\-_]*\s*years?\s*[:\-_]?\s*(\d{1,3})/i,
+            normalize: (v) => parseInt(v, 10) || null,
+            confidence: 92,
+          },
+          {
+            // Policy schedule table age column
+            regex: /(?:age|yrs)\s*[|\s]+(\d{1,3})\s*[|\s]+(?:m|f|male|female)/i,
             normalize: (v) => parseInt(v, 10) || null,
             confidence: 85,
+          },
+          {
+            regex: /\b(\d{1,3})\s*(?:years?|yrs?|y\.o\.)\b/i,
+            normalize: (v) => parseInt(v, 10) || null,
+            confidence: 80,
           },
         ]),
         null
@@ -256,10 +302,23 @@ export function extractEntities( // MODIFIED
       phone: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "Contact number: 8928256371"
             regex:
-              /\b(?:phone|mobile|contact|tel|telephone)\s*(?:no|number)?\s*[:\-_]*[_\s]*(\+?\d[\d\s().-]{7,18})/i,
+              /(?:contact\s*(?:number|no\.?)?|phone|mobile|tel(?:ephone)?)\s*[:\-_]*[_\s]*(\d[\d\s]{8,14})/i,
+            normalize: (v) => v.replace(/\s+/g, '').trim(),
+            confidence: 92,
+          },
+          {
+            // Medi Assist: "c) Contact no.: 9359417484"
+            regex: /c\)?\s*contact\s*no\.?\s*[:\-_]*\s*(\d[\d\s]{8,14})/i,
+            normalize: (v) => v.replace(/\s+/g, '').trim(),
+            confidence: 95,
+          },
+          {
+            // Declaration: "Contact number  8928256371"
+            regex: /(?:contact\s*number)\s*(\d{10,12})/i,
             normalize: text,
-            confidence: 90,
+            confidence: 88,
           },
         ]),
         null
@@ -267,7 +326,15 @@ export function extractEntities( // MODIFIED
       address: makeTrace(
         findCandidate(pages, classifications, [
           {
-            regex: /(?:residence|address|addr)\s*[:\-_]*[_\s]*([^\n:]{10,80})/i,
+            // Paramount: "Current Address of Insured Patient:"
+            regex:
+              /(?:current\s*address|address\s*of\s*(?:insured|patient)|residence|addr)\s*[:\-_]*[_\s]*([^\n:]{10,120})/i,
+            normalize: text,
+            confidence: 88,
+          },
+          {
+            // Policy schedule: "Policyholder's address"
+            regex: /policyholder['\'s\s]*address\s*[:\-_]*[_\s]*([^\n]{10,120})/i,
             normalize: text,
             confidence: 85,
           },
@@ -279,10 +346,17 @@ export function extractEntities( // MODIFIED
       provider_name: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Policy schedule header: "New India Mediclaim Policy" / "The New India Assurance Co. Ltd."
             regex:
-              /(?:insurance\s*company|insurer|provider\s*name|insurance\s*provider)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{3,50})/i,
+              /(?:name\s*of\s*(?:the\s*)?(?:tpa|insurance)\s*company|insurance\s*company|insurer|insurance\s*provider)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{3,60})/i,
             normalize: text,
             confidence: 90,
+          },
+          {
+            // Policy schedule: "New India Assurance" / "Star Health" etc in header
+            regex: /^(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*(?:assurance|insurance|health|life)\s*(?:co\.?|ltd\.?|pvt\.?|limited)?)/m,
+            normalize: text,
+            confidence: 85,
           },
         ]),
         null
@@ -290,10 +364,23 @@ export function extractEntities( // MODIFIED
       tpa_name: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount form: "Name of TPA/Insurance company: PARAMOUNT HEALTH SERVICES"
             regex:
-              /(?:tpa\s*name|tpa|third\s*party\s*administrator)\b\s*[/_\s\w]*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{3,60})/i,
+              /(?:name\s*of\s*(?:the\s*)?(?:tpa|insurance\s*company)|a\)?\s*name\s*of\s*tpa\s*company)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{3,70})/i,
             normalize: text,
-            confidence: 90,
+            confidence: 93,
+          },
+          {
+            // Medi Assist header: "Medi Assist Insurance TPA Pvt Ltd"
+            regex: /(?:medi\s*assist|paramount|good\s*health|heritage|family\s*health)[\s\S]{0,20}(?:tpa|insurance|health\s*services)/i,
+            normalize: text,
+            confidence: 88,
+          },
+          {
+            regex:
+              /(?:tpa\s*name|tpa)\b\s*[/_\s\w]*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{3,60})/i,
+            normalize: text,
+            confidence: 85,
           },
         ]),
         null
@@ -301,9 +388,23 @@ export function extractEntities( // MODIFIED
       policy_number: makeTrace(
         findCandidate(pages, classifications, [
           {
-            regex: /(?:policy\s*(?:no|number|num)?)\s*[:\-_]*[_\s]*([A-Z0-9-]{5,20})/i,
+            // Medi Assist: "h) Policy number/Name of Corporate: 11250061259500003325"
+            regex:
+              /(?:h\)?\s*)?policy\s*(?:number|no\.?|num)\s*(?:\/\s*name\s*of\s*corporate)?\s*[:\-_]*[_\s]*([A-Z0-9-]{5,25})/i,
+            normalize: identifier,
+            confidence: 97,
+          },
+          {
+            // Policy schedule: "Policy No   11250061259500003325"
+            regex: /policy\s*no\.?\s*[:\-_|\s]\s*([A-Z0-9-]{8,25})/i,
             normalize: identifier,
             confidence: 95,
+          },
+          {
+            // Generic fallback
+            regex: /policy\s*(?:no|number|num)?\.?\s*[:\-_]*[_\s]*([A-Z0-9/-]{5,25})/i,
+            normalize: identifier,
+            confidence: 88,
           },
         ]),
         null
@@ -311,10 +412,30 @@ export function extractEntities( // MODIFIED
       member_id: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "Insured Card ID number: 45759789"
             regex:
-              /(?:member\s*(?:id|no|number|num)?|insured\s*card\s*(?:id|no|number|num)?|health\s*id|uhid|card\s*(?:id|no|number|num)?)\s*[:\-_]*[_\s]*([A-Z0-9-]{5,25})/i,
+              /(?:g\)?\s*)?(?:insured\s*card\s*(?:id|no\.?)\s*(?:number)?|insurer\s*id\s*card\s*no\.?)\s*[:\-_]*[_\s]*([A-Z0-9-]{4,20})/i,
             normalize: identifier,
-            confidence: 95,
+            confidence: 97,
+          },
+          {
+            // Medi Assist: "g) Insurer ID card no.:"
+            regex: /g\)?\s*insurer\s*id\s*card\s*no\.?\s*[:\-_]*\s*([A-Z0-9-]{4,20})/i,
+            normalize: identifier,
+            confidence: 97,
+          },
+          {
+            // Policy schedule Customer ID: "Customer ID  ME26298413"
+            regex: /customer\s*id\s*[:\-_|\s]+([A-Z0-9-]{4,20})/i,
+            normalize: identifier,
+            confidence: 92,
+          },
+          {
+            // Generic member ID
+            regex:
+              /(?:member\s*(?:id|no|number)?|health\s*id|uhid|card\s*(?:id|no|number)?)\s*[:\-_]*[_\s]*([A-Z0-9-]{5,25})/i,
+            normalize: identifier,
+            confidence: 88,
           },
         ]),
         null
@@ -322,10 +443,17 @@ export function extractEntities( // MODIFIED
       corporate_or_group_id: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "Employee ID: 833874"
             regex:
-              /(?:group\s*(?:id|no|number|num)?|corporate\s*id)\s*[:\-_]*[_\s]*([A-Z0-9-]{4,20})/i,
+              /(?:i\)?\s*)?employee\s*(?:id|no\.?|number)?\s*[:\-_]*[_\s]*([A-Z0-9-]{4,20})/i,
             normalize: identifier,
             confidence: 90,
+          },
+          {
+            regex:
+              /(?:group\s*(?:id|no|number)?|corporate\s*id)\s*[:\-_]*[_\s]*([A-Z0-9-]{4,20})/i,
+            normalize: identifier,
+            confidence: 88,
           },
         ]),
         null
@@ -345,10 +473,24 @@ export function extractEntities( // MODIFIED
       facility_name: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "d. Name of Hospital: LIFE CARE HOSPITAL ANNEX"
             regex:
-              /(?:(?:hospital|facility|clinic|nursing\s*home)\s*name|name\s*of\s*(?:the\s*)?(?:hospital|facility|clinic|nursing\s*home))\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{4,60})/i,
+              /(?:d\.?\s*)?name\s*of\s*(?:the\s*)?hospital\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{4,70})/i,
+            normalize: text,
+            confidence: 95,
+          },
+          {
+            // Medi Assist: "Name of the hospital: [boxed entry]"
+            regex:
+              /(?:hospital|facility|clinic|nursing\s*home)\s*name\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_&-]{4,70})/i,
             normalize: text,
             confidence: 90,
+          },
+          {
+            // Large bold header like "LIFE CARE HOSPITAL ANNEX"
+            regex: /^([A-Z][A-Z\s]{5,50}(?:HOSPITAL|CLINIC|CENTRE|CENTER|MEDICAL))$/m,
+            normalize: text,
+            confidence: 80,
           },
         ]),
         null
@@ -356,15 +498,31 @@ export function extractEntities( // MODIFIED
       doctor_name: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "A: Name of the treating Doctor: Dr. Swapnil Wahane"
             regex:
-              /(?:(?:doctor|physician|surgeon|consultant)\s*name|name\s*of\s*(?:the\s*)?(?:doctor|physician|surgeon|consultant))\s*[:\-_]*[_\s]*([A-Za-z\s_.'&-]{4,45})/i,
+              /(?:a\.?\s*)?name\s*of\s*(?:the\s*)?treating\s*(?:doctor|physician|surgeon)\s*[:\-_]*[_\s]*([A-Za-z\s.'-]{4,50})/i,
+            normalize: text,
+            confidence: 97,
+          },
+          {
+            // Medi Assist: "a) Name of the treating doctor:"
+            regex:
+              /(?:a\)?\s*)?name\s*of\s*the\s*treating\s*doctor\s*[:\-_]*[_\s]*([A-Za-z\s.'-]{4,50})/i,
+            normalize: text,
+            confidence: 97,
+          },
+          {
+            // Declaration: "Name of the treating doctor: Dr. Swapnil Wahane / MBBS, DNB"
+            regex:
+              /name\s*of\s*(?:the\s*)?treating\s*doctor\s*[:\-_]*[_\s]*([A-Za-z\s.'-]{4,50})/i,
             normalize: text,
             confidence: 90,
           },
           {
-            regex: /\b(?:dr\.?|doctor)\s*[:\-_]*[_\s]*([A-Za-z_.-]+(?:[ \t]+[A-Za-z_.-]+)*)/i,
+            // Generic Dr. prefix
+            regex: /\bdr\.?\s+([A-Za-z]+(?:\s+[A-Za-z]+){1,3})/i,
             normalize: text,
-            confidence: 85,
+            confidence: 82,
           },
         ]),
         null
@@ -372,17 +530,24 @@ export function extractEntities( // MODIFIED
       registration_number: makeTrace(
         findCandidate(pages, classifications, [
           {
-            // Must contain at least one digit so bare label words like "REG" are rejected
+            // Paramount: "Rohini ID: REG. NO.:TMC/ZONE-C/570"
             regex:
-              /(?:reg\s*(?:no|number)?|registration(?:\s*no|\.)?|rohini\s*id)\s*[:\-_]+\s*([A-Z0-9][A-Z0-9/\s_-]{2,24}(?:[0-9][A-Z0-9/\s_-]*))/i,
+              /rohini\s*id\s*[:\-_]*[_\s]*([A-Z0-9/\s_-]{3,30})/i,
             normalize: identifier,
-            confidence: 90,
+            confidence: 95,
           },
           {
-            // Fallback: reg followed by alphanumeric that contains a digit
-            regex: /\breg\s*[:\-.]?\s*([A-Z0-9-]{3,20}\d[A-Z0-9-]*)/i,
+            // Paramount address block: "REG. NO.:TMC/ZONE-C/570"
+            regex: /reg\.?\s*no\.?\s*[:\-_]*\s*([A-Z0-9/\-]{4,30})/i,
             normalize: identifier,
-            confidence: 82,
+            confidence: 93,
+          },
+          {
+            // Declaration: "Registration number with State code: Reg. No. 2012051045"
+            regex:
+              /registration\s*(?:number|no\.?)?\s*(?:with\s*state\s*code)?\s*[:\-_]*\s*(?:reg\.?\s*no\.?)?\s*([A-Z0-9.]{6,20})/i,
+            normalize: identifier,
+            confidence: 90,
           },
         ]),
         null
@@ -390,15 +555,29 @@ export function extractEntities( // MODIFIED
       admission_date: makeTrace(
         findCandidate(pages, classifications, [
           {
-            // Primary: labelled admission date with common separators including dot
+            // Paramount: "A. Date of admission   05/04/26" (page 3)
             regex:
-              /\b(?:doa|date\s*of\s*admission|admission\s*date|admitted\s*on|date\s*of\s*admit)\s*[:\-_\.]*\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})/i,
+              /(?:a\.?\s*)?date\s*of\s*admission\s*[:\-_\.]*\s*(\d{1,2}[/\-.|]\d{1,2}[/\-.|]\d{2,4})/i,
             normalize: normalizeDate,
-            confidence: 95,
+            confidence: 97,
           },
           {
-            // Fallback: "Admission" anywhere followed by date on same line
-            regex: /admission[\s\S]{0,30}?(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+            // Medi Assist: "a) Date of admission: 03/04/2026"
+            regex:
+              /(?:a\)?\s*)?date\s*of\s*admission\s*[:\-_\.]*\s*(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})/i,
+            normalize: normalizeDate,
+            confidence: 97,
+          },
+          {
+            // Labels: "DOA", "admitted on", "admission date"
+            regex:
+              /\b(?:doa|admission\s*date|admitted\s*on|date\s*of\s*admit)\s*[:\-_\.]*\s*(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})/i,
+            normalize: normalizeDate,
+            confidence: 90,
+          },
+          {
+            // Fallback proximity: word "admission" near a date
+            regex: /admission[\s\S]{0,40}?(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})/i,
             normalize: normalizeDate,
             confidence: 80,
             pageTypes: ['preauth', 'discharge summary', 'UB04'],
@@ -409,17 +588,15 @@ export function extractEntities( // MODIFIED
       discharge_date: makeTrace(
         findCandidate(pages, classifications, [
           {
-            // Primary: labelled discharge date with common separators including dot
             regex:
-              /\b(?:dod|date\s*of\s*discharge|discharge\s*date|discharged\s*on|date\s*of\s*discharge)\s*[:\-_\.]*\s*(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4}|\d{4}[/\-.]\d{1,2}[/\-.]\d{1,2})/i,
+              /(?:date\s*of\s*discharge|discharge\s*date|discharged\s*on|dod)\s*[:\-_\.]*\s*(\d{1,2}[/\-.|]\d{1,2}[/\-.|]\d{2,4})/i,
             normalize: normalizeDate,
             confidence: 95,
           },
           {
-            // Fallback: "Discharge" anywhere followed by date on same line
-            regex: /discharge[\s\S]{0,30}?(\d{1,2}[/\-.\s]\d{1,2}[/\-.\s]\d{2,4})/i,
+            regex: /discharge[\s\S]{0,40}?(\d{1,2}[/\-.]\d{1,2}[/\-.]\d{2,4})/i,
             normalize: normalizeDate,
-            confidence: 80,
+            confidence: 78,
             pageTypes: ['preauth', 'discharge summary', 'UB04'],
           },
         ]),
@@ -430,10 +607,25 @@ export function extractEntities( // MODIFIED
       diagnosis: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "F: Provisional diagnosis: Fistula in ano at 12° c Fissure in ano"
             regex:
-              /(?:diagnosis|ailment|provisional\s*diagnosis|disease)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{4,80})/i,
+              /(?:f\.?\s*)?provisional\s*diagnosis\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()+°&-]{4,120})/i,
             normalize: text,
-            confidence: 90,
+            confidence: 97,
+          },
+          {
+            // Medi Assist: "f) Provisional diagnosis:"
+            regex:
+              /f\)?\s*provisional\s*diagnosis\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()+&-]{4,120})/i,
+            normalize: text,
+            confidence: 97,
+          },
+          {
+            // Generic
+            regex:
+              /(?:diagnosis|ailment|disease|presenting\s*complaint)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{4,120})/i,
+            normalize: text,
+            confidence: 88,
           },
         ]),
         null
@@ -452,10 +644,17 @@ export function extractEntities( // MODIFIED
       symptoms: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "Nature of Illness / Disease with presenting complaint:"
             regex:
-              /(?:symptoms|complaints|presenting\s*with)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{4,80})/i,
+              /(?:c\.?\s*)?nature\s*of\s*illness\s*(?:\/\s*disease)?\s*(?:with\s*presenting\s*complaints?)?\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{4,200})/i,
             normalize: text,
-            confidence: 90,
+            confidence: 95,
+          },
+          {
+            regex:
+              /(?:symptoms?|complaints?|presenting\s*with|c\.?\s*nature)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{4,200})/i,
+            normalize: text,
+            confidence: 88,
           },
         ]),
         null
@@ -463,9 +662,23 @@ export function extractEntities( // MODIFIED
       surgery: makeTrace(
         findCandidate(pages, classifications, [
           {
-            regex: /(?:surgery|operation)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{3,80})/i,
+            // Paramount: "I: If surgical, name of surgery: Fissurectomy + Fissure Dilatation+"
+            regex:
+              /(?:i\.?\s*)?if\s*surgical,?\s*name\s*of\s*surgery\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_+()-]{3,120})/i,
             normalize: text,
-            confidence: 90,
+            confidence: 97,
+          },
+          {
+            // Medi Assist: "i) If Surgical, name of surgery:"
+            regex:
+              /i\)?\s*if\s*surgical,?\s*name\s*of\s*surgery\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_+()-]{3,120})/i,
+            normalize: text,
+            confidence: 97,
+          },
+          {
+            regex: /(?:surgery|operation|surgical\s*procedure)\s*[:\-_]*[_\s]*([A-Za-z0-9\s.,_()-]{3,80})/i,
+            normalize: text,
+            confidence: 88,
           },
         ]),
         null
@@ -483,10 +696,21 @@ export function extractEntities( // MODIFIED
       length_of_stay: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "Expected number of Days/stay in hospital: 2-3 Days"
             regex:
-              /(?:length\s*of\s*stay|los|days\s*in\s*hospital|stay\s*duration)\s*[:\-_]*[_\s]*(\d{1,2})\b/i,
-            normalize: (v) => parseInt(v, 10),
+              /(?:expected\s*(?:number\s*of\s*)?days?\s*(?:\/\s*)?stay|los|length\s*of\s*stay|days?\s*in\s*hospital|stay\s*duration)\s*[:\-_]*[_\s]*(\d{1,2})(?:\s*[-–]\s*\d{1,2})?\s*(?:days?)?/i,
+            normalize: (v) => {
+              const n = parseInt(v, 10);
+              return isNaN(n) ? null : n;
+            },
             confidence: 90,
+          },
+          {
+            // Medi Assist: "d) Expected no. of days stay in hospital: 3-4"
+            regex:
+              /(?:d\)?\s*)?expected\s*no\.?\s*of\s*days?\s*stay\s*in\s*hospital\s*[:\-_]*\s*(\d{1,2})/i,
+            normalize: (v) => parseInt(v, 10),
+            confidence: 92,
           },
         ]),
         null
@@ -506,10 +730,18 @@ export function extractEntities( // MODIFIED
       room_rent: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "H. Per day room rent + nursing and service charges + patients diet"
+            // Medi Assist: "g) Per Day Room Rent + Nursing & Service charges + Patient's Diet: Rs. 14000/-"
             regex:
-              /(?:room\s*rent|ward\s*charges|room\s*charges)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+              /(?:g\.?\s*)?(?:per\s*day\s*)?room\s*rent(?:\s*\+\s*nursing[^\n]{0,50})?\s*[:\-_]*\s*(?:rs\.?|inr|₹)?\s*([\d,]+(?:\.?[\-\/]?\d*))/i,
             normalize: parseMoney,
-            confidence: 90,
+            confidence: 93,
+          },
+          {
+            regex:
+              /(?:room\s*rent|ward\s*charges|room\s*charges)\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 88,
           },
         ]),
         null
@@ -517,10 +749,17 @@ export function extractEntities( // MODIFIED
       icu_charges: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Medi Assist: "i) ICU Charges: Rs."
             regex:
-              /(?:icu\s*charges|icu\s*rent|intensive\s*care\s*charges)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+              /(?:i\)?\s*)?icu\s*charges?\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
             normalize: parseMoney,
-            confidence: 90,
+            confidence: 93,
+          },
+          {
+            regex:
+              /(?:intensive\s*care\s*(?:unit\s*)?charges?)\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 88,
           },
         ]),
         null
@@ -528,10 +767,17 @@ export function extractEntities( // MODIFIED
       ot_charges: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Medi Assist: "j) OT Charges: Rs. 12000+8000"
             regex:
-              /(?:ot\s*charges|operation\s*theatre\s*charges)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+              /(?:j\)?\s*)?ot\s*charges?\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,+\s]+)/i,
             normalize: parseMoney,
-            confidence: 90,
+            confidence: 93,
+          },
+          {
+            regex:
+              /(?:operation\s*theatre\s*charges?|ot\s*charges?)\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 88,
           },
         ]),
         null
@@ -539,10 +785,17 @@ export function extractEntities( // MODIFIED
       medicine: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Medi Assist: "l) Medicines + Consumables cost of Implants: Rs. 80000/-"
             regex:
-              /(?:medicine|pharmacy|drugs|pharmacy\s*charges)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+              /(?:l\)?\s*)?medicines?\s*(?:\+\s*consumables?[^\n]{0,40})?\s*[:\-_]*\s*(?:rs\.?|inr|₹)?\s*([\d,]+(?:[\/-]?))/i,
             normalize: parseMoney,
-            confidence: 90,
+            confidence: 93,
+          },
+          {
+            regex:
+              /(?:medicine|pharmacy|drugs|pharmacy\s*charges)\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 88,
           },
         ]),
         null
@@ -550,10 +803,17 @@ export function extractEntities( // MODIFIED
       investigations: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Medi Assist: "h) Expected cost for investigation + diagnostics: Rs. 5000/-"
             regex:
-              /(?:investigation|lab|pathology|radiology|diagnostics)\s*charges?\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+              /(?:h\)?\s*)?expected\s*cost\s*(?:of|for)\s*investigation\s*(?:\+\s*diagnostics?)?\s*[:\-_]*\s*(?:rs\.?|inr|₹)?\s*([\d,]+(?:[\/-]?))/i,
             normalize: parseMoney,
-            confidence: 90,
+            confidence: 93,
+          },
+          {
+            regex:
+              /(?:investigation|lab|pathology|radiology|diagnostics)\s*charges?\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 88,
           },
         ]),
         null
@@ -561,10 +821,17 @@ export function extractEntities( // MODIFIED
       professional_fees: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Medi Assist: "k) Professional fees Surgeon + Anesthetist fees + Consultation charges: Rs. 50000+15000+3500"
             regex:
-              /(?:professional\s*fees?|doctor\s*fees?|consultation\s*fees?)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+              /(?:k\)?\s*)?professional\s*fees?\s*(?:surgeon\s*\+[^\n]{0,60})?\s*[:\-_]*\s*(?:rs\.?|inr|₹)?\s*([\d,+\s]+)/i,
             normalize: parseMoney,
-            confidence: 90,
+            confidence: 93,
+          },
+          {
+            regex:
+              /(?:professional\s*fees?|doctor\s*fees?|consultation\s*fees?|surgeon\s*fees?)\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 88,
           },
         ]),
         null
@@ -572,10 +839,31 @@ export function extractEntities( // MODIFIED
       final_bill: makeTrace(
         findCandidate(pages, classifications, [
           {
+            // Paramount: "P. Sum Total expected cost of hospitalization: 1,07,467/-"
             regex:
-              /(?:final\s*bill|grand\s*total|net\s*amount|total\s*invoice)\s*[:\-_]*[_\s]*(?:rs|inr|₹)?\s*([\d,]+\.?\d*)/i,
+              /(?:p\.?\s*)?sum\s*total\s*expected\s*cost\s*(?:of\s*hospitalization)?\s*[:\-_]*\s*(?:rs\.?|inr|₹)?\s*([\d,]+(?:[\/-]?\d*))/i,
             normalize: parseMoney,
-            confidence: 95,
+            confidence: 97,
+          },
+          {
+            // Medi Assist: "o) Sum Total expected cost of hospitalization: Rs. 197600/-"
+            regex:
+              /(?:o\)?\s*)?sum\s*total\s*expected\s*cost\s*[:\-_]*\s*(?:rs\.?|inr|₹)?\s*([\d,]+(?:[\/-]?\d*))/i,
+            normalize: parseMoney,
+            confidence: 97,
+          },
+          {
+            // All-inclusive package: "n) All inclusive package charges: Rs. 100000/-"
+            regex:
+              /(?:n\)?\s*)?all[\s-]inclusive\s*package\s*charges?\s*[:\-_]*\s*(?:rs\.?|inr|₹)?\s*([\d,]+(?:[\/-]?\d*))/i,
+            normalize: parseMoney,
+            confidence: 93,
+          },
+          {
+            regex:
+              /(?:final\s*bill|grand\s*total|net\s*amount|total\s*invoice|total\s*bill)\s*[:\-_]*[_\s]*(?:rs\.?|inr|₹)?\s*([\d,]+\.?\d*)/i,
+            normalize: parseMoney,
+            confidence: 90,
           },
         ]),
         null
