@@ -2,6 +2,7 @@ import { exec, spawn } from 'child_process'; // // MODIFIED
 import { promisify } from 'util'; // // MODIFIED
 import path from 'path'; // // MODIFIED
 import { logger } from './logger'; // // MODIFIED
+import type { PageText } from './types';
 
 const execAsync = promisify(exec); // // MODIFIED
 
@@ -93,3 +94,93 @@ export async function runPythonExtraction( // // MODIFIED
     }); // // MODIFIED
   }); // // MODIFIED
 } // // MODIFIED
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Python OCR bridge — calls ocr_pdf.py which uses PyMuPDF + Tesseract
+// This is the RELIABLE path for scanned PDFs (bypasses broken pdfjs+napi-rs)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PythonOcrPage {
+  page: number;
+  text: string;
+  confidence: number;
+}
+
+export interface PythonOcrResult {
+  pages: PythonOcrPage[];
+  page_count: number;
+  total_chars: number;
+  backend: string;
+  error?: string;  // set when Python script reports an error
+}
+
+/**
+ * Run Python OCR on a saved PDF file.
+ * Returns per-page text + confidence, ready for the extraction pipeline.
+ * Throws if Python or ocr_pdf.py cannot be executed.
+ */
+export async function runPythonOcr(
+  pdfPath: string,
+  scale = 2.0
+): Promise<PageText[]> {
+  const pythonCmd = await getPythonCommand();
+  const scriptPath = path.join(process.cwd(), 'ocr_pdf.py');
+
+  logger.info('PYTHON_OCR', `Running OCR via Python on: ${pdfPath}`);
+
+  return new Promise((resolve, reject) => {
+    const args = [scriptPath, pdfPath, '--scale', String(scale)];
+    const pyProcess = spawn(pythonCmd, args, { cwd: process.cwd(), env: process.env });
+
+    let stdout = '';
+    let stderr = '';
+
+    pyProcess.stdout.on('data', (d) => { stdout += d.toString(); });
+    pyProcess.stderr.on('data', (d) => {
+      const line = d.toString().trim();
+      if (line) logger.info('PYTHON_OCR', line);
+      stderr += line;
+    });
+
+    pyProcess.on('close', (code) => {
+      if (code !== 0) {
+        logger.error('PYTHON_OCR', `Python OCR exited ${code}. stderr: ${stderr}`);
+        return reject(new Error(`Python OCR failed (exit ${code}): ${stderr.slice(0, 400)}`));
+      }
+
+      try {
+        const jsonStart = stdout.indexOf('{');
+        const jsonEnd = stdout.lastIndexOf('}');
+        if (jsonStart === -1 || jsonEnd === -1) {
+          throw new Error('No JSON in Python OCR output');
+        }
+        const parsed: PythonOcrResult = JSON.parse(stdout.substring(jsonStart, jsonEnd + 1));
+
+        if (parsed.error) {
+          throw new Error(parsed.error);
+        }
+
+        logger.info(
+          'PYTHON_OCR',
+          `OCR complete: ${parsed.total_chars} chars across ${parsed.page_count} pages (backend: ${parsed.backend})`
+        );
+
+        const pages: PageText[] = parsed.pages.map((p) => ({
+          page: p.page,
+          text: p.text,
+          method: 'ocr' as const,
+          confidence: p.confidence,
+        }));
+
+        resolve(pages);
+      } catch (err: any) {
+        logger.error('PYTHON_OCR', `Failed to parse Python OCR output: ${err.message}\nRaw: ${stdout.slice(0, 500)}`);
+        reject(new Error(`Failed to parse Python OCR output: ${err.message}`));
+      }
+    });
+
+    pyProcess.on('error', (err) => {
+      reject(new Error(`Failed to spawn Python process: ${err.message}`));
+    });
+  });
+}

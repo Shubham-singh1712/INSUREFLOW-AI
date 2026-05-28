@@ -1,24 +1,25 @@
-import path from 'path'; // // MODIFIED
-import fs from 'fs'; // // MODIFIED
-import { ClaimPacket, PageText, ClaimSession, ClassifiedPage } from './types'; // // MODIFIED
-import { extractPdfTextFirst } from './pdf'; // // MODIFIED
-import { runOcrFallback } from './ocr'; // // MODIFIED
-import { classifyPages } from './classification'; // // MODIFIED
-import { extractEntities } from './extraction'; // // MODIFIED
-import { validateExtractedData } from './validation'; // // MODIFIED
-import { calculateScores } from './scoring'; // // MODIFIED
-import { saveClaimState } from './db'; // // MODIFIED
-import { logger } from './logger'; // // MODIFIED
-import { runPythonExtraction } from './python-bridge'; // // MODIFIED
-import { buildDocumentChecklist, getDocumentChecklistErrors } from './document-checklist'; // NEW
+import path from 'path';
+import fs from 'fs';
+import { ClaimPacket, PageText, ClaimSession, ClassifiedPage } from './types';
+import { extractPdfTextFirst } from './pdf';
+import { runOcrFallback } from './ocr';
+import { classifyPages } from './classification';
+import { extractEntities } from './extraction';
+import { validateExtractedData } from './validation';
+import { calculateScores } from './scoring';
+import { saveClaimState } from './db';
+import { logger } from './logger';
+import { runPythonExtraction, runPythonOcr } from './python-bridge'; // updated: added runPythonOcr
+import { buildDocumentChecklist, getDocumentChecklistErrors } from './document-checklist';
 
 async function ensurePdfJsNodePolyfills() { // // MODIFIED
   if (globalThis.DOMMatrix && globalThis.ImageData && globalThis.Path2D) return; // // MODIFIED
   try { // // MODIFIED
     const canvas = await import('@napi-rs/canvas'); // // MODIFIED
-    globalThis.DOMMatrix ||= canvas.DOMMatrix as typeof globalThis.DOMMatrix; // // MODIFIED
-    globalThis.ImageData ||= canvas.ImageData as typeof globalThis.ImageData; // // MODIFIED
-    globalThis.Path2D ||= canvas.Path2D as typeof globalThis.Path2D; // // MODIFIED
+    globalThis.DOMMatrix ||= canvas.DOMMatrix as typeof globalThis.DOMMatrix;
+    globalThis.ImageData ||= canvas.ImageData as unknown as typeof globalThis.ImageData;
+    globalThis.Path2D ||= canvas.Path2D as typeof globalThis.Path2D;
+ // // MODIFIED
   } catch (error) { // // MODIFIED
     throw new Error('Canvas geometry polyfills could not be initialized.'); // // MODIFIED
   } // // MODIFIED
@@ -33,11 +34,11 @@ async function renderPdfPagesToPng(buffer: Buffer, claimId: string): Promise<str
   const tempDir = path.join('/tmp', 'temp_pages', claimId); // MODIFIED — use /tmp (only writable dir in serverless/Vercel)
   fs.mkdirSync(tempDir, { recursive: true }); // MODIFIED
 
-  const loadingTask = pdfjs.getDocument({ // // MODIFIED
-    data: new Uint8Array(buffer), // // MODIFIED
-    disableWorker: true, // // MODIFIED
-    useSystemFonts: true, // // MODIFIED
-  }); // // MODIFIED
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    disableWorker: true,
+    useSystemFonts: true,
+  } as any);
   const document = await loadingTask.promise; // // MODIFIED
   const imagePaths: string[] = []; // // MODIFIED
 
@@ -47,7 +48,7 @@ async function renderPdfPagesToPng(buffer: Buffer, claimId: string): Promise<str
     const canvas = new Canvas(Math.ceil(viewport.width), Math.ceil(viewport.height)); // // MODIFIED
     const context = canvas.getContext('2d'); // // MODIFIED
 
-    await page.render({ canvasContext: context, viewport }).promise; // // MODIFIED
+    await page.render({ canvasContext: context as any, viewport }).promise;
     const imageBuffer = await canvas.toBuffer('image/png'); // // MODIFIED
     const imagePath = path.join(tempDir, `page_${pageNumber}.png`); // MODIFIED
     fs.writeFileSync(imagePath, imageBuffer); // // MODIFIED
@@ -85,25 +86,63 @@ export async function processClaimPipeline( // // MODIFIED
       logger.error('PIPELINE', `Failed to render PDF to PNG pages`, renderError); // // MODIFIED
     } // // MODIFIED
 
-    // 1. Text Extraction // // MODIFIED
-    const { pageCount, pages: pdfPages, source } = await extractPdfTextFirst(buffer); // // MODIFIED
-    logger.info('PIPELINE', `Extracted text from ${pageCount} pages using ${source}`); // // MODIFIED
+    // 1. Text Extraction — try native PDF text first
+    const { pageCount, pages: pdfPages, source } = await extractPdfTextFirst(buffer);
+    logger.info('PIPELINE', `Extracted text from ${pageCount} pages using ${source}`);
 
-    let finalPages: PageText[] = pdfPages; // // MODIFIED
-    let extractionMethod: 'pdf_text' | 'ocr' | 'mixed' = 'pdf_text'; // // MODIFIED
-    let ocrConfidence = 0; // // MODIFIED
+    let finalPages: PageText[] = pdfPages;
+    let extractionMethod: 'pdf_text' | 'ocr' | 'mixed' = 'pdf_text';
+    let ocrConfidence = 0;
 
-    // Check if we need OCR // // MODIFIED
-    const totalTextLength = pdfPages.reduce((sum, p) => sum + p.text.length, 0); // // MODIFIED
-    if (totalTextLength < 180) { // // MODIFIED
-      logger.info('PIPELINE', `Low text length (${totalTextLength} chars). Falling back to OCR.`); // // MODIFIED
-      const ocrPages = await runOcrFallback(buffer, pageCount); // // MODIFIED
-      finalPages = ocrPages; // // MODIFIED
-      extractionMethod = 'ocr'; // // MODIFIED
-      ocrConfidence = Math.round(ocrPages.reduce((sum, p) => sum + p.confidence, 0) / pageCount); // // MODIFIED
-    } else { // // MODIFIED
-      ocrConfidence = Math.round(pdfPages.reduce((sum, p) => sum + p.confidence, 0) / pageCount); // // MODIFIED
-    } // // MODIFIED
+    // Check if we need OCR (scanned / image-only PDF)
+    const totalTextLength = pdfPages.reduce((sum, p) => sum + p.text.length, 0);
+    if (totalTextLength < 180) {
+      logger.info('PIPELINE', `Low text (${totalTextLength} chars) — PDF is scanned. Running OCR.`);
+
+      // PRIMARY OCR PATH: Python + PyMuPDF + Tesseract (reliable — no browser canvas needed)
+      let ocrSuccess = false;
+      try {
+        logger.info('PIPELINE', 'Attempting Python OCR (PyMuPDF + Tesseract)...');
+        const pyOcrPages = await runPythonOcr(savedPdfPath, 2.0);
+        const pyTotalChars = pyOcrPages.reduce((s, p) => s + p.text.length, 0);
+        logger.info('PIPELINE', `Python OCR produced ${pyTotalChars} total chars`);
+
+        if (pyTotalChars > 50) {
+          finalPages = pyOcrPages;
+          extractionMethod = 'ocr';
+          ocrConfidence = Math.round(
+            pyOcrPages.reduce((sum, p) => sum + p.confidence, 0) / Math.max(pyOcrPages.length, 1)
+          );
+          ocrSuccess = true;
+          logger.info('PIPELINE', `Python OCR succeeded. Avg confidence: ${ocrConfidence}%`);
+        } else {
+          logger.warn('PIPELINE', 'Python OCR returned <50 chars — falling back to JS OCR.');
+        }
+      } catch (pyOcrErr: any) {
+        logger.warn('PIPELINE', `Python OCR failed: ${pyOcrErr.message}. Falling back to JS OCR.`);
+      }
+
+      // FALLBACK OCR PATH: Tesseract.js (may fail in Next.js but worth trying)
+      if (!ocrSuccess) {
+        try {
+          logger.info('PIPELINE', 'Attempting JS Tesseract.js OCR fallback...');
+          const ocrPages = await runOcrFallback(buffer, pageCount);
+          const jsTotalChars = ocrPages.reduce((s, p) => s + p.text.length, 0);
+          if (jsTotalChars > 50) {
+            finalPages = ocrPages;
+            extractionMethod = 'ocr';
+            ocrConfidence = Math.round(ocrPages.reduce((sum, p) => sum + p.confidence, 0) / pageCount);
+            logger.info('PIPELINE', `JS OCR fallback succeeded: ${jsTotalChars} chars`);
+          } else {
+            logger.warn('PIPELINE', 'JS OCR also returned <50 chars. Proceeding with empty text.');
+          }
+        } catch (jsOcrErr: any) {
+          logger.warn('PIPELINE', `JS OCR fallback also failed: ${jsOcrErr.message}. Proceeding with no OCR text.`);
+        }
+      }
+    } else {
+      ocrConfidence = Math.round(pdfPages.reduce((sum, p) => sum + p.confidence, 0) / pageCount);
+    }
 
     await saveClaimState(claimId, 'OCR_COMPLETE', { ocrConfidence }); // // MODIFIED
 
@@ -144,7 +183,7 @@ export async function processClaimPipeline( // // MODIFIED
       extractedFields = extractEntities(finalPages, classifiedPages); // // MODIFIED
     } // // MODIFIED
 
-    await saveClaimState(claimId, 'EXTRACTED', { extractedFields }); // // MODIFIED
+    await saveClaimState(claimId, 'OCR_COMPLETE' as any, { extractedFields });
 
     // 4. Validation
     const { errors: validationErrors, repairSuggestions } = validateExtractedData(
