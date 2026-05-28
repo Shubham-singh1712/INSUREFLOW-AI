@@ -2,89 +2,34 @@ import path from 'path';
 import fs from 'fs';
 import { ClaimPacket, PageText, ClaimSession, ClassifiedPage } from './types';
 import { extractPdfTextFirst } from './pdf';
-import { runOcrFallback } from './ocr';
 import { classifyPages } from './classification';
 import { extractEntities } from './extraction';
 import { validateExtractedData } from './validation';
 import { calculateScores } from './scoring';
 import { saveClaimState } from './db';
 import { logger } from './logger';
-import { runPythonExtraction, runPythonOcr } from './python-bridge'; // updated: added runPythonOcr
+import { runPythonExtraction } from './python-bridge';
+import { runOcrWorkerSubprocess } from './node-bridge';
 import { buildDocumentChecklist, getDocumentChecklistErrors } from './document-checklist';
 
-async function ensurePdfJsNodePolyfills() { // // MODIFIED
-  if (globalThis.DOMMatrix && globalThis.ImageData && globalThis.Path2D) return; // // MODIFIED
-  try { // // MODIFIED
-    const canvas = await import('@napi-rs/canvas'); // // MODIFIED
-    globalThis.DOMMatrix ||= canvas.DOMMatrix as typeof globalThis.DOMMatrix;
-    globalThis.ImageData ||= canvas.ImageData as unknown as typeof globalThis.ImageData;
-    globalThis.Path2D ||= canvas.Path2D as typeof globalThis.Path2D;
- // // MODIFIED
-  } catch (error) { // // MODIFIED
-    throw new Error('Canvas geometry polyfills could not be initialized.'); // // MODIFIED
-  } // // MODIFIED
-} // // MODIFIED
+export async function processClaimPipeline(
+  buffer: Buffer,
+  session: ClaimSession
+): Promise<ClaimPacket> {
+  const { claimId } = session;
+  logger.info('PIPELINE', `Starting pipeline for claim ${claimId}`);
 
-async function renderPdfPagesToPng(buffer: Buffer, claimId: string): Promise<string[]> { // // MODIFIED
-  await ensurePdfJsNodePolyfills(); // // MODIFIED
-  const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs'); // // MODIFIED
-  const canvasModule = await import('@napi-rs/canvas'); // // MODIFIED
-  const Canvas = canvasModule.Canvas; // // MODIFIED
+  // Create writable temp folder — /tmp is the only writable dir on serverless (Vercel)
+  fs.mkdirSync(path.join('/tmp', 'temp_claims'), { recursive: true });
 
-  const tempDir = path.join('/tmp', 'temp_pages', claimId); // MODIFIED — use /tmp (only writable dir in serverless/Vercel)
-  fs.mkdirSync(tempDir, { recursive: true }); // MODIFIED
+  // 0. Save original PDF for future reprocessing support
+  const savedPdfPath = path.join('/tmp', 'temp_claims', `${claimId}.pdf`);
+  fs.writeFileSync(savedPdfPath, buffer);
 
-  const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(buffer),
-    disableWorker: true,
-    useSystemFonts: true,
-  } as any);
-  const document = await loadingTask.promise; // // MODIFIED
-  const imagePaths: string[] = []; // // MODIFIED
+  let renderedPngPaths: string[] = [];
 
-  for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber++) { // // MODIFIED
-    const page = await document.getPage(pageNumber); // // MODIFIED
-    const viewport = page.getViewport({ scale: 1.7 }); // // MODIFIED
-    const canvas = new Canvas(Math.ceil(viewport.width), Math.ceil(viewport.height)); // // MODIFIED
-    const context = canvas.getContext('2d'); // // MODIFIED
-
-    await page.render({ canvasContext: context as any, viewport }).promise;
-    const imageBuffer = await canvas.toBuffer('image/png'); // // MODIFIED
-    const imagePath = path.join(tempDir, `page_${pageNumber}.png`); // MODIFIED
-    fs.writeFileSync(imagePath, imageBuffer); // // MODIFIED
-    imagePaths.push(imagePath); // // MODIFIED
-  } // // MODIFIED
-
-  await document.destroy(); // // MODIFIED
-  return imagePaths; // // MODIFIED
-} // // MODIFIED
-
-export async function processClaimPipeline( // // MODIFIED
-  buffer: Buffer, // // MODIFIED
-  session: ClaimSession // // MODIFIED
-): Promise<ClaimPacket> { // // MODIFIED
-  const { claimId } = session; // // MODIFIED
-  logger.info('PIPELINE', `Starting pipeline for claim ${claimId}`); // // MODIFIED
-
-  // Create writable temp folder — /tmp is the only writable dir on serverless (Vercel) // MODIFIED
-  fs.mkdirSync(path.join('/tmp', 'temp_claims'), { recursive: true }); // MODIFIED
-
-  // 0. Save original PDF for future reprocessing support // MODIFIED
-  const savedPdfPath = path.join('/tmp', 'temp_claims', `${claimId}.pdf`); // MODIFIED — /tmp instead of scratch/
-  fs.writeFileSync(savedPdfPath, buffer); // MODIFIED
-
-  let renderedPngPaths: string[] = []; // // MODIFIED
-
-  try { // // MODIFIED
-    await saveClaimState(claimId, 'PROCESSING'); // // MODIFIED
-
-    // Render pages to images // // MODIFIED
-    try { // // MODIFIED
-      renderedPngPaths = await renderPdfPagesToPng(buffer, claimId); // // MODIFIED
-      logger.info('PIPELINE', `Successfully rendered ${renderedPngPaths.length} pages to PNG`); // // MODIFIED
-    } catch (renderError) { // // MODIFIED
-      logger.error('PIPELINE', `Failed to render PDF to PNG pages`, renderError); // // MODIFIED
-    } // // MODIFIED
+  try {
+    await saveClaimState(claimId, 'PROCESSING');
 
     // 1. Text Extraction — try native PDF text first
     const { pageCount, pages: pdfPages, source } = await extractPdfTextFirst(buffer);
@@ -96,52 +41,47 @@ export async function processClaimPipeline( // // MODIFIED
 
     // Check if we need OCR (scanned / image-only PDF)
     const totalTextLength = pdfPages.reduce((sum, p) => sum + p.text.length, 0);
-    if (totalTextLength < 180) {
+    const runOcr = totalTextLength < 180;
+
+    if (runOcr) {
       logger.info('PIPELINE', `Low text (${totalTextLength} chars) — PDF is scanned. Running OCR.`);
-
-      // PRIMARY OCR PATH: Python + PyMuPDF + Tesseract (reliable — no browser canvas needed)
-      let ocrSuccess = false;
-      try {
-        logger.info('PIPELINE', 'Attempting Python OCR (PyMuPDF + Tesseract)...');
-        const pyOcrPages = await runPythonOcr(savedPdfPath, 2.0);
-        const pyTotalChars = pyOcrPages.reduce((s, p) => s + p.text.length, 0);
-        logger.info('PIPELINE', `Python OCR produced ${pyTotalChars} total chars`);
-
-        if (pyTotalChars > 50) {
-          finalPages = pyOcrPages;
-          extractionMethod = 'ocr';
-          ocrConfidence = Math.round(
-            pyOcrPages.reduce((sum, p) => sum + p.confidence, 0) / Math.max(pyOcrPages.length, 1)
-          );
-          ocrSuccess = true;
-          logger.info('PIPELINE', `Python OCR succeeded. Avg confidence: ${ocrConfidence}%`);
-        } else {
-          logger.warn('PIPELINE', 'Python OCR returned <50 chars — falling back to JS OCR.');
-        }
-      } catch (pyOcrErr: any) {
-        logger.warn('PIPELINE', `Python OCR failed: ${pyOcrErr.message}. Falling back to JS OCR.`);
-      }
-
-      // FALLBACK OCR PATH: Tesseract.js (may fail in Next.js but worth trying)
-      if (!ocrSuccess) {
-        try {
-          logger.info('PIPELINE', 'Attempting JS Tesseract.js OCR fallback...');
-          const ocrPages = await runOcrFallback(buffer, pageCount);
-          const jsTotalChars = ocrPages.reduce((s, p) => s + p.text.length, 0);
-          if (jsTotalChars > 50) {
-            finalPages = ocrPages;
-            extractionMethod = 'ocr';
-            ocrConfidence = Math.round(ocrPages.reduce((sum, p) => sum + p.confidence, 0) / pageCount);
-            logger.info('PIPELINE', `JS OCR fallback succeeded: ${jsTotalChars} chars`);
-          } else {
-            logger.warn('PIPELINE', 'JS OCR also returned <50 chars. Proceeding with empty text.');
-          }
-        } catch (jsOcrErr: any) {
-          logger.warn('PIPELINE', `JS OCR fallback also failed: ${jsOcrErr.message}. Proceeding with no OCR text.`);
-        }
-      }
     } else {
-      ocrConfidence = Math.round(pdfPages.reduce((sum, p) => sum + p.confidence, 0) / pageCount);
+      logger.info('PIPELINE', `Sufficient text (${totalTextLength} chars) — PDF has text layer. Skipping OCR, only rendering pages.`);
+    }
+
+    const tempPagesDir = path.join('/tmp', 'temp_pages', claimId);
+    fs.mkdirSync(tempPagesDir, { recursive: true });
+
+    try {
+      // Execute the unified rendering / OCR subprocess
+      const ocrResult = await runOcrWorkerSubprocess(savedPdfPath, tempPagesDir, runOcr);
+
+      // Populate renderedPngPaths
+      renderedPngPaths = Array.from({ length: ocrResult.page_count }, (_, index) =>
+        path.join(tempPagesDir, `page_${index + 1}.png`)
+      );
+      logger.info('PIPELINE', `Rendered ${renderedPngPaths.length} pages to PNG via PyMuPDF subprocess`);
+
+      if (runOcr) {
+        finalPages = ocrResult.pages.map((p) => ({
+          page: p.page,
+          text: p.text,
+          method: 'ocr' as const,
+          confidence: p.confidence,
+        }));
+        extractionMethod = 'ocr';
+        ocrConfidence = Math.round(
+          ocrResult.pages.reduce((sum, p) => sum + p.confidence, 0) / Math.max(ocrResult.pages.length, 1)
+        );
+        logger.info('PIPELINE', `OCR completed successfully. Avg confidence: ${ocrConfidence}%`);
+      } else {
+        ocrConfidence = Math.round(pdfPages.reduce((sum, p) => sum + p.confidence, 0) / pageCount);
+      }
+    } catch (ocrErr: any) {
+      logger.error('PIPELINE', `Unified rendering/OCR subprocess failed: ${ocrErr.message}`);
+      // Fallback: if rendering/OCR fails, we still have pdfPages, and we can proceed with empty png paths
+      renderedPngPaths = [];
+      ocrConfidence = 0;
     }
 
     await saveClaimState(claimId, 'OCR_COMPLETE', { ocrConfidence }); // // MODIFIED

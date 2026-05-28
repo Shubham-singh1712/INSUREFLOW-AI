@@ -7,12 +7,12 @@ import { logger } from '@/lib/claim-processing/logger'; // // MODIFIED
 export const runtime = 'nodejs'; // // MODIFIED
 export const dynamic = 'force-dynamic'; // // MODIFIED
 
-export async function GET( // // MODIFIED
-  request: Request, // // MODIFIED
-  { params }: { params: { id: string } } // // MODIFIED
-) { // // MODIFIED
-  const claimId = params.id; // // MODIFIED
-  logger.info('API', `GET claim details for ${claimId}`); // // MODIFIED
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id: claimId } = await params;
+  logger.info('API', `GET claim details for ${claimId}`);
 
   try { // // MODIFIED
     const { user, response: authResponse } = await requireUser(); // // MODIFIED

@@ -6,19 +6,21 @@ import { logger } from '@/lib/claim-processing/logger'; // // MODIFIED
 export const runtime = 'nodejs'; // // MODIFIED
 export const dynamic = 'force-dynamic'; // // MODIFIED
 
-export async function GET( // // MODIFIED
-  request: Request, // // MODIFIED
-  { params }: { params: { id: string } } // // MODIFIED
-) { // // MODIFIED
-  return handleExport(params.id); // // MODIFIED
-} // // MODIFIED
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  return handleExport(id);
+}
 
-export async function POST( // // MODIFIED
-  request: Request, // // MODIFIED
-  { params }: { params: { id: string } } // // MODIFIED
-) { // // MODIFIED
-  return handleExport(params.id); // // MODIFIED
-} // // MODIFIED
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  return handleExport(id);
+}
 
 async function handleExport(claimId: string) { // // MODIFIED
   logger.info('API', `Exporting claim dataset for ${claimId}`); // // MODIFIED
