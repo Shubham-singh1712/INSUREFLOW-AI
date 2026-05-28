@@ -23,18 +23,23 @@ export type PipelineStage = // MODIFIED
   | 'entity_extraction_failed' // MODIFIED
   | 'validation_failed'; // MODIFIED
 
-export type PageDocType = // MODIFIED
-  | 'preauth' // MODIFIED
-  | 'invoice' // MODIFIED
-  | 'discharge summary' // MODIFIED
-  | 'diagnosis' // MODIFIED
-  | 'prescription' // MODIFIED
-  | 'lab report' // MODIFIED
-  | 'insurance card' // MODIFIED
-  | 'ID proof' // MODIFIED
-  | 'clinical note' // MODIFIED
-  | 'UB04' // MODIFIED
-  | 'unknown'; // MODIFIED
+export type PageDocType =
+  | 'preauth'
+  | 'invoice'
+  | 'discharge summary'
+  | 'diagnosis'
+  | 'prescription'
+  | 'lab report'
+  | 'insurance card'
+  | 'insurance_card_member'   // TPA/insurer membership card
+  | 'aadhaar_card'            // Aadhaar (UIDAI) ID
+  | 'pan_card'                // PAN card (Income Tax Dept)
+  | 'policy_schedule'        // Insurance policy schedule document
+  | 'clinical_note_doctor'   // Doctor's signed clinical note / referral
+  | 'ID proof'
+  | 'clinical note'
+  | 'UB04'
+  | 'unknown';
 
 export type Severity = 'critical' | 'high' | 'medium' | 'low';
 export type UiSeverity = 'Critical' | 'High' | 'Medium' | 'Low';
@@ -113,6 +118,24 @@ export type ExtractedFields = {
   };
 };
 
+// Document checklist — tracks which mandatory supporting docs are present in the PDF
+export type DocumentChecklistItem = {
+  id: string;                  // e.g. 'aadhaar_card'
+  label: string;               // Human-readable label
+  required: boolean;           // Is it mandatory for claim approval?
+  present: boolean;            // Was it detected in the uploaded PDF?
+  page: number | null;         // Which page it was found on
+  confidence: number;          // Detection confidence 0-100
+  extractedValue?: string;     // Optional: extracted number (e.g. Aadhaar last 4, PAN number)
+  missingAction?: string;      // What the user should do if missing
+};
+
+export type DocumentChecklist = {
+  items: DocumentChecklistItem[];
+  allRequiredPresent: boolean;
+  missingRequired: string[];   // ids of missing required docs
+};
+
 export type ValidationError = {
   field: string;
   issue: string;
@@ -138,25 +161,26 @@ export type ClaimSession = {
   fileSizeBytes: number;
 };
 
-export type ClaimPacket = { // MODIFIED
-  success: boolean; // MODIFIED
-  extractionMethod: ExtractionMethod; // MODIFIED
-  ocrSkippedReason?: string; // MODIFIED
-  claimId: string; // MODIFIED
-  uploadSessionId: string; // MODIFIED
-  pageCount: number; // MODIFIED
-  classifiedPages: ClassifiedPage[]; // MODIFIED
-  extractedFields: ExtractedFields; // MODIFIED
-  validationErrors: ValidationError[]; // MODIFIED
-  claimHealth: number; // MODIFIED
-  readiness: number; // MODIFIED
-  ocrConfidence: number; // MODIFIED
-  extractionConfidence: number; // MODIFIED
-  rejectionRisk: RejectionRisk; // MODIFIED
-  repairSuggestions: RepairSuggestion[]; // MODIFIED
-  intake: ClaimSession; // MODIFIED
-  pdfType: PdfKind; // MODIFIED
-  state: ClaimState; // MODIFIED
+export type ClaimPacket = {
+  success: boolean;
+  extractionMethod: ExtractionMethod;
+  ocrSkippedReason?: string;
+  claimId: string;
+  uploadSessionId: string;
+  pageCount: number;
+  classifiedPages: ClassifiedPage[];
+  extractedFields: ExtractedFields;
+  validationErrors: ValidationError[];
+  claimHealth: number;
+  readiness: number;
+  ocrConfidence: number;
+  extractionConfidence: number;
+  rejectionRisk: RejectionRisk;
+  repairSuggestions: RepairSuggestion[];
+  intake: ClaimSession;
+  pdfType: PdfKind;
+  state: ClaimState;
+  documentChecklist: DocumentChecklist; // NEW — supporting document presence report
 };
 
 export type Pattern<T> = {

@@ -10,6 +10,7 @@ import { calculateScores } from './scoring'; // // MODIFIED
 import { saveClaimState } from './db'; // // MODIFIED
 import { logger } from './logger'; // // MODIFIED
 import { runPythonExtraction } from './python-bridge'; // // MODIFIED
+import { buildDocumentChecklist, getDocumentChecklistErrors } from './document-checklist'; // NEW
 
 async function ensurePdfJsNodePolyfills() { // // MODIFIED
   if (globalThis.DOMMatrix && globalThis.ImageData && globalThis.Path2D) return; // // MODIFIED
@@ -145,11 +146,25 @@ export async function processClaimPipeline( // // MODIFIED
 
     await saveClaimState(claimId, 'EXTRACTED', { extractedFields }); // // MODIFIED
 
-    // 4. Validation // // MODIFIED
-    const { errors: validationErrors, repairSuggestions } = validateExtractedData( // // MODIFIED
-      extractedFields, // // MODIFIED
-      pageCount // // MODIFIED
-    ); // // MODIFIED
+    // 4. Validation
+    const { errors: validationErrors, repairSuggestions } = validateExtractedData(
+      extractedFields,
+      pageCount
+    );
+
+    // 4b. Document Checklist — detect presence of mandatory supporting documents
+    const documentChecklist = buildDocumentChecklist(finalPages);
+    const docErrors = getDocumentChecklistErrors(documentChecklist);
+    // Merge document errors into validation errors (only add if not already present)
+    for (const docErr of docErrors) {
+      if (!validationErrors.some((e) => e.field === docErr.field)) {
+        validationErrors.push(docErr);
+      }
+    }
+    logger.info(
+      'PIPELINE',
+      `Document checklist: ${documentChecklist.items.filter((i) => i.present).length}/${documentChecklist.items.length} docs found. Missing required: [${documentChecklist.missingRequired.join(', ')}]`
+    );
 
     // 5. Scoring // // MODIFIED
     const { claimHealth, readiness, extractionConfidence, rejectionRisk } = calculateScores( // // MODIFIED
@@ -170,25 +185,26 @@ export async function processClaimPipeline( // // MODIFIED
       ocrConfidence, // // MODIFIED
     }); // // MODIFIED
 
-    const packet: ClaimPacket = { // // MODIFIED
-      success: true, // // MODIFIED
-      extractionMethod: pythonExtracted ? 'mixed' : extractionMethod, // // MODIFIED
-      claimId, // // MODIFIED
-      uploadSessionId: session.uploadSessionId, // // MODIFIED
-      pageCount, // // MODIFIED
-      classifiedPages, // // MODIFIED
-      extractedFields, // // MODIFIED
-      validationErrors, // // MODIFIED
-      claimHealth, // // MODIFIED
-      readiness, // // MODIFIED
-      ocrConfidence, // // MODIFIED
-      extractionConfidence, // // MODIFIED
-      rejectionRisk, // // MODIFIED
-      repairSuggestions, // // MODIFIED
-      intake: session, // // MODIFIED
-      pdfType: source === 'pdf_parse' ? 'text_layer' : 'scanned_or_image', // // MODIFIED
-      state: nextState, // // MODIFIED
-    }; // // MODIFIED
+    const packet: ClaimPacket = {
+      success: true,
+      extractionMethod: pythonExtracted ? 'mixed' : extractionMethod,
+      claimId,
+      uploadSessionId: session.uploadSessionId,
+      pageCount,
+      classifiedPages,
+      extractedFields,
+      validationErrors,
+      claimHealth,
+      readiness,
+      ocrConfidence,
+      extractionConfidence,
+      rejectionRisk,
+      repairSuggestions,
+      intake: session,
+      pdfType: source === 'pdf_parse' ? 'text_layer' : 'scanned_or_image',
+      state: nextState,
+      documentChecklist, // NEW — mandatory supporting document presence report
+    };
 
     logger.info('PIPELINE', `Pipeline complete for claim ${claimId}. Status: ${nextState}`); // // MODIFIED
     return packet; // // MODIFIED

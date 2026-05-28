@@ -12,22 +12,28 @@ import {
   Send,
   Zap,
   Clock,
+  XCircle,
 } from 'lucide-react';
 import Link from 'next/link';
+import DocumentChecklistPanel, { DocumentChecklist } from './DocumentChecklistPanel';
 
 interface ClaimConfirmationProps {
   claimId: string;
   patientData: Record<string, string>;
   uploadedDocs: Record<string, { name: string; size: string; status: string }>;
+  documentChecklist?: DocumentChecklist; // from pipeline
 }
 
 export default function ClaimConfirmation({
   claimId,
   patientData,
   uploadedDocs,
+  documentChecklist,
 }: ClaimConfirmationProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const canSubmit = !documentChecklist || documentChecklist.allRequiredPresent;
+  const missingCount = documentChecklist?.missingRequired.length ?? 0;
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -181,42 +187,65 @@ export default function ClaimConfirmation({
           </div>
         </div>
 
-        {/* Documents & validation */}
-        <div className="card p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <FileText size={15} className="text-muted-foreground" />
-            <h4 className="font-semibold text-sm text-foreground">Documents & Validation</h4>
+        {/* Documents & Validation — live checklist if available, else static rows */}
+        {documentChecklist ? (
+          <div className="lg:col-span-3">
+            <DocumentChecklistPanel checklist={documentChecklist} compact />
           </div>
-          <div className="space-y-2">
-            {documentRows.map((doc) => (
-              <div key={`doc-confirm-${doc.label}`} className="flex items-center gap-2">
-                <div
-                  className={`w-2 h-2 rounded-full shrink-0 ${
-                    doc.status === 'passed' ? 'bg-success' : 'bg-warning'
-                  }`}
-                />
-                <span className="text-xs text-foreground flex-1">{doc.label}</span>
-                <span
-                  className={`text-xs font-medium ${
-                    doc.status === 'passed' ? 'text-success-foreground' : 'text-warning-foreground'
-                  }`}
-                >
-                  {doc.status === 'passed' ? 'Verified' : 'Review'}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4 pt-3 border-t border-border">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">AI Confidence</span>
-              <span className="text-sm font-bold text-warning-foreground font-tabular">81%</span>
+        ) : (
+          <div className="card p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText size={15} className="text-muted-foreground" />
+              <h4 className="font-semibold text-sm text-foreground">Documents &amp; Validation</h4>
             </div>
-            <div className="h-1.5 bg-muted rounded-full mt-1.5 overflow-hidden">
-              <div className="h-full w-[81%] bg-warning rounded-full" />
+            <div className="space-y-2">
+              {documentRows.map((doc) => (
+                <div key={`doc-confirm-${doc.label}`} className="flex items-center gap-2">
+                  <div
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      doc.status === 'passed' ? 'bg-success' : 'bg-warning'
+                    }`}
+                  />
+                  <span className="text-xs text-foreground flex-1">{doc.label}</span>
+                  <span
+                    className={`text-xs font-medium ${
+                      doc.status === 'passed' ? 'text-success-foreground' : 'text-warning-foreground'
+                    }`}
+                  >
+                    {doc.status === 'passed' ? 'Verified' : 'Review'}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 pt-3 border-t border-border">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">AI Confidence</span>
+                <span className="text-sm font-bold text-warning-foreground font-tabular">81%</span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full mt-1.5 overflow-hidden">
+                <div className="h-full w-[81%] bg-warning rounded-full" />
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Blocking banner when required docs missing */}
+      {!canSubmit && (
+        <div className="card p-4 border-danger/20 bg-danger-bg/30">
+          <div className="flex items-start gap-3">
+            <XCircle size={18} className="text-danger shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold text-danger-foreground">
+                Cannot Submit — {missingCount} required document{missingCount > 1 ? 's' : ''} missing
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Please upload the missing documents and reprocess the claim before submitting to TPA.
+              </p>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Action bar */}
       <div className="card p-5 flex items-center justify-between">
@@ -225,10 +254,13 @@ export default function ClaimConfirmation({
             <ShieldCheck size={16} className="text-info" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">Proceed with open issues?</p>
+            <p className="text-sm font-semibold text-foreground">
+              {canSubmit ? 'Proceed with open issues?' : 'Resolve document issues first'}
+            </p>
             <p className="text-xs text-muted-foreground">
-              Submitting with unresolved repairs may increase rejection risk. Consider applying AI
-              suggestions first.
+              {canSubmit
+                ? 'Submitting with unresolved repairs may increase rejection risk.'
+                : 'Missing required documents will cause automatic TPA rejection.'}
             </p>
           </div>
         </div>
@@ -236,7 +268,12 @@ export default function ClaimConfirmation({
           <button className="btn-secondary gap-2">
             <Download size={15} /> Save as Draft
           </button>
-          <button onClick={handleSubmit} disabled={submitting} className="btn-primary px-6 gap-2">
+          <button
+            onClick={canSubmit ? handleSubmit : undefined}
+            disabled={submitting || !canSubmit}
+            className="btn-primary px-6 gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            title={!canSubmit ? 'Upload missing required documents first' : ''}
+          >
             {submitting ? (
               <>
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />

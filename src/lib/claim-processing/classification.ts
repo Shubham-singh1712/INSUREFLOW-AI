@@ -2,98 +2,165 @@ import { PageText, ClassifiedPage, PageDocType } from './types';
 import { normalizeWhitespace, clamp } from './utils';
 import { logger } from './logger';
 
-const classifiers: Array<{ // MODIFIED
-  type: PageDocType; // MODIFIED
-  confidence: number; // MODIFIED
-  patterns: RegExp[]; // MODIFIED
-}> = [ // MODIFIED
-  { // MODIFIED
-    type: 'insurance card', // MODIFIED
-    confidence: 85, // MODIFIED
-    patterns: [/insurance/i, /policy/i, /member/i, /card/i, /id\s*(?:number|no|#)/i, /group/i, /tpa/i, /third\s*party/i, /administrator/i, /health\s*card/i], // MODIFIED
-  }, // MODIFIED
-  { // MODIFIED
-    type: 'preauth', // MODIFIED
-    confidence: 85, // MODIFIED
-    patterns: [/pre[-\s]?auth/i, /authorization/i, /cashless/i, /request/i, /approval/i, /claim\s*form/i, /claimant/i, /reimbursement/i, /part\s*[ab]/i, /declaration/i], // MODIFIED
-  }, // MODIFIED
-  { // MODIFIED
-    type: 'invoice', // MODIFIED
-    confidence: 80, // MODIFIED
-    patterns: [ // MODIFIED
-      /invoice/i, // MODIFIED
-      /bill/i, // MODIFIED
-      /itemi[sz]ed/i, // MODIFIED
-      /total/i, // MODIFIED
-      /amount/i, // MODIFIED
-      /charges?/i, // MODIFIED
-      /qty|quantity/i, // MODIFIED
-      /rate/i, // MODIFIED
-      /final\s*bill/i, // MODIFIED
-      /grand\s*total/i, // MODIFIED
-      /net\s*amount/i, // MODIFIED
-      /receipt/i, // MODIFIED
-      /settlement/i // MODIFIED
-    ], // MODIFIED
-  }, // MODIFIED
-  { // MODIFIED
-    type: 'discharge summary', // MODIFIED
-    confidence: 85, // MODIFIED
-    patterns: [ // MODIFIED
-      /discharge/i, // MODIFIED
-      /summary/i, // MODIFIED
-      /admission/i, // MODIFIED
-      /course/i, // MODIFIED
-      /history/i, // MODIFIED
-      /diagnosis/i, // MODIFIED
-      /treatment/i, // MODIFIED
-    ], // MODIFIED
-  }, // MODIFIED
-  { // MODIFIED
-    type: 'prescription', // MODIFIED
-    confidence: 85, // MODIFIED
-    patterns: [/prescription/i, /rx/i, /medicine/i, /advised/i, /dosage/i, /pharmacy/i], // MODIFIED
-  }, // MODIFIED
-  { // MODIFIED
-    type: 'lab report', // MODIFIED
-    confidence: 85, // MODIFIED
-    patterns: [ // MODIFIED
-      /lab/i, // MODIFIED
-      /report/i, // MODIFIED
-      /pathology/i, // MODIFIED
-      /specimen/i, // MODIFIED
-      /reference\s*range/i, // MODIFIED
-      /test/i, // MODIFIED
-      /result/i, // MODIFIED
-      /radiology/i, // MODIFIED
-      /mri/i, // MODIFIED
-      /ct\s*scan/i, // MODIFIED
-      /x[-\s]?ray/i, // MODIFIED
-      /ultrasound/i, // MODIFIED
-      /scan/i, // MODIFIED
-      /imaging/i // MODIFIED
-    ], // MODIFIED
-  }, // MODIFIED
-  { // MODIFIED
-    type: 'ID proof', // MODIFIED
-    confidence: 96, // MODIFIED
-    patterns: [/aadhaar/i, /\b\d{4}\s*[\s-]?\s*\d{4}\s*[\s-]?\s*\d{4}\b/, /pan\s*card/i, /income\s*tax/i, /\b[a-z]{5}\d{4}[a-z]\b/i, /id\s*proof/i, /identity/i, /passport/i, /driving\s*licence/i], // MODIFIED
-  }, // MODIFIED
-  { // MODIFIED
-    type: 'clinical note', // MODIFIED
-    confidence: 80, // MODIFIED
-    patterns: [/doctor/i, /notes?/i, /progress/i, /clinical/i, /consultation/i, /observations?/i, /clinical\s*note/i], // MODIFIED
-  }, // MODIFIED
-  { // MODIFIED
-    type: 'diagnosis', // MODIFIED
-    confidence: 80, // MODIFIED
-    patterns: [/diagnosis\s*sheet/i, /dx/i, /icd[- ]?10/i, /medical\s*condition/i, /diagnosis/i], // MODIFIED
-  }, // MODIFIED
-  { // MODIFIED
-    type: 'UB04', // MODIFIED
-    confidence: 90, // MODIFIED
-    patterns: [/ub[-\s]?04/i, /cms[-\s]?1450/i, /revenue\s*code/i, /locator/i], // MODIFIED
-  }, // MODIFIED
+const classifiers: Array<{
+  type: PageDocType;
+  confidence: number;
+  patterns: RegExp[];
+}> = [
+  {
+    // Aadhaar card — very high confidence signals
+    type: 'aadhaar_card',
+    confidence: 97,
+    patterns: [
+      /unique\s*identification\s*authority\s*of\s*india/i,
+      /uidai/i,
+      /aadhaar|aadhar|adhar/i,
+      /\b\d{4}\s*\d{4}\s*\d{4}\b/,
+      /माझे\s*आधार|मेरा\s*आधार/,
+      /help@uidai\.gov\.in/i,
+      /vid\s*:\s*\d/i,
+    ],
+  },
+  {
+    // PAN card — Income Tax Department document
+    type: 'pan_card',
+    confidence: 97,
+    patterns: [
+      /permanent\s*account\s*number\s*card/i,
+      /income\s*tax\s*department/i,
+      /आयकर\s*विभाग/,
+      /\b[A-Z]{5}\d{4}[A-Z]\b/,
+      /स्थायी\s*लेखा\s*संख्या/,
+    ],
+  },
+  {
+    // TPA / Insurer membership card
+    type: 'insurance_card_member',
+    confidence: 92,
+    patterns: [
+      /phs\s*id/i,
+      /e\.?code\s*:/i,
+      /group\s*code/i,
+      /valid\s*upto/i,
+      /relation\s*:-?\s*(?:employee|spouse|parent|father|mother|child)/i,
+      /paramount\s*health|medi\s*assist/i,
+    ],
+  },
+  {
+    // Doctor's clinical note on hospital letterhead
+    type: 'clinical_note_doctor',
+    confidence: 88,
+    patterns: [
+      /life\s*care.*(?:hospital|annexe|annex)/i,
+      /reg\.?\s*no\.?\s*\d{7,}/i,
+      /mbbs|md(?:\s*,|\s*dnb)|ms\s*,|dnb|frcs/i,
+      /consulting\s*(?:surgeon|physician|doctor)/i,
+      /c\/o[-\s]+(?:pain|fever|vomiting|swelling|complaint)/i,
+      /p\/r[-\s]+(?:diagnosis|examination|findings)/i,
+    ],
+  },
+  {
+    // Insurance policy schedule
+    type: 'policy_schedule',
+    confidence: 90,
+    patterns: [
+      /policy\s*schedule/i,
+      /policy\s*period/i,
+      /sum\s*insured/i,
+      /new\s*india\s*(?:assurance|mediclaim)/i,
+      /niahlip|nianp/i,
+      /previous\s*policy\s*(?:no|number|period)/i,
+      /policyholder['\'s\s]*(?:name|details?)/i,
+      /insured\s*persons?\s*details?/i,
+    ],
+  },
+  {
+    type: 'insurance card',
+    confidence: 85,
+    patterns: [/insurance/i, /policy/i, /member/i, /card/i, /id\s*(?:number|no|#)/i, /group/i, /tpa/i, /third\s*party/i, /administrator/i, /health\s*card/i],
+  },
+  {
+    type: 'preauth',
+    confidence: 85,
+    patterns: [/pre[-\s]?auth/i, /authorization/i, /cashless/i, /request/i, /approval/i, /claim\s*form/i, /claimant/i, /reimbursement/i, /part\s*[ab]/i, /declaration/i],
+  },
+  {
+    type: 'invoice',
+    confidence: 80,
+    patterns: [
+      /invoice/i,
+      /bill/i,
+      /itemi[sz]ed/i,
+      /total/i,
+      /amount/i,
+      /charges?/i,
+      /qty|quantity/i,
+      /rate/i,
+      /final\s*bill/i,
+      /grand\s*total/i,
+      /net\s*amount/i,
+      /receipt/i,
+      /settlement/i
+    ],
+  },
+  {
+    type: 'discharge summary',
+    confidence: 85,
+    patterns: [
+      /discharge/i,
+      /summary/i,
+      /admission/i,
+      /course/i,
+      /history/i,
+      /diagnosis/i,
+      /treatment/i,
+    ],
+  },
+  {
+    type: 'prescription',
+    confidence: 85,
+    patterns: [/prescription/i, /rx/i, /medicine/i, /advised/i, /dosage/i, /pharmacy/i],
+  },
+  {
+    type: 'lab report',
+    confidence: 85,
+    patterns: [
+      /lab/i,
+      /report/i,
+      /pathology/i,
+      /specimen/i,
+      /reference\s*range/i,
+      /test/i,
+      /result/i,
+      /radiology/i,
+      /mri/i,
+      /ct\s*scan/i,
+      /x[-\s]?ray/i,
+      /ultrasound/i,
+      /scan/i,
+      /imaging/i
+    ],
+  },
+  {
+    type: 'ID proof',
+    confidence: 96,
+    patterns: [/aadhaar/i, /\b\d{4}\s*[\s-]?\s*\d{4}\s*[\s-]?\s*\d{4}\b/, /pan\s*card/i, /income\s*tax/i, /\b[a-z]{5}\d{4}[a-z]\b/i, /id\s*proof/i, /identity/i, /passport/i, /driving\s*licence/i],
+  },
+  {
+    type: 'clinical note',
+    confidence: 80,
+    patterns: [/doctor/i, /notes?/i, /progress/i, /clinical/i, /consultation/i, /observations?/i, /clinical\s*note/i],
+  },
+  {
+    type: 'diagnosis',
+    confidence: 80,
+    patterns: [/diagnosis\s*sheet/i, /dx/i, /icd[- ]?10/i, /medical\s*condition/i, /diagnosis/i],
+  },
+  {
+    type: 'UB04',
+    confidence: 90,
+    patterns: [/ub[-\s]?04/i, /cms[-\s]?1450/i, /revenue\s*code/i, /locator/i],
+  },
 ];
 
 export function classifyPages(pages: PageText[]): ClassifiedPage[] {
