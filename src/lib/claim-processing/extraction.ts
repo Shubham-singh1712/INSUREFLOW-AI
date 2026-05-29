@@ -955,9 +955,15 @@ export function extractEntities( // MODIFIED
 
   if (pythonResult) { // MODIFIED
     const mapPythonField = <T>(value: T, confidenceKey: string, rawValue: string): TraceableField<T> => { // MODIFIED
-      const conf = pythonResult.confidence && typeof pythonResult.confidence[confidenceKey] === 'number' // MODIFIED
-        ? Math.round(pythonResult.confidence[confidenceKey] * 100) // MODIFIED
+      let conf = pythonResult.confidence && typeof pythonResult.confidence[confidenceKey] === 'number' // MODIFIED
+        ? pythonResult.confidence[confidenceKey] // MODIFIED
         : 85; // MODIFIED
+      if (conf <= 1.0) {
+        conf = Math.round(conf * 100);
+      } else {
+        conf = Math.round(conf);
+      }
+      conf = Math.max(0, Math.min(100, conf));
       return { // MODIFIED
         value, // MODIFIED
         confidence: conf, // MODIFIED
@@ -974,12 +980,27 @@ export function extractEntities( // MODIFIED
     if (pythonResult.date_of_birth !== undefined && pythonResult.date_of_birth !== '') { // MODIFIED
       extracted.patient.dob = mapPythonField(pythonResult.date_of_birth || null, 'date_of_birth', pythonResult.date_of_birth); // MODIFIED
     } // MODIFIED
+    if (pythonResult.patient_age !== undefined && pythonResult.patient_age !== null && pythonResult.patient_age !== '') {
+      const ageVal = parseInt(String(pythonResult.patient_age).replace(/[^0-9]/g, ''), 10);
+      if (!isNaN(ageVal)) {
+        extracted.patient.age = mapPythonField(ageVal, 'patient_age', String(pythonResult.patient_age));
+      }
+    }
+    if (pythonResult.gender !== undefined && pythonResult.gender !== null && pythonResult.gender !== '') {
+      extracted.patient.gender = mapPythonField(pythonResult.gender || null, 'gender', pythonResult.gender);
+    }
     if (pythonResult.policy_number !== undefined && pythonResult.policy_number !== '') { // MODIFIED
       extracted.insurance.policy_number = mapPythonField(pythonResult.policy_number || null, 'policy_number', pythonResult.policy_number); // MODIFIED
     } // MODIFIED
     if (pythonResult.customer_id !== undefined && pythonResult.customer_id !== '') { // MODIFIED
       extracted.insurance.member_id = mapPythonField(pythonResult.customer_id || null, 'customer_id', pythonResult.customer_id); // MODIFIED
     } // MODIFIED
+    if (pythonResult.tpa_name !== undefined && pythonResult.tpa_name !== null && pythonResult.tpa_name !== '') {
+      extracted.insurance.tpa_name = mapPythonField(pythonResult.tpa_name || null, 'tpa_name', pythonResult.tpa_name);
+    }
+    if (pythonResult.tpa_id_number !== undefined && pythonResult.tpa_id_number !== null && pythonResult.tpa_id_number !== '') {
+      extracted.insurance.member_id = mapPythonField(pythonResult.tpa_id_number || null, 'tpa_id_number', pythonResult.tpa_id_number);
+    }
     if (pythonResult.hospital_name !== undefined && pythonResult.hospital_name !== '') { // MODIFIED
       extracted.hospital.facility_name = mapPythonField(pythonResult.hospital_name || null, 'hospital_name', pythonResult.hospital_name); // MODIFIED
     } // MODIFIED
@@ -1001,6 +1022,9 @@ export function extractEntities( // MODIFIED
         } // MODIFIED
       } // MODIFIED
     } // MODIFIED
+    if (pythonResult.provisional_diagnosis !== undefined && pythonResult.provisional_diagnosis !== null && pythonResult.provisional_diagnosis !== '') {
+      extracted.clinical.diagnosis = mapPythonField(pythonResult.provisional_diagnosis || null, 'provisional_diagnosis', pythonResult.provisional_diagnosis);
+    }
     if (pythonResult.procedure_code !== undefined && pythonResult.procedure_code !== '') { // MODIFIED
       extracted.clinical.procedure = mapPythonField(pythonResult.procedure_code || null, 'procedure_code', pythonResult.procedure_code); // MODIFIED
     } // MODIFIED
@@ -1011,6 +1035,14 @@ export function extractEntities( // MODIFIED
         extracted.financial.final_bill = mapPythonField(claimVal, 'claim_amount', pythonResult.claim_amount); // MODIFIED
       } // MODIFIED
     } // MODIFIED
+    if (pythonResult.total_expected_cost !== undefined && pythonResult.total_expected_cost !== null && pythonResult.total_expected_cost !== '') {
+      const costVal = parseFloat(String(pythonResult.total_expected_cost).replace(/[^0-9.]/g, ''));
+      if (!isNaN(costVal)) {
+        const evidence = pythonResult.total_expected_cost_evidence || String(pythonResult.total_expected_cost);
+        extracted.financial.total_claimed = mapPythonField(costVal, 'total_expected_cost', evidence);
+        extracted.financial.final_bill = mapPythonField(costVal, 'total_expected_cost', evidence);
+      }
+    }
   } // MODIFIED
 
   logger.info('EXTRACTION', 'Entity extraction completed');

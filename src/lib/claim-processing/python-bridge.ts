@@ -22,6 +22,15 @@ export interface PythonExtractionResult { // // MODIFIED
   claim_amount: string; // // MODIFIED
   confidence: Record<string, number>; // // MODIFIED
   needs_review: string[]; // // MODIFIED
+  patient_age?: number | null;
+  gender?: string | null;
+  tpa_name?: string | null;
+  tpa_id_number?: string | null;
+  provisional_diagnosis?: string | null;
+  total_expected_cost?: number | null;
+  total_expected_cost_evidence?: string | null;
+  has_aadhaar?: boolean;
+  has_pan?: boolean;
 } // // MODIFIED
 
 async function getPythonCommand(): Promise<string> { // // MODIFIED

@@ -256,7 +256,10 @@ function scorePageForDoc(
 // ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
-export function buildDocumentChecklist(pages: PageText[]): DocumentChecklist {
+export function buildDocumentChecklist(
+  pages: PageText[],
+  llmResult?: { has_aadhaar?: boolean; has_pan?: boolean }
+): DocumentChecklist {
   logger.info('DOC_CHECKLIST', `Building document checklist from ${pages.length} pages`);
 
   const items: DocumentChecklistItem[] = DETECTORS.map((detector) => {
@@ -273,7 +276,23 @@ export function buildDocumentChecklist(pages: PageText[]): DocumentChecklist {
       }
     }
 
-    const present = bestScore >= detector.threshold;
+    let present = bestScore >= detector.threshold;
+
+    // Override with LLM extraction results if found
+    if (detector.id === 'aadhaar_card' && llmResult?.has_aadhaar === true) {
+      present = true;
+      if (bestScore < detector.threshold) {
+        bestScore = 85; // set artificial high confidence
+        bestPage = bestPage || 1;
+      }
+    }
+    if (detector.id === 'pan_card' && llmResult?.has_pan === true) {
+      present = true;
+      if (bestScore < detector.threshold) {
+        bestScore = 85; // set artificial high confidence
+        bestPage = bestPage || 1;
+      }
+    }
 
     logger.info(
       'DOC_CHECKLIST',

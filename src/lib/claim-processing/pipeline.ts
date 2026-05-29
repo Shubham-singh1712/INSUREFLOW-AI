@@ -9,7 +9,7 @@ import { calculateScores } from './scoring';
 import { saveClaimState } from './db';
 import { logger } from './logger';
 import { runPythonExtraction } from './python-bridge';
-import { runOcrWorkerSubprocess } from './node-bridge';
+import { runOcrWorkerSubprocess, runLlmExtraction } from './node-bridge';
 import { buildDocumentChecklist, getDocumentChecklistErrors } from './document-checklist';
 
 export async function processClaimPipeline(
@@ -94,6 +94,7 @@ export async function processClaimPipeline(
     let extractedFields: any = null; // // MODIFIED
     let pythonExtracted = false; // // MODIFIED
     let pyErr: any = null; // // MODIFIED
+    let llmResult: any = null;
 
     if (renderedPngPaths.length > 0) { // // MODIFIED
       // Identify primary form page. Check for page classified as preauth or UB04. // // MODIFIED
@@ -117,11 +118,31 @@ export async function processClaimPipeline(
       } // // MODIFIED
     } // // MODIFIED
 
-    // Fallback: If python fails or has no page images, run standard JS regex-heavy extraction // // MODIFIED
-    if (!pythonExtracted) { // // MODIFIED
-      logger.info('PIPELINE', 'Running JS Regex-heavy fallback extraction'); // // MODIFIED
-      extractedFields = extractEntities(finalPages, classifiedPages); // // MODIFIED
-    } // // MODIFIED
+    // Fallback: If python fails, run Direct Gemini LLM extraction, then fall back to Regex
+    if (!pythonExtracted) {
+      let llmExtractionSuccess = false;
+      try {
+        const combinedText = finalPages.map((p) => p.text).join('\n\n');
+        if (combinedText.trim().length > 30) {
+          logger.info('PIPELINE', 'Running Direct Gemini LLM fallback extraction...');
+          llmResult = await runLlmExtraction(combinedText);
+          extractedFields = extractEntities(finalPages, classifiedPages, llmResult);
+          llmExtractionSuccess = true;
+          extractionMethod = 'ocr';
+          logger.info('PIPELINE', 'Direct Gemini LLM fallback extraction completed successfully');
+        }
+      } catch (llmErr: any) {
+        logger.error(
+          'PIPELINE',
+          `Direct Gemini LLM fallback extraction failed: ${llmErr.message}. Falling back to Regex-heavy extraction.`
+        );
+      }
+
+      if (!llmExtractionSuccess) {
+        logger.info('PIPELINE', 'Running JS Regex-heavy fallback extraction');
+        extractedFields = extractEntities(finalPages, classifiedPages);
+      }
+    }
 
     await saveClaimState(claimId, 'OCR_COMPLETE' as any, { extractedFields });
 
@@ -132,7 +153,7 @@ export async function processClaimPipeline(
     );
 
     // 4b. Document Checklist — detect presence of mandatory supporting documents
-    const documentChecklist = buildDocumentChecklist(finalPages);
+    const documentChecklist = buildDocumentChecklist(finalPages, llmResult);
     const docErrors = getDocumentChecklistErrors(documentChecklist);
     // Merge document errors into validation errors (only add if not already present)
     for (const docErr of docErrors) {
