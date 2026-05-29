@@ -1,6 +1,8 @@
 import { exec, spawn } from 'child_process'; // // MODIFIED
 import { promisify } from 'util'; // // MODIFIED
 import path from 'path'; // // MODIFIED
+import os from 'os';
+import fs from 'fs';
 import { logger } from './logger'; // // MODIFIED
 import type { PageText } from './types';
 
@@ -24,9 +26,31 @@ export interface PythonExtractionResult { // // MODIFIED
 
 async function getPythonCommand(): Promise<string> { // // MODIFIED
   const commands = ['python', 'python3', 'py']; // // MODIFIED
+  if (process.platform === 'win32') {
+    const homeDir = os.homedir();
+    const localPrograms = path.join(homeDir, 'AppData', 'Local', 'Programs', 'Python');
+    if (fs.existsSync(localPrograms)) {
+      try {
+        const dirs = fs.readdirSync(localPrograms);
+        for (const dir of dirs) {
+          if (dir.startsWith('Python')) {
+            const p = path.join(localPrograms, dir, 'python.exe');
+            if (fs.existsSync(p)) commands.push(p);
+          }
+        }
+      } catch {}
+    }
+    if (fs.existsSync('C:\\msys64\\ucrt64\\bin\\python.exe')) {
+      commands.push('C:\\msys64\\ucrt64\\bin\\python.exe');
+    }
+    const scoopPath = path.join(homeDir, 'scoop', 'shims', 'python.exe');
+    if (fs.existsSync(scoopPath)) {
+      commands.push(scoopPath);
+    }
+  }
   for (const cmd of commands) { // // MODIFIED
     try { // // MODIFIED
-      const { stdout } = await execAsync(`${cmd} --version`); // // MODIFIED
+      const { stdout } = await execAsync(`"${cmd}" --version`); // // MODIFIED
       if (stdout) { // // MODIFIED
         return cmd; // // MODIFIED
       } // // MODIFIED

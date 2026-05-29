@@ -66,6 +66,28 @@ log('Rendering pages to PNG via PyMuPDF...');
 async function runPython(scriptPath, args) {
   return new Promise((resolve, reject) => {
     const commands = ['python', 'python3', 'py'];
+    if (process.platform === 'win32') {
+      const homeDir = os.homedir();
+      const localPrograms = path.join(homeDir, 'AppData', 'Local', 'Programs', 'Python');
+      if (fs.existsSync(localPrograms)) {
+        try {
+          const dirs = fs.readdirSync(localPrograms);
+          for (const dir of dirs) {
+            if (dir.startsWith('Python')) {
+              const p = path.join(localPrograms, dir, 'python.exe');
+              if (fs.existsSync(p)) commands.push(p);
+            }
+          }
+        } catch {}
+      }
+      if (fs.existsSync('C:\\msys64\\ucrt64\\bin\\python.exe')) {
+        commands.push('C:\\msys64\\ucrt64\\bin\\python.exe');
+      }
+      const scoopPath = path.join(homeDir, 'scoop', 'shims', 'python.exe');
+      if (fs.existsSync(scoopPath)) {
+        commands.push(scoopPath);
+      }
+    }
     let tried = 0;
     function tryNext() {
       if (tried >= commands.length) return reject(new Error('Python not found'));

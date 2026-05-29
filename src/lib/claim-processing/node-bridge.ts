@@ -35,8 +35,8 @@ export async function runOcrWorkerSubprocess(
 
   return new Promise((resolve, reject) => {
     const args = [scriptPath, pdfPath, tempDir, runOcrStr];
-    // Use spawn to execute the process cleanly
-    const nodeProcess = spawn('node', args, { cwd: process.cwd(), env: process.env });
+    // Use process.execPath to launch the exact same node executable
+    const nodeProcess = spawn(process.execPath, args, { cwd: process.cwd(), env: process.env });
 
     let stdout = '';
     let stderr = '';
