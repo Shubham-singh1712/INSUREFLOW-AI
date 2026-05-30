@@ -71,19 +71,19 @@ export async function POST(request: Request) {
     try {
       const confirmedData: ExtractedClaimData = {
         patient: {
-          full_name: packet.extractedFields.patient.full_name.value || '',
-          date_of_birth: packet.extractedFields.patient.dob.value || '',
-          gender: packet.extractedFields.patient.gender.value || '',
-          address: packet.extractedFields.patient.address.value || '',
-          contact_phone: packet.extractedFields.patient.phone.value || '',
+          full_name: packet.extractedFields?.patient?.full_name?.value || '',
+          date_of_birth: packet.extractedFields?.patient?.dob?.value || '',
+          gender: packet.extractedFields?.patient?.gender?.value || '',
+          address: packet.extractedFields?.patient?.address?.value || '',
+          contact_phone: packet.extractedFields?.patient?.phone?.value || '',
           contact_email: '',
         },
         insurance: {
           policyholder_name: '',
-          group_number: packet.extractedFields.insurance.corporate_or_group_id.value || '',
-          member_id: packet.extractedFields.insurance.member_id.value || '',
-          payer_id: packet.extractedFields.insurance.insurance_id.value || '',
-          plan_name: packet.extractedFields.insurance.provider_name.value || '',
+          group_number: packet.extractedFields?.insurance?.corporate_or_group_id?.value || '',
+          member_id: packet.extractedFields?.insurance?.member_id?.value || '',
+          payer_id: packet.extractedFields?.insurance?.insurance_id?.value || '',
+          plan_name: packet.extractedFields?.insurance?.provider_name?.value || '',
         },
         pre_authorization: {
           approval_code: '',
@@ -91,16 +91,16 @@ export async function POST(request: Request) {
           authorized_to: '',
         },
         clinical: {
-          admission_date: packet.extractedFields.hospital.admission_date.value || '',
-          discharge_date: packet.extractedFields.hospital.discharge_date.value || '',
-          attending_physician: packet.extractedFields.hospital.doctor_name.value || '',
+          admission_date: packet.extractedFields?.hospital?.admission_date?.value || '',
+          discharge_date: packet.extractedFields?.hospital?.discharge_date?.value || '',
+          attending_physician: packet.extractedFields?.hospital?.doctor_name?.value || '',
           hospital_npi: '',
           hospital_tax_id: '',
-          facility_name: packet.extractedFields.hospital.facility_name.value || '',
-          principal_diagnosis: packet.extractedFields.clinical.diagnosis.value || '',
+          facility_name: packet.extractedFields?.hospital?.facility_name?.value || '',
+          principal_diagnosis: packet.extractedFields?.clinical?.diagnosis?.value || '',
         },
         coding: {
-          icd10_codes: (packet.extractedFields.clinical.icd10_codes.value || []).map((code) => ({
+          icd10_codes: (packet.extractedFields?.clinical?.icd10_codes?.value || []).map((code) => ({
             code,
             description: '',
             confidence: 100,
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
           cpt_codes: [],
         },
         billing: {
-          total_billed_amount: String(packet.extractedFields.financial.final_bill.value || '0'),
+          total_billed_amount: String(packet.extractedFields?.financial?.final_bill?.value || '0'),
           line_items: [],
         },
         extraction_meta: {

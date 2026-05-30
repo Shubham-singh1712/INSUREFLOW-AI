@@ -223,6 +223,45 @@ const mapDbClaimToLiveClaim = (dbClaim: any): LiveClaim => {
   }
 };
 
+const normalizeIdentityPart = (value?: string) => value?.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const claimIdentityKey = (data: ExtractedClaimData) => {
+  const patient = normalizeIdentityPart(data.patient?.full_name);
+  const memberId = normalizeIdentityPart(data.insurance?.member_id);
+  const dob = normalizeIdentityPart(data.patient?.date_of_birth);
+  const admissionDate = normalizeIdentityPart(data.clinical?.admission_date);
+  const total = normalizeIdentityPart(data.billing?.total_billed_amount);
+
+  if (memberId) {
+    return ['member', memberId, admissionDate, total].filter(Boolean).join(':');
+  }
+
+  if (patient && dob) {
+    return ['patient-dob', patient, dob, admissionDate, total].filter(Boolean).join(':');
+  }
+
+  if (patient && admissionDate && total) {
+    return ['patient-episode', patient, admissionDate, total].join(':');
+  }
+
+  return null;
+};
+
+const dedupeClaimsByIdentity = (claims: LiveClaim[]) => {
+  const seen = new Set<string>();
+
+  return claims.filter((claim) => {
+    const key = claimIdentityKey(claim.confirmedData);
+    if (!key) return true;
+
+    const scopedKey = `${claim.userId}:${key}`;
+    if (seen.has(scopedKey)) return false;
+
+    seen.add(scopedKey);
+    return true;
+  });
+};
+
 export const listLiveClaims = async (userId?: string | null): Promise<LiveClaim[]> => {
   // 1. Try Supabase
   try {
@@ -233,14 +272,14 @@ export const listLiveClaims = async (userId?: string | null): Promise<LiveClaim[
     }
     const { data, error } = await query.order('created_at', { ascending: false });
     if (!error && data) {
-      return data.map(mapDbClaimToLiveClaim);
+      return dedupeClaimsByIdentity(data.map(mapDbClaimToLiveClaim));
     }
   } catch (err: any) {
     console.error('Supabase listLiveClaims failed, falling back to cache:', err.message);
   }
 
   // 2. Fall back to local JSON file
-  const claims = (await readAllClaims()).map(normalizeStoredClaim);
+  const claims = dedupeClaimsByIdentity((await readAllClaims()).map(normalizeStoredClaim));
   return userId ? claims.filter((claim) => claim.userId === userId) : claims;
 };
 
