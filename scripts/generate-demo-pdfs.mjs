@@ -117,17 +117,17 @@ Receipt details: Sum total matches exactly.`,
 
       // Page 3: Aadhaar Card KYC
       `UNIQUE IDENTIFICATION AUTHORITY OF INDIA (UIDAI) - GOVERNMENT OF INDIA
-मेरा आधार, मेरी पहचान (AADHAAR CARD)
+MY AADHAAR, MY IDENTITY (AADHAAR CARD)
 Aadhaar Number: 4575 8876 1120
 Name: Aditya Sharma
 DOB: 15/05/1974
-Gender: Male / पुरुष
+Gender: Male
 Address: Flat 4B, Shanti Apartments, Alwarpet, Chennai - 600018
 Helpdesk email: help@uidai.gov.in`,
 
       // Page 4: PAN Card KYC
       `INCOME TAX DEPARTMENT - GOVERNMENT OF INDIA
-स्थायी लेखा संख्या कार्ड (PAN CARD)
+PERMANENT ACCOUNT NUMBER CARD (PAN CARD)
 PAN Number: ARVPY0847M
 Name: Aditya Sharma
 Father's Name: R. K. Sharma
@@ -210,16 +210,16 @@ Receipt details: Sum total matches exactly.`,
 
       // Page 3: Aadhaar Card KYC
       `UNIQUE IDENTIFICATION AUTHORITY OF INDIA (UIDAI) - GOVERNMENT OF INDIA
-मेरा आधार, मेरी पहचान (AADHAAR CARD)
+MY AADHAAR, MY IDENTITY (AADHAAR CARD)
 Aadhaar Number: 9028 7761 1102
 Name: Amitabh Verma
 DOB: 19/04/1968
-Gender: Male / पुरुष
+Gender: Male
 Address: 88/1, 4th Main, JP Nagar, Bangalore`,
 
       // Page 4: PAN Card KYC
       `INCOME TAX DEPARTMENT - GOVERNMENT OF INDIA
-স্থायी लेखा संख्या कार्ड (PAN CARD)
+PERMANENT ACCOUNT NUMBER CARD (PAN CARD)
 PAN Number: BIVPV8872D
 Name: Amitabh Verma
 DOB: 19/04/1968`,
@@ -290,11 +290,11 @@ Grand Total / Net Billed Amount: INR 219,000`,
 
       // Page 3: Aadhaar Card KYC
       `UNIQUE IDENTIFICATION AUTHORITY OF INDIA (UIDAI) - GOVERNMENT OF INDIA
-मेरा आधार, मेरी पहचान (AADHAAR CARD)
+MY AADHAAR, MY IDENTITY (AADHAAR CARD)
 Aadhaar Number: 8876 1120 9902
 Name: Devendra Gowda
 DOB: 10/03/1961
-Gender: Male / पुरुष`,
+Gender: Male`,
 
       // Page 4: Doctor's Clinical Note (No Discharge Summary Page)
       `DOCTOR CLINICAL REFERRAL NOTE
@@ -352,11 +352,11 @@ Grand Total / Net Billed Amount: INR 76,000`,
 
       // Page 3: Aadhaar Card KYC
       `UNIQUE IDENTIFICATION AUTHORITY OF INDIA (UIDAI) - GOVERNMENT OF INDIA
-मेरा आधार, मेरी पहचान (AADHAAR CARD)
+MY AADHAAR, MY IDENTITY (AADHAAR CARD)
 Aadhaar Number: 4432 0981 1120
 Name: Priyanka Sen
 DOB: 22/08/1992
-Gender: Female / महिला`,
+Gender: Female`,
 
       // Page 4: Doctor's Clinical Note (No Discharge Summary Page)
       `DOCTOR CLINICAL REFERRAL NOTE
