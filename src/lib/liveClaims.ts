@@ -4,6 +4,7 @@ import { calculateExtractionConfidence, type ExtractedClaimData } from './claims
 import type { ClaimRegisterRow, DashboardClaim, DashboardMetric } from './demoData';
 import { createClient } from '@/lib/supabase/server';
 import { saveClaimState, addAuditLog } from '@/lib/claim-processing/db';
+import { logger } from './claim-processing/logger';
 
 export type LiveClaim = {
   id: string;
@@ -21,7 +22,6 @@ export type LiveClaim = {
   submittedAt: string;
   confirmedData: ExtractedClaimData;
   reviewReasons?: string[];
-  // Unified fields
   hospitalName?: string;
   claimHealth?: number;
   readiness?: number;
@@ -58,87 +58,169 @@ const normalizeStoredClaim = (claim: LiveClaim): LiveClaim => ({
 });
 
 const mapDbClaimToLiveClaim = (dbClaim: any): LiveClaim => {
-  const ext = dbClaim.extracted_data || {};
-  return {
-    id: dbClaim.id,
-    userId: dbClaim.user_id || 'unknown',
-    claimId: dbClaim.id,
-    patient: dbClaim.patient_name || ext.patient?.full_name?.value || 'Unknown Patient',
-    tpa: ext.insurance?.provider_name?.value || 'Unknown TPA',
-    amount: ext.financial?.final_bill?.value 
-      ? `INR ${Number(ext.financial.final_bill.value).toLocaleString('en-IN')}`
-      : 'INR 0',
-    aiConfidence: dbClaim.health_score || 0,
-    submissionScore: dbClaim.readiness_score || 0,
-    documentsTotal: 6,
-    documentsPassed: Math.max(0, 6 - (dbClaim.validation_errors?.length || 0)),
-    status: (dbClaim.status === 'UPLOADED' || dbClaim.status === 'PROCESSING' || dbClaim.status === 'OCR_COMPLETE' || dbClaim.status === 'CLASSIFIED' || dbClaim.status === 'EXTRACTED')
-      ? 'ai_processing'
-      : dbClaim.status === 'REVIEW_REQUIRED'
-        ? 'repairs_pending'
-        : dbClaim.status === 'READY'
-          ? 'ready'
-          : dbClaim.status === 'SUBMITTED'
-            ? 'submitted'
-            : dbClaim.status === 'APPROVED'
-              ? 'approved'
-              : 'rejected',
-    repairStatus: (dbClaim.status === 'READY' || dbClaim.status === 'APPROVED' || dbClaim.status === 'SUBMITTED') ? 'clean' : 'repairs_pending',
-    submittedAt: dbClaim.updated_at || dbClaim.created_at,
-    confirmedData: {
-      patient: {
-        full_name: ext.patient?.full_name?.value || '',
-        date_of_birth: ext.patient?.dob?.value || '',
-        gender: ext.patient?.gender?.value || '',
-        address: ext.patient?.address?.value || '',
-        contact_phone: ext.patient?.phone?.value || '',
-        contact_email: '',
-      },
-      insurance: {
-        policyholder_name: '',
-        group_number: ext.insurance?.corporate_or_group_id?.value || '',
-        member_id: ext.insurance?.member_id?.value || '',
-        payer_id: ext.insurance?.insurance_id?.value || '',
-        plan_name: ext.insurance?.provider_name?.value || '',
-      },
-      pre_authorization: { approval_code: '', authorized_from: '', authorized_to: '' },
-      clinical: {
-        admission_date: ext.hospital?.admission_date?.value || '',
-        discharge_date: ext.hospital?.discharge_date?.value || '',
-        attending_physician: ext.hospital?.doctor_name?.value || '',
-        hospital_npi: '',
-        hospital_tax_id: '',
-        facility_name: ext.hospital?.facility_name?.value || '',
-        principal_diagnosis: ext.clinical?.diagnosis?.value || '',
-      },
-      coding: {
-        icd10_codes: (ext.clinical?.icd10_codes?.value || []).map((code: string) => ({
-          code, description: '', confidence: 100
-        })),
-        cpt_codes: [],
-      },
-      billing: {
-        total_billed_amount: String(ext.financial?.final_bill?.value || '0'),
-        line_items: [],
-      },
-      extraction_meta: {
-        overall_confidence: dbClaim.ocr_confidence || 90,
-        low_confidence_fields: [],
-        requires_manual_review: dbClaim.status !== 'READY',
+  try {
+    const ext = (typeof dbClaim.extracted_data === 'string' ? JSON.parse(dbClaim.extracted_data) : dbClaim.extracted_data) || {};
+    const valErrors = Array.isArray(dbClaim.validation_errors)
+      ? dbClaim.validation_errors
+      : typeof dbClaim.validation_errors === 'string'
+        ? JSON.parse(dbClaim.validation_errors)
+        : [];
+    const repSuggestions = Array.isArray(dbClaim.repair_suggestions)
+      ? dbClaim.repair_suggestions
+      : typeof dbClaim.repair_suggestions === 'string'
+        ? JSON.parse(dbClaim.repair_suggestions)
+        : [];
+    const classPages = Array.isArray(dbClaim.classified_pages)
+      ? dbClaim.classified_pages
+      : typeof dbClaim.classified_pages === 'string'
+        ? JSON.parse(dbClaim.classified_pages)
+        : [];
+
+    let icdCodes: any[] = [];
+    if (ext.clinical?.icd10_codes?.value) {
+      if (Array.isArray(ext.clinical.icd10_codes.value)) {
+        icdCodes = ext.clinical.icd10_codes.value.map((code: any) => ({
+          code: typeof code === 'object' && code !== null ? code.code || '' : String(code),
+          description: typeof code === 'object' && code !== null ? code.description || '' : '',
+          confidence: typeof code === 'object' && code !== null ? code.confidence || 100 : 100
+        }));
+      } else if (typeof ext.clinical.icd10_codes.value === 'string') {
+        icdCodes = [{ code: ext.clinical.icd10_codes.value, description: '', confidence: 100 }];
       }
-    },
-    reviewReasons: dbClaim.validation_errors?.map((e: any) => e.issue) || [],
-    hospitalName: dbClaim.hospital_name || ext.hospital?.facility_name?.value || 'Unknown Hospital',
-    claimHealth: dbClaim.health_score || 0,
-    readiness: dbClaim.readiness_score || 0,
-    rejectionRisk: dbClaim.rejection_risk || 'low',
-    createdAt: dbClaim.created_at,
-    updatedAt: dbClaim.updated_at,
-    validationCount: dbClaim.validation_count || 0,
-    repairSuggestionCount: dbClaim.repair_suggestion_count || 0,
-    assignedReviewer: dbClaim.assigned_reviewer || 'Desk Agent',
-    auditLogs: [] // filled later if cache falls back or loaded from DB
-  };
+    }
+
+    const claimHealth = dbClaim.health_score !== undefined && dbClaim.health_score !== null ? Number(dbClaim.health_score) : 0;
+    const readiness = dbClaim.readiness_score !== undefined && dbClaim.readiness_score !== null ? Number(dbClaim.readiness_score) : 0;
+    const ocrConfidence = dbClaim.ocr_confidence !== undefined && dbClaim.ocr_confidence !== null ? Number(dbClaim.ocr_confidence) : 0;
+
+    let finalBillStr = '0';
+    if (ext.financial?.final_bill?.value !== undefined && ext.financial?.final_bill?.value !== null) {
+      finalBillStr = String(ext.financial.final_bill.value).replace(/[^0-9.]/g, '');
+    }
+    const finalBillNum = parseFloat(finalBillStr) || 0;
+
+    // Map ClaimState to UI status
+    let uiStatus: any = 'ai_processing';
+    const state = dbClaim.status || 'UPLOADED';
+    if (state === 'REVIEW_REQUIRED') uiStatus = 'repairs_pending';
+    else if (state === 'READY') uiStatus = 'ready';
+    else if (state === 'SUBMITTED') uiStatus = 'submitted';
+    else if (state === 'APPROVED') uiStatus = 'approved';
+    else if (state === 'REJECTED') uiStatus = 'rejected';
+
+    let repairStatus: any = 'repairs_pending';
+    if (state === 'READY' || state === 'APPROVED' || state === 'SUBMITTED') {
+      repairStatus = 'clean';
+    }
+
+    // Safely reconstruct audit logs
+    const auditLogs: any[] = [];
+    const dbAuditLogs = dbClaim.audit_logs || [];
+    if (Array.isArray(dbAuditLogs)) {
+      dbAuditLogs.forEach((log: any) => {
+        if (log) {
+          auditLogs.push({
+            action: log.action || log.stage || 'Log',
+            details: log.details || log.message || '',
+            timestamp: log.timestamp || log.created_at || new Date().toISOString()
+          });
+        }
+      });
+    }
+
+    return {
+      id: dbClaim.id,
+      userId: dbClaim.user_id || 'unknown',
+      claimId: dbClaim.id,
+      patient: dbClaim.patient_name || ext.patient?.full_name?.value || 'Unknown Patient',
+      tpa: ext.insurance?.provider_name?.value || 'Unknown TPA',
+      amount: finalBillNum > 0 ? `INR ${finalBillNum.toLocaleString('en-IN')}` : 'INR 0',
+      aiConfidence: claimHealth || ocrConfidence || 0,
+      submissionScore: readiness || 0,
+      documentsTotal: 6,
+      documentsPassed: Math.max(0, 6 - valErrors.length),
+      status: uiStatus,
+      repairStatus: repairStatus,
+      submittedAt: dbClaim.updated_at || dbClaim.created_at || new Date().toISOString(),
+      confirmedData: {
+        patient: {
+          full_name: ext.patient?.full_name?.value || '',
+          date_of_birth: ext.patient?.dob?.value || '',
+          gender: ext.patient?.gender?.value || '',
+          address: ext.patient?.address?.value || '',
+          contact_phone: ext.patient?.phone?.value || '',
+          contact_email: '',
+        },
+        insurance: {
+          policyholder_name: '',
+          group_number: ext.insurance?.corporate_or_group_id?.value || '',
+          member_id: ext.insurance?.member_id?.value || '',
+          payer_id: ext.insurance?.insurance_id?.value || '',
+          plan_name: ext.insurance?.provider_name?.value || '',
+        },
+        pre_authorization: { approval_code: '', authorized_from: '', authorized_to: '' },
+        clinical: {
+          admission_date: ext.hospital?.admission_date?.value || '',
+          discharge_date: ext.hospital?.discharge_date?.value || '',
+          attending_physician: ext.hospital?.doctor_name?.value || '',
+          hospital_npi: '',
+          hospital_tax_id: '',
+          facility_name: ext.hospital?.facility_name?.value || '',
+          principal_diagnosis: ext.clinical?.diagnosis?.value || '',
+        },
+        coding: {
+          icd10_codes: icdCodes,
+          cpt_codes: [],
+        },
+        billing: {
+          total_billed_amount: String(finalBillNum),
+          line_items: [],
+        },
+        extraction_meta: {
+          overall_confidence: ocrConfidence || 90,
+          low_confidence_fields: [],
+          requires_manual_review: state !== 'READY',
+        }
+      },
+      reviewReasons: valErrors.map((e: any) => e.issue || 'Issue detected'),
+      hospitalName: dbClaim.hospital_name || ext.hospital?.facility_name?.value || 'Unknown Hospital',
+      claimHealth,
+      readiness,
+      rejectionRisk: dbClaim.rejection_risk || 'low',
+      createdAt: dbClaim.created_at || new Date().toISOString(),
+      updatedAt: dbClaim.updated_at || new Date().toISOString(),
+      validationCount: valErrors.length,
+      repairSuggestionCount: repSuggestions.length,
+      assignedReviewer: dbClaim.assigned_reviewer || 'Desk Agent',
+      auditLogs
+    };
+  } catch (err: any) {
+    logger.error('MAP_DB_CLAIM', `Error mapping claim row ${dbClaim?.id}: ${err.message}`);
+    return {
+      id: dbClaim?.id || 'unknown',
+      userId: dbClaim?.user_id || 'unknown',
+      claimId: dbClaim?.id || 'unknown',
+      patient: dbClaim?.patient_name || 'Unknown Patient',
+      tpa: 'Unknown TPA',
+      amount: 'INR 0',
+      aiConfidence: 0,
+      submissionScore: 0,
+      documentsTotal: 6,
+      documentsPassed: 6,
+      status: 'ai_processing',
+      repairStatus: 'repairs_pending',
+      submittedAt: new Date().toISOString(),
+      confirmedData: {
+        patient: { full_name: '', date_of_birth: '', gender: '', address: '', contact_phone: '', contact_email: '' },
+        insurance: { policyholder_name: '', group_number: '', member_id: '', payer_id: '', plan_name: '' },
+        pre_authorization: { approval_code: '', authorized_from: '', authorized_to: '' },
+        clinical: { admission_date: '', discharge_date: '', attending_physician: '', hospital_npi: '', hospital_tax_id: '', facility_name: '', principal_diagnosis: '' },
+        coding: { icd10_codes: [], cpt_codes: [] },
+        billing: { total_billed_amount: '0', line_items: [] },
+        extraction_meta: { overall_confidence: 0, low_confidence_fields: [], requires_manual_review: true }
+      }
+    };
+  }
 };
 
 export const listLiveClaims = async (userId?: string | null): Promise<LiveClaim[]> => {
@@ -318,7 +400,6 @@ export const submitReadyClaims = async (userId: string) => {
 
     submitted += 1;
     
-    // Push audit log directly in the claim object
     const updatedLogs = [...(claim.auditLogs || [])];
     updatedLogs.push({
       action: 'Claim Submitted',
@@ -370,7 +451,7 @@ export const toClaimRegisterRows = (claims: LiveClaim[]): ClaimRegisterRow[] =>
       claim.status === 'submitted'
         ? 'Queued'
         : claim.status === 'approved'
-          ? 'Ready' // Mapped nicely
+          ? 'Ready'
           : claim.repairStatus === 'clean'
             ? 'Ready'
             : 'Needs Repair',

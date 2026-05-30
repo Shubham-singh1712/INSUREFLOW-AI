@@ -6,11 +6,27 @@ import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function AllClaimsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const liveClaims = await listLiveClaims(user?.id);
+  let user: any = null;
+  let liveClaims: any[] = [];
+
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    user = data?.user || null;
+  } catch (err: any) {
+    console.error('Supabase auth check failed in All Claims Page:', err.message);
+  }
+
+  try {
+    liveClaims = await listLiveClaims(user?.id);
+  } catch (err: any) {
+    console.error('Failed to load live claims in All Claims Page:', err.message);
+    try {
+      liveClaims = await listLiveClaims(null);
+    } catch (fallbackErr: any) {
+      console.error('Fallback load failed in All Claims Page:', fallbackErr.message);
+    }
+  }
 
   const needsAttention = liveClaims.filter((claim) => claim.status === 'repairs_pending').length;
   const readyCount = liveClaims.filter((claim) => claim.status === 'ready').length;
@@ -89,11 +105,14 @@ export default async function AllClaimsPage() {
           </thead>
           <tbody className="divide-y divide-border">
             {liveClaims.map((claim) => {
-              const formattedDate = new Date(claim.createdAt || claim.submittedAt).toLocaleDateString([], {
-                year: 'numeric',
-                month: 'short',
-                day: '2-digit',
-              });
+              const dateVal = claim.createdAt || claim.submittedAt;
+              const formattedDate = dateVal
+                ? new Date(dateVal).toLocaleDateString([], {
+                    year: 'numeric',
+                    month: 'short',
+                    day: '2-digit',
+                  })
+                : 'Recent';
 
               return (
                 <tr key={claim.claimId} className="hover:bg-muted/40 transition-colors">

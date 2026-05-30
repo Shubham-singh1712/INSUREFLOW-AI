@@ -8,11 +8,28 @@ import { createClient } from '@/lib/supabase/server';
 import { getTimeOfDayGreeting, getUserDisplayName } from '@/lib/serverGreeting';
 
 export default async function MainDashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const liveClaims = await listLiveClaims(user?.id);
+  let user: any = null;
+  let liveClaims: any[] = [];
+
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    user = data?.user || null;
+  } catch (err: any) {
+    console.error('Supabase auth check failed in Main Dashboard Page:', err.message);
+  }
+
+  try {
+    liveClaims = await listLiveClaims(user?.id);
+  } catch (err: any) {
+    console.error('Failed to load live claims in Main Dashboard Page:', err.message);
+    try {
+      liveClaims = await listLiveClaims(null);
+    } catch (fallbackErr: any) {
+      console.error('Fallback load failed in Main Dashboard Page:', fallbackErr.message);
+    }
+  }
+
   const claims = toDashboardClaims(liveClaims);
   const metrics =
     liveClaims.length > 0

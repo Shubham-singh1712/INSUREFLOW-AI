@@ -41,7 +41,7 @@ export function MetricCard({
   label: string;
   value: string;
   helper: string;
-  tone?: 'primary' | 'success' | 'warning' | 'danger' | 'info';
+  tone?: 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'muted';
 }) {
   const toneMap = {
     primary: 'bg-primary/10 text-primary',
@@ -49,6 +49,7 @@ export function MetricCard({
     warning: 'bg-warning-bg text-warning',
     danger: 'bg-danger-bg text-danger',
     info: 'bg-info-bg text-info',
+    muted: 'bg-secondary text-muted-foreground',
   };
 
   return (

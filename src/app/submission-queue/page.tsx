@@ -7,11 +7,27 @@ import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function SubmissionQueuePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const liveClaims = await listLiveClaims(user?.id);
+  let user: any = null;
+  let liveClaims: any[] = [];
+
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    user = data?.user || null;
+  } catch (err: any) {
+    console.error('Supabase auth check failed in Submission Queue Page:', err.message);
+  }
+
+  try {
+    liveClaims = await listLiveClaims(user?.id);
+  } catch (err: any) {
+    console.error('Failed to load live claims in Submission Queue Page:', err.message);
+    try {
+      liveClaims = await listLiveClaims(null);
+    } catch (fallbackErr: any) {
+      console.error('Fallback load failed in Submission Queue Page:', fallbackErr.message);
+    }
+  }
 
   const liveReadyCount = liveClaims.filter((claim) => claim.status === 'ready').length;
   const liveSubmittedCount = liveClaims.filter(
