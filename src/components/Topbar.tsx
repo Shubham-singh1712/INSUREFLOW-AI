@@ -124,6 +124,12 @@ export default function Topbar({ onMenuClick, onSidebarToggle, sidebarCollapsed 
       </div>
 
       <div className="flex items-center gap-2 ml-auto">
+        {demoModeEnabled && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[10px] sm:text-xs font-bold text-amber-500 animate-pulse whitespace-nowrap">
+            ⚡ DEMO MODE ACTIVE
+          </div>
+        )}
+
         {/* Submission deadline chip */}
         {demoModeEnabled && (
           <div className="hidden xl:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-warning-bg border border-warning/20 text-xs font-semibold text-warning-foreground">

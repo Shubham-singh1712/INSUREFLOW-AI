@@ -13,7 +13,9 @@ export default async function AllClaimsPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const liveClaims = await listLiveClaims(user?.id);
-  const claims = demoMode.enabled ? demoClaimRegisterRows : toClaimRegisterRows(liveClaims);
+  const claims = demoMode.enabled
+    ? [...toClaimRegisterRows(liveClaims), ...demoClaimRegisterRows]
+    : toClaimRegisterRows(liveClaims);
   const needsAttention = liveClaims.filter((claim) => claim.repairStatus !== 'clean').length;
   const readyOrSubmitted = liveClaims.filter((claim) => claim.repairStatus === 'clean').length;
 

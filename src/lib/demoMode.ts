@@ -30,8 +30,10 @@ export async function getDemoModeState(): Promise<DemoModeState> {
   const cookieValue = cookieStore.get(DEMO_MODE_COOKIE)?.value;
   const isManualOverride = cookieValue === 'on' || cookieValue === 'off';
 
+  const envDemo = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
   return {
-    enabled: isManualOverride ? cookieValue === 'on' : false,
+    enabled: isManualOverride ? cookieValue === 'on' : envDemo,
     hasLiveProvider: true,
     provider,
     providerLabel: getProviderLabel(provider),

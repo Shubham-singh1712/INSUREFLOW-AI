@@ -14,7 +14,7 @@ export type LiveClaim = {
   submissionScore: number;
   documentsTotal: number;
   documentsPassed: number;
-  status: 'submitted' | 'ready' | 'repairs_pending';
+  status: 'submitted' | 'ready' | 'repairs_pending' | 'approved' | 'rejected';
   repairStatus: DashboardClaim['repairStatus'];
   submittedAt: string;
   confirmedData: ExtractedClaimData;
@@ -280,6 +280,67 @@ export const toClaimRegisterRows = (claims: LiveClaim[]): ClaimRegisterRow[] =>
           : 'Needs Repair',
   }));
 
+export const toLiveClaimsFromDemo = (claims: DashboardClaim[], userId: string): LiveClaim[] =>
+  claims.map((claim) => ({
+    id: claim.id,
+    userId,
+    claimId: claim.claimId,
+    patient: claim.patient,
+    tpa: claim.tpa,
+    amount: claim.amount,
+    aiConfidence: claim.aiConfidence,
+    submissionScore: claim.submissionScore,
+    documentsTotal: claim.documents.total,
+    documentsPassed: claim.documents.passed,
+    status: claim.status as any,
+    repairStatus: claim.repairStatus,
+    submittedAt: new Date().toISOString(),
+    confirmedData: {
+      patient: {
+        full_name: claim.patient,
+        date_of_birth: '1970-01-01',
+        gender: '',
+        address: '',
+        contact_phone: '',
+        contact_email: '',
+      },
+      insurance: {
+        policyholder_name: '',
+        group_number: '',
+        member_id: '',
+        payer_id: '',
+        plan_name: claim.tpa,
+      },
+      pre_authorization: {
+        approval_code: '',
+        authorized_from: '',
+        authorized_to: '',
+      },
+      clinical: {
+        admission_date: claim.admissionDate,
+        discharge_date: '',
+        attending_physician: '',
+        hospital_npi: '',
+        hospital_tax_id: '',
+        facility_name: '',
+        principal_diagnosis: '',
+      },
+      coding: {
+        icd10_codes: [],
+        cpt_codes: [],
+      },
+      billing: {
+        total_billed_amount: claim.amount.replace(/[^0-9]/g, ''),
+        line_items: [],
+      },
+      extraction_meta: {
+        overall_confidence: claim.aiConfidence,
+        low_confidence_fields: [],
+        requires_manual_review: claim.repairStatus !== 'clean',
+      },
+    },
+  }));
+
 export const buildLiveDashboardMetrics = (claims: LiveClaim[]): DashboardMetric[] => {
   const total = claims.length;
   const clean = claims.filter((claim) => claim.repairStatus === 'clean').length;
@@ -366,3 +427,19 @@ export const buildLiveDashboardMetrics = (claims: LiveClaim[]): DashboardMetric[
     },
   ];
 };
+
+export const updateLiveClaimStatus = async (
+  userId: string,
+  claimId: string,
+  status: LiveClaim['status']
+) => {
+  const claims = await readAllClaims();
+  const nextClaims = claims.map((claim) => {
+    if (claim.userId === userId && claim.claimId === claimId) {
+      return { ...claim, status };
+    }
+    return claim;
+  });
+  await writeAllClaims(nextClaims);
+};
+

@@ -1,0 +1,438 @@
+{
+  "success": true,
+  "extractionMethod": "mixed",
+  "claimId": "CLM-2858",
+  "uploadSessionId": "",
+  "pageCount": 6,
+  "classifiedPages": [
+    {
+      "page": 1,
+      "type": "preauth",
+      "confidence": 98
+    },
+    {
+      "page": 2,
+      "type": "hospital invoice",
+      "confidence": 95
+    },
+    {
+      "page": 3,
+      "type": "discharge summary",
+      "confidence": 94
+    },
+    {
+      "page": 4,
+      "type": "clinical note",
+      "confidence": 92
+    },
+    {
+      "page": 5,
+      "type": "aadhaar_card",
+      "confidence": 96
+    },
+    {
+      "page": 6,
+      "type": "pan_card",
+      "confidence": 95
+    }
+  ],
+  "extractedFields": {
+    "patient": {
+      "full_name": {
+        "value": "Sanjay Dutt",
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Sanjay Dutt"
+      },
+      "dob": {
+        "value": "1970-07-29",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 1970-07-29"
+      },
+      "gender": {
+        "value": "Male",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Male"
+      },
+      "age": {
+        "value": 55,
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 55"
+      },
+      "phone": {
+        "value": "+91 98450 44332",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: +91 98450 44332"
+      },
+      "address": {
+        "value": "22, Rustam Bagh, HAL 3rd Stage, Bangalore - 560017",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 22, Rustam Bagh, HAL 3rd Stage, Bangalore - 560017"
+      }
+    },
+    "insurance": {
+      "provider_name": {
+        "value": "HDFC ERGO Health Insurance",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: HDFC ERGO Health Insurance"
+      },
+      "tpa_name": {
+        "value": "Medi Assist TPA",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Medi Assist TPA"
+      },
+      "policy_number": {
+        "value": "HE-8890213",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: HE-8890213"
+      },
+      "member_id": {
+        "value": "MED-HE-00219",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: MED-HE-00219"
+      },
+      "corporate_or_group_id": {
+        "value": "CORP-INFOSYS",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: CORP-INFOSYS"
+      },
+      "insurance_id": {
+        "value": "INS-HE-7712",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INS-HE-7712"
+      }
+    },
+    "hospital": {
+      "facility_name": {
+        "value": "Manipal Hospital, Old Airport Road",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Manipal Hospital, Old Airport Road"
+      },
+      "doctor_name": {
+        "value": "Dr. Arvind Patel",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Dr. Arvind Patel"
+      },
+      "registration_number": {
+        "value": "REG-HOSP-8806",
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: REG-HOSP-8806"
+      },
+      "admission_date": {
+        "value": "2026-05-25",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-25"
+      },
+      "discharge_date": {
+        "value": "2026-05-28",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-28"
+      }
+    },
+    "clinical": {
+      "diagnosis": {
+        "value": "Unilateral Inguinal Hernia without Obstruction",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Unilateral Inguinal Hernia without Obstruction"
+      },
+      "icd10_codes": {
+        "value": [
+          "K40.90"
+        ],
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: K40.90"
+      },
+      "symptoms": {
+        "value": "Painful swelling in right groin, increases on straining",
+        "confidence": 92,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Painful swelling in right groin, increases on straining"
+      },
+      "surgery": {
+        "value": "Laparoscopic Hernioplasty with Mesh Placement",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Laparoscopic Hernioplasty with Mesh Placement"
+      },
+      "procedure": {
+        "value": "Hernia Repair Surgery",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Hernia Repair Surgery"
+      },
+      "length_of_stay": {
+        "value": 2,
+        "confidence": 95,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: 2"
+      },
+      "emergency_case": {
+        "value": false,
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      }
+    },
+    "financial": {
+      "room_rent": {
+        "value": 9000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 9000"
+      },
+      "icu_charges": {
+        "value": 0,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 0"
+      },
+      "ot_charges": {
+        "value": 40000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 40000"
+      },
+      "medicine": {
+        "value": 18000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 18000"
+      },
+      "investigations": {
+        "value": 10000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 10000"
+      },
+      "professional_fees": {
+        "value": 35000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 35000"
+      },
+      "final_bill": {
+        "value": 121000,
+        "confidence": 98,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 121000"
+      },
+      "total_claimed": {
+        "value": 121000,
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 121000"
+      }
+    },
+    "authorization": {
+      "patient_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "doctor_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "hospital_seal": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "approval_stamp": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      }
+    }
+  },
+  "validationErrors": [],
+  "claimHealth": 95,
+  "readiness": 98,
+  "ocrConfidence": 98,
+  "extractionConfidence": 95,
+  "rejectionRisk": "low",
+  "repairSuggestions": [],
+  "pdfType": "text_layer",
+  "state": "READY",
+  "documentChecklist": {
+    "items": [
+      {
+        "id": "preauth_form",
+        "label": "Pre-Authorization Form",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 98
+      },
+      {
+        "id": "insurance_card_member",
+        "label": "Insurance / TPA Membership Card",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 97
+      },
+      {
+        "id": "aadhaar_card",
+        "label": "Aadhaar Card",
+        "required": true,
+        "present": true,
+        "page": 5,
+        "confidence": 96
+      },
+      {
+        "id": "pan_card",
+        "label": "PAN Card",
+        "required": true,
+        "present": true,
+        "page": 6,
+        "confidence": 95
+      },
+      {
+        "id": "clinical_note_doctor",
+        "label": "Doctor's Clinical Note",
+        "required": true,
+        "present": true,
+        "page": 4,
+        "confidence": 92
+      },
+      {
+        "id": "policy_schedule",
+        "label": "Insurance Policy Schedule",
+        "required": false,
+        "present": true,
+        "page": 4,
+        "confidence": 90
+      }
+    ],
+    "allRequiredPresent": true,
+    "missingRequired": []
+  },
+  "auditLogs": [
+    {
+      "stage": "UPLOADED",
+      "timestamp": "2026-05-30T07:44:43.978Z",
+      "message": "PDF document uploaded: HDFC_Ergo_Hernia_Claim.pdf"
+    },
+    {
+      "stage": "PROCESSING",
+      "timestamp": "2026-05-30T07:44:55.978Z",
+      "message": "OCR process initiated. Running Tesseract layout analysis."
+    },
+    {
+      "stage": "OCR_COMPLETE",
+      "timestamp": "2026-05-30T07:45:13.978Z",
+      "message": "OCR extraction complete. Text layers identified. Confidence: 98%"
+    },
+    {
+      "stage": "CLASSIFIED",
+      "timestamp": "2026-05-30T07:45:43.978Z",
+      "message": "Classified pages: preauth (p.1), hospital invoice (p.2), discharge summary (p.3), clinical note (p.4), aadhaar_card (p.5), pan_card (p.6)"
+    },
+    {
+      "stage": "EXTRACTED",
+      "timestamp": "2026-05-30T07:46:13.978Z",
+      "message": "Entities extracted. Found patient Sanjay Dutt, provider HDFC ERGO Health Insurance, hospital Manipal Hospital, Old Airport Road"
+    },
+    {
+      "stage": "READY",
+      "timestamp": "2026-05-30T07:46:43.978Z",
+      "message": "Validation complete. No errors flagged. Ready to submit."
+    }
+  ]
+}

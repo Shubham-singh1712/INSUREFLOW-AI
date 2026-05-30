@@ -1,0 +1,480 @@
+{
+  "success": true,
+  "extractionMethod": "mixed",
+  "claimId": "CLM-2870",
+  "uploadSessionId": "",
+  "pageCount": 4,
+  "classifiedPages": [
+    {
+      "page": 1,
+      "type": "preauth",
+      "confidence": 98
+    },
+    {
+      "page": 2,
+      "type": "hospital invoice",
+      "confidence": 95
+    },
+    {
+      "page": 3,
+      "type": "discharge summary",
+      "confidence": 94
+    },
+    {
+      "page": 4,
+      "type": "clinical note",
+      "confidence": 92
+    }
+  ],
+  "extractedFields": {
+    "patient": {
+      "full_name": {
+        "value": "Rahul Deshmukh",
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Rahul Deshmukh"
+      },
+      "dob": {
+        "value": null,
+        "confidence": 0,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 1988-12-05"
+      },
+      "gender": {
+        "value": "Female",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Female"
+      },
+      "age": {
+        "value": 37,
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 37"
+      },
+      "phone": {
+        "value": "+91 99300 22114",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: +91 99300 22114"
+      },
+      "address": {
+        "value": "Shivaji Park, Dadar West, Mumbai - 400028",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Shivaji Park, Dadar West, Mumbai - 400028"
+      }
+    },
+    "insurance": {
+      "provider_name": {
+        "value": "Star Health Health Insurance",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Star Health Health Insurance"
+      },
+      "tpa_name": {
+        "value": "Star Health In-house TPA",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Star Health In-house TPA"
+      },
+      "policy_number": {
+        "value": "SH-990822-11",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: SH-990822-11"
+      },
+      "member_id": {
+        "value": "MEM-SH-44312",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: MEM-SH-44312"
+      },
+      "corporate_or_group_id": {
+        "value": "CORP-MAHINDRA",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: CORP-MAHINDRA"
+      },
+      "insurance_id": {
+        "value": "INS-SH-1109",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INS-SH-1109"
+      }
+    },
+    "hospital": {
+      "facility_name": {
+        "value": "Global Hospitals, Parel",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Global Hospitals, Parel"
+      },
+      "doctor_name": {
+        "value": "Dr. K. R. Prasad",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Dr. K. R. Prasad"
+      },
+      "registration_number": {
+        "value": "REG-HOSP-8818",
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: REG-HOSP-8818"
+      },
+      "admission_date": {
+        "value": "2026-05-25",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-25"
+      },
+      "discharge_date": {
+        "value": "2026-05-20",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-28"
+      }
+    },
+    "clinical": {
+      "diagnosis": {
+        "value": "Polytrauma - Closed Fracture Femur Shaft + Left Rib Fractures",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Polytrauma - Closed Fracture Femur Shaft + Left Rib Fractures"
+      },
+      "icd10_codes": {
+        "value": [
+          "S72.301A",
+          "S22.42XA"
+        ],
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: S72.301A,S22.42XA"
+      },
+      "symptoms": {
+        "value": "Severe pain, swelling, deformity in right thigh, pleuritic chest pain",
+        "confidence": 92,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Severe pain, swelling, deformity in right thigh, pleuritic chest pain"
+      },
+      "surgery": {
+        "value": "Closed Reduction and Internal Fixation (CRIF) with Interlocking Nail",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Closed Reduction and Internal Fixation (CRIF) with Interlocking Nail"
+      },
+      "procedure": {
+        "value": "Femur Fracture Nail Orthopedic Surgery",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Femur Fracture Nail Orthopedic Surgery"
+      },
+      "length_of_stay": {
+        "value": 5,
+        "confidence": 95,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: 5"
+      },
+      "emergency_case": {
+        "value": false,
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      }
+    },
+    "financial": {
+      "room_rent": {
+        "value": 9500,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 9500"
+      },
+      "icu_charges": {
+        "value": 35000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 35000"
+      },
+      "ot_charges": {
+        "value": 65000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 65000"
+      },
+      "medicine": {
+        "value": 42000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 42000"
+      },
+      "investigations": {
+        "value": 28000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 28000"
+      },
+      "professional_fees": {
+        "value": 60000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 60000"
+      },
+      "final_bill": {
+        "value": 277500,
+        "confidence": 98,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 277500"
+      },
+      "total_claimed": {
+        "value": 277500,
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 277500"
+      }
+    },
+    "authorization": {
+      "patient_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "doctor_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "hospital_seal": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "approval_stamp": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      }
+    }
+  },
+  "validationErrors": [
+    {
+      "field": "patient.dob",
+      "issue": "Patient Date of Birth is missing from demographics",
+      "severity": "critical",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Please enter patient's Date of Birth from Aadhaar or policy schedule."
+    },
+    {
+      "field": "clinical.discharge_date",
+      "issue": "Chronological inconsistency: Discharge Date (2026-05-20) is before Admission Date (2026-05-25)",
+      "severity": "critical",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Verify dates in hospital log and correct the discharge date to the actual discharge."
+    },
+    {
+      "field": "documents.aadhaar_card",
+      "issue": "Missing required document: Aadhaar Card. Govt-mandated KYC ID proof not detected.",
+      "severity": "critical",
+      "pages": [],
+      "suggestedAction": "Upload the patient's Aadhaar card (front and back) to resolve the KYC check."
+    },
+    {
+      "field": "financial.final_bill",
+      "issue": "Math validation failed: Line items sum does not equal final bill. Expected final bill: INR 2,77,500",
+      "severity": "high",
+      "pages": [
+        2
+      ],
+      "suggestedAction": "Recalculate or inspect line items details and adjust final billing total."
+    }
+  ],
+  "claimHealth": 42,
+  "readiness": 32,
+  "ocrConfidence": 98,
+  "extractionConfidence": 95,
+  "rejectionRisk": "high",
+  "repairSuggestions": [
+    {
+      "fieldId": "patient.dob",
+      "suggestion": "Retrieve DOB from Aadhaar or manual input.",
+      "confidence": 90,
+      "reason": "OCR could not read the blurry birth date field in the photo copy."
+    },
+    {
+      "fieldId": "clinical.discharge_date",
+      "suggestion": "Correct discharge date to 2026-05-28.",
+      "confidence": 75,
+      "reason": "Invoice shows discharge date is 28th May, but form has a typo of 20th May."
+    }
+  ],
+  "pdfType": "text_layer",
+  "state": "REVIEW_REQUIRED",
+  "documentChecklist": {
+    "items": [
+      {
+        "id": "preauth_form",
+        "label": "Pre-Authorization Form",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 98
+      },
+      {
+        "id": "insurance_card_member",
+        "label": "Insurance / TPA Membership Card",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 97
+      },
+      {
+        "id": "aadhaar_card",
+        "label": "Aadhaar Card",
+        "required": true,
+        "present": false,
+        "page": 5,
+        "confidence": 96
+      },
+      {
+        "id": "pan_card",
+        "label": "PAN Card",
+        "required": true,
+        "present": false,
+        "page": null,
+        "confidence": 0
+      },
+      {
+        "id": "clinical_note_doctor",
+        "label": "Doctor's Clinical Note",
+        "required": true,
+        "present": true,
+        "page": 4,
+        "confidence": 92
+      },
+      {
+        "id": "policy_schedule",
+        "label": "Insurance Policy Schedule",
+        "required": false,
+        "present": true,
+        "page": 4,
+        "confidence": 90
+      }
+    ],
+    "allRequiredPresent": false,
+    "missingRequired": [
+      "aadhaar_card",
+      "pan_card"
+    ]
+  },
+  "auditLogs": [
+    {
+      "stage": "UPLOADED",
+      "timestamp": "2026-05-30T07:34:42.987Z",
+      "message": "PDF document uploaded: Global_Hospitals_Trauma_Claim.json"
+    },
+    {
+      "stage": "PROCESSING",
+      "timestamp": "2026-05-30T07:34:54.987Z",
+      "message": "OCR process initiated. Running Tesseract layout analysis."
+    },
+    {
+      "stage": "OCR_COMPLETE",
+      "timestamp": "2026-05-30T07:35:12.987Z",
+      "message": "OCR extraction complete. Text layers identified. Confidence: 98%"
+    },
+    {
+      "stage": "CLASSIFIED",
+      "timestamp": "2026-05-30T07:35:42.987Z",
+      "message": "Classified pages: preauth (p.1), hospital invoice (p.2), discharge summary (p.3), clinical note (p.4)"
+    },
+    {
+      "stage": "EXTRACTED",
+      "timestamp": "2026-05-30T07:36:12.987Z",
+      "message": "Entities extracted. Found patient Rahul Deshmukh, provider Star Health Health Insurance, hospital Global Hospitals, Parel"
+    },
+    {
+      "stage": "REVIEW_REQUIRED",
+      "timestamp": "2026-05-30T07:36:42.987Z",
+      "message": "Validation flagged 4 errors. Review & repair required."
+    }
+  ]
+}

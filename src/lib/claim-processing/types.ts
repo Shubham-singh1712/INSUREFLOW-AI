@@ -3,6 +3,7 @@ export type ClaimState =
   | 'PROCESSING'
   | 'OCR_COMPLETE'
   | 'CLASSIFIED'
+  | 'EXTRACTED'
   | 'REVIEW_REQUIRED'
   | 'READY'
   | 'SUBMITTED'

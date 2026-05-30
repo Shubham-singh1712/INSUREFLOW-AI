@@ -34,16 +34,15 @@ export default async function ValidationQueuePage() {
     data: { user },
   } = await supabase.auth.getUser();
   const liveClaims = await listLiveClaims(user?.id);
-  const liveQueue = liveClaims.map((claim) => ({
-    claim: claim.claimId,
-    issue:
-      claim.repairStatus === 'clean'
-        ? 'Validation passed and submitted to TPA queue'
-        : 'Claim needs manual repair review',
-    severity: claim.repairStatus === 'clean' ? 'Clean' : 'Medium',
-    progress: ['OCR passed', 'Scrubbing passed', 'Submitted'],
-  }));
-  const visibleQueue = demoMode.enabled ? queue : liveQueue;
+  const liveQueue = liveClaims
+    .filter((claim) => claim.status === 'repairs_pending')
+    .map((claim) => ({
+      claim: claim.claimId,
+      issue: claim.reviewReasons?.[0] || 'Claim needs manual repair review',
+      severity: claim.aiConfidence < 60 ? 'High' as const : 'Medium' as const,
+      progress: ['OCR passed', 'Scrubbing passed', 'Repair suggested'],
+    }));
+  const visibleQueue = demoMode.enabled ? [...liveQueue, ...queue] : liveQueue;
   const waitingReview = liveClaims.filter((claim) => claim.repairStatus !== 'clean').length;
   const cleanCount = liveClaims.filter((claim) => claim.repairStatus === 'clean').length;
 

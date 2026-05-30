@@ -7,7 +7,7 @@ import ActivityTimeline from './components/ActivityTimeline';
 import SubmissionQueueWidget from './components/SubmissionQueueWidget';
 import { demoDashboardClaims, demoDashboardMetrics, emptyDashboardMetrics } from '@/lib/demoData';
 import { getDemoModeState } from '@/lib/demoMode';
-import { buildLiveDashboardMetrics, listLiveClaims, toDashboardClaims } from '@/lib/liveClaims';
+import { buildLiveDashboardMetrics, listLiveClaims, toDashboardClaims, toLiveClaimsFromDemo } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
 import { getTimeOfDayGreeting, getUserDisplayName } from '@/lib/serverGreeting';
 
@@ -17,9 +17,11 @@ export default async function MainDashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const liveClaims = await listLiveClaims(user?.id);
-  const claims = demoMode.enabled ? demoDashboardClaims : toDashboardClaims(liveClaims);
+  const claims = demoMode.enabled
+    ? [...toDashboardClaims(liveClaims), ...demoDashboardClaims]
+    : toDashboardClaims(liveClaims);
   const metrics = demoMode.enabled
-    ? demoDashboardMetrics
+    ? buildLiveDashboardMetrics([...liveClaims, ...toLiveClaimsFromDemo(demoDashboardClaims, user?.id || 'demo-user')])
     : liveClaims.length > 0
       ? buildLiveDashboardMetrics(liveClaims)
       : emptyDashboardMetrics;

@@ -20,30 +20,30 @@ export default async function SubmissionQueuePage() {
   } = await supabase.auth.getUser();
   const liveClaims = await listLiveClaims(user?.id);
   const liveReadyCount = liveClaims.filter((claim) => claim.status === 'ready').length;
-  const liveSubmittedCount = liveClaims.filter((claim) => claim.status === 'submitted').length;
+  const liveSubmittedCount = liveClaims.filter((claim) => claim.status === 'submitted' || claim.status === 'approved').length;
   const liveSubmittedToday = liveClaims.filter((claim) => {
-    if (claim.status !== 'submitted') return false;
+    if (claim.status !== 'submitted' && claim.status !== 'approved') return false;
     return new Date(claim.submittedAt).toDateString() === new Date().toDateString();
   }).length;
   const liveSubmissions = liveClaims
-    .filter((claim) => claim.status === 'ready' || claim.status === 'submitted')
+    .filter((claim) => claim.status === 'ready' || claim.status === 'submitted' || claim.status === 'approved')
     .map((claim) => {
       const status =
         claim.status === 'ready'
           ? 'Ready'
-          : claim.status === 'submitted'
-            ? 'Submitted'
-            : 'Needs Repair';
+          : claim.status === 'approved'
+            ? 'Approved'
+            : 'Submitted';
       const detail =
-        status === 'Ready'
+        claim.status === 'ready'
           ? 'UB-04 + EDI ready'
-          : status === 'Submitted'
-            ? 'UB-04 + EDI submitted'
-            : 'Repair review required';
+          : claim.status === 'approved'
+            ? 'Claim APPROVED by TPA'
+            : 'UB-04 + EDI submitted';
 
       return [claim.claimId, claim.tpa, detail, status];
     });
-  const visibleSubmissions = demoMode.enabled ? submissions : liveSubmissions;
+  const visibleSubmissions = demoMode.enabled ? [...liveSubmissions, ...submissions] : liveSubmissions;
 
   return (
     <SectionShell
@@ -115,7 +115,7 @@ export default async function SubmissionQueuePage() {
                 </p>
               </div>
               <StatusPill
-                tone={status === 'Ready' ? 'success' : status === 'Submitted' ? 'info' : 'warning'}
+                tone={status === 'Ready' || status === 'Approved' ? 'success' : status === 'Submitted' ? 'info' : 'warning'}
               >
                 {status}
               </StatusPill>

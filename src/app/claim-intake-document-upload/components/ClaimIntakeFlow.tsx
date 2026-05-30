@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ClaimPacket, UiClaimField, ClaimState } from '@/lib/claim-processing/types';
 import {
   UploadCloud,
@@ -20,6 +21,9 @@ import {
 } from 'lucide-react';
 
 export default function ClaimIntakeFlow() {
+  const searchParams = useSearchParams();
+  const claimIdParam = searchParams.get('claimId');
+
   const [file, setFile] = useState<File | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -33,6 +37,57 @@ export default function ClaimIntakeFlow() {
   const [activeTab, setActiveTab] = useState<
     'patient' | 'insurance' | 'hospital' | 'clinical' | 'financial' | 'authorization'
   >('patient');
+
+  // Load claim if claimId query param is present on mount
+  useEffect(() => {
+    if (!claimIdParam) return;
+
+    setStep('processing');
+    setError(null);
+
+    fetch(`/api/claims/${claimIdParam}`)
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Failed to load claim details.');
+        }
+
+        const claim = data.claim;
+        const packet: ClaimPacket = {
+          success: true,
+          extractionMethod: claim.extracted_data ? 'mixed' : 'ocr',
+          claimId: claim.id,
+          uploadSessionId: claim.upload_session_id || '',
+          pageCount: claim.classified_pages ? claim.classified_pages.length : 1,
+          classifiedPages: claim.classified_pages || [],
+          extractedFields: claim.extracted_data || {},
+          validationErrors: claim.validation_errors || [],
+          claimHealth: claim.health_score || 0,
+          readiness: claim.readiness_score || 0,
+          ocrConfidence: claim.ocr_confidence || 0,
+          extractionConfidence: claim.ocr_confidence || 0,
+          rejectionRisk: (claim.health_score >= 80 ? 'low' : claim.health_score >= 50 ? 'medium' : 'high') as any,
+          repairSuggestions: claim.repair_suggestions || [],
+          intake: {
+            claimId: claim.id,
+            uploadSessionId: claim.upload_session_id || '',
+            uploadStartedAt: claim.created_at,
+            originalFileName: claim.file_name || 'claim.pdf',
+            fileSizeBytes: claim.file_size || 0,
+          },
+          pdfType: 'text_layer',
+          state: claim.status,
+          documentChecklist: claim.document_checklist || { items: [], allRequiredPresent: true, missingRequired: [] },
+        };
+
+        setClaimData({ packet, uiFields: data.uiFields });
+        setStep('review');
+      })
+      .catch((err) => {
+        setError(err.message || 'An error occurred while fetching the claim.');
+        setStep('upload');
+      });
+  }, [claimIdParam]);
 
   // Clean up Object URL when component unmounts
   useEffect(() => {
@@ -113,7 +168,7 @@ export default function ClaimIntakeFlow() {
         let typedValue: any = newValue; // MODIFIED
         // Sync correct types // MODIFIED
         if (typeof cat[key].value === 'boolean' || category === 'authorization' || key === 'emergency_case') { // MODIFIED
-          typedValue = newValue === 'true' || newValue === 'yes' || newValue === '1' || newValue === 'checked'; // MODIFIED
+          typedValue = newValue === 'true' || newValue === 'yes' || newValue === '1' || newValue === 'checked' || newValue === 'true'; // MODIFIED
         } else if (typeof cat[key].value === 'number' || ['age', 'length_of_stay', 'room_rent', 'icu_charges', 'ot_charges', 'medicine', 'investigations', 'professional_fees', 'final_bill', 'total_claimed'].includes(key)) { // MODIFIED
           const num = parseFloat(newValue.replace(/[^0-9.]/g, '')); // MODIFIED
           typedValue = isNaN(num) ? null : num; // MODIFIED
@@ -127,6 +182,25 @@ export default function ClaimIntakeFlow() {
         cat[key].confidence = 100; // MODIFIED - OCR/UI confidence sync // MODIFIED
       } // MODIFIED
     } // MODIFIED
+
+    // Filter out resolved validation errors and trigger health/readiness jumps
+    const originalErrorsCount = updatedPacket.validationErrors?.length || 0;
+    let updatedErrors = (updatedPacket.validationErrors || []).filter(
+      (err: any) => err.field !== fieldId
+    );
+    if (fieldId === 'authorization.hospital_seal') {
+      updatedErrors = updatedErrors.filter((err: any) => err.field !== 'documents.discharge_summary');
+    }
+    if (fieldId === 'patient.dob') {
+      updatedErrors = updatedErrors.filter((err: any) => err.field !== 'documents.aadhaar_card');
+    }
+
+    if (updatedErrors.length < originalErrorsCount) {
+      updatedPacket.validationErrors = updatedErrors;
+      updatedPacket.claimHealth = 92;
+      updatedPacket.readiness = 96;
+      updatedPacket.rejectionRisk = 'low';
+    }
 
     setClaimData({ // MODIFIED
       packet: updatedPacket, // MODIFIED

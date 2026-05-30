@@ -1,0 +1,454 @@
+{
+  "success": true,
+  "extractionMethod": "mixed",
+  "claimId": "CLM-2865",
+  "uploadSessionId": "",
+  "pageCount": 4,
+  "classifiedPages": [
+    {
+      "page": 1,
+      "type": "preauth",
+      "confidence": 98
+    },
+    {
+      "page": 2,
+      "type": "hospital invoice",
+      "confidence": 95
+    },
+    {
+      "page": 4,
+      "type": "clinical note",
+      "confidence": 92
+    },
+    {
+      "page": 5,
+      "type": "aadhaar_card",
+      "confidence": 96
+    }
+  ],
+  "extractedFields": {
+    "patient": {
+      "full_name": {
+        "value": "Kishore Kumar",
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Kishore Kumar"
+      },
+      "dob": {
+        "value": "1966-08-04",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 1966-08-04"
+      },
+      "gender": {
+        "value": "Male",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Male"
+      },
+      "age": {
+        "value": 59,
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 59"
+      },
+      "phone": {
+        "value": "+91 99800 11223",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: +91 99800 11223"
+      },
+      "address": {
+        "value": "55, 14th Main, HSR Layout Sector 3, Bangalore - 560102",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 55, 14th Main, HSR Layout Sector 3, Bangalore - 560102"
+      }
+    },
+    "insurance": {
+      "provider_name": {
+        "value": "Apollo Munich Health Insurance",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Apollo Munich Health Insurance"
+      },
+      "tpa_name": {
+        "value": "Medi Assist TPA",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Medi Assist TPA"
+      },
+      "policy_number": {
+        "value": "AP-77610-88",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: AP-77610-88"
+      },
+      "member_id": {
+        "value": "MED-AP-99081",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: MED-AP-99081"
+      },
+      "corporate_or_group_id": {
+        "value": "CORP-GENPACT",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: CORP-GENPACT"
+      },
+      "insurance_id": {
+        "value": "INS-AP-0082",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INS-AP-0082"
+      }
+    },
+    "hospital": {
+      "facility_name": {
+        "value": "Narayana Health, HSR Layout",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Narayana Health, HSR Layout"
+      },
+      "doctor_name": {
+        "value": "Dr. Lloyd Vincent",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Dr. Lloyd Vincent"
+      },
+      "registration_number": {
+        "value": "REG-HOSP-8813",
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: REG-HOSP-8813"
+      },
+      "admission_date": {
+        "value": "2026-05-25",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-25"
+      },
+      "discharge_date": {
+        "value": "2026-05-28",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-28"
+      }
+    },
+    "clinical": {
+      "diagnosis": {
+        "value": "End Stage Renal Disease on Maintenance Hemodialysis",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: End Stage Renal Disease on Maintenance Hemodialysis"
+      },
+      "icd10_codes": {
+        "value": [
+          "N18.6"
+        ],
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: N18.6"
+      },
+      "symptoms": {
+        "value": "Uremic symptoms, fluid overload, severe anemia",
+        "confidence": 92,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Uremic symptoms, fluid overload, severe anemia"
+      },
+      "surgery": {
+        "value": "AV Fistula Creation (Left Forearm)",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: AV Fistula Creation (Left Forearm)"
+      },
+      "procedure": {
+        "value": "Arteriovenous Fistula Surgery",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Arteriovenous Fistula Surgery"
+      },
+      "length_of_stay": {
+        "value": 2,
+        "confidence": 95,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: 2"
+      },
+      "emergency_case": {
+        "value": false,
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      }
+    },
+    "financial": {
+      "room_rent": {
+        "value": 7500,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 7500"
+      },
+      "icu_charges": {
+        "value": 0,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 0"
+      },
+      "ot_charges": {
+        "value": 25000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 25000"
+      },
+      "medicine": {
+        "value": 12000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 12000"
+      },
+      "investigations": {
+        "value": 8500,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 8500"
+      },
+      "professional_fees": {
+        "value": 20000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 20000"
+      },
+      "final_bill": {
+        "value": 80500,
+        "confidence": 98,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 80500"
+      },
+      "total_claimed": {
+        "value": 80500,
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 80500"
+      }
+    },
+    "authorization": {
+      "patient_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "doctor_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "hospital_seal": {
+        "value": false,
+        "confidence": 0,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      },
+      "approval_stamp": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      }
+    }
+  },
+  "validationErrors": [
+    {
+      "field": "authorization.hospital_seal",
+      "issue": "Hospital seal or stamp was not detected on page 1 of Preauth form",
+      "severity": "high",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Affix the official hospital stamp and signature in Part B, then re-upload or mark verified if physically checked."
+    },
+    {
+      "field": "documents.discharge_summary",
+      "issue": "Missing required document: Discharge Summary. The hospital relief and billing summary was not detected in the document stream.",
+      "severity": "high",
+      "pages": [],
+      "suggestedAction": "Upload the treating doctor's signed Discharge Summary showing final outcomes and discharge vitals."
+    }
+  ],
+  "claimHealth": 71,
+  "readiness": 68,
+  "ocrConfidence": 98,
+  "extractionConfidence": 95,
+  "rejectionRisk": "medium",
+  "repairSuggestions": [
+    {
+      "fieldId": "authorization.hospital_seal",
+      "suggestion": "Hospital Seal missing. Mark Verified if verified offline.",
+      "confidence": 80,
+      "reason": "The seal block is empty. Hospital desk seal validation required."
+    }
+  ],
+  "pdfType": "text_layer",
+  "state": "REVIEW_REQUIRED",
+  "documentChecklist": {
+    "items": [
+      {
+        "id": "preauth_form",
+        "label": "Pre-Authorization Form",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 98
+      },
+      {
+        "id": "insurance_card_member",
+        "label": "Insurance / TPA Membership Card",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 97
+      },
+      {
+        "id": "aadhaar_card",
+        "label": "Aadhaar Card",
+        "required": true,
+        "present": true,
+        "page": 5,
+        "confidence": 96
+      },
+      {
+        "id": "pan_card",
+        "label": "PAN Card",
+        "required": true,
+        "present": false,
+        "page": null,
+        "confidence": 0
+      },
+      {
+        "id": "clinical_note_doctor",
+        "label": "Doctor's Clinical Note",
+        "required": true,
+        "present": true,
+        "page": 4,
+        "confidence": 92
+      },
+      {
+        "id": "policy_schedule",
+        "label": "Insurance Policy Schedule",
+        "required": false,
+        "present": true,
+        "page": 4,
+        "confidence": 90
+      }
+    ],
+    "allRequiredPresent": false,
+    "missingRequired": [
+      "pan_card"
+    ]
+  },
+  "auditLogs": [
+    {
+      "stage": "UPLOADED",
+      "timestamp": "2026-05-30T07:34:42.909Z",
+      "message": "PDF document uploaded: Narayana_Nephrology_Claim.json"
+    },
+    {
+      "stage": "PROCESSING",
+      "timestamp": "2026-05-30T07:34:54.909Z",
+      "message": "OCR process initiated. Running Tesseract layout analysis."
+    },
+    {
+      "stage": "OCR_COMPLETE",
+      "timestamp": "2026-05-30T07:35:12.909Z",
+      "message": "OCR extraction complete. Text layers identified. Confidence: 98%"
+    },
+    {
+      "stage": "CLASSIFIED",
+      "timestamp": "2026-05-30T07:35:42.909Z",
+      "message": "Classified pages: preauth (p.1), hospital invoice (p.2), clinical note (p.4), aadhaar_card (p.5)"
+    },
+    {
+      "stage": "EXTRACTED",
+      "timestamp": "2026-05-30T07:36:12.909Z",
+      "message": "Entities extracted. Found patient Kishore Kumar, provider Apollo Munich Health Insurance, hospital Narayana Health, HSR Layout"
+    },
+    {
+      "stage": "REVIEW_REQUIRED",
+      "timestamp": "2026-05-30T07:36:42.909Z",
+      "message": "Validation flagged 2 errors. Review & repair required."
+    }
+  ]
+}

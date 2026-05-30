@@ -1,0 +1,460 @@
+{
+  "success": true,
+  "extractionMethod": "mixed",
+  "claimId": "CLM-2863",
+  "uploadSessionId": "",
+  "pageCount": 4,
+  "classifiedPages": [
+    {
+      "page": 1,
+      "type": "preauth",
+      "confidence": 98
+    },
+    {
+      "page": 2,
+      "type": "hospital invoice",
+      "confidence": 95
+    },
+    {
+      "page": 4,
+      "type": "clinical note",
+      "confidence": 92
+    },
+    {
+      "page": 5,
+      "type": "aadhaar_card",
+      "confidence": 96
+    }
+  ],
+  "extractedFields": {
+    "patient": {
+      "full_name": {
+        "value": "Vijay Mallya",
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Vijay Mallya"
+      },
+      "dob": {
+        "value": "1963-06-14",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 1963-06-14"
+      },
+      "gender": {
+        "value": "Male",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Male"
+      },
+      "age": {
+        "value": 62,
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 62"
+      },
+      "phone": {
+        "value": "+91 98450 11223",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: +91 98450 11223"
+      },
+      "address": {
+        "value": "42, Lavelle Road, Bangalore - 560001",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 42, Lavelle Road, Bangalore - 560001"
+      }
+    },
+    "insurance": {
+      "provider_name": {
+        "value": "ICICI Lombard Health Insurance",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: ICICI Lombard Health Insurance"
+      },
+      "tpa_name": {
+        "value": "Family Health Plan In-house TPA",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Family Health Plan In-house TPA"
+      },
+      "policy_number": {
+        "value": "IL-556102-PP",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: IL-556102-PP"
+      },
+      "member_id": {
+        "value": "FHPL-IL-11234",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: FHPL-IL-11234"
+      },
+      "corporate_or_group_id": {
+        "value": "INDIVIDUAL-PLATINUM",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INDIVIDUAL-PLATINUM"
+      },
+      "insurance_id": {
+        "value": "INS-IL-9002",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INS-IL-9002"
+      }
+    },
+    "hospital": {
+      "facility_name": {
+        "value": "Manipal Hospital, Whitefield",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Manipal Hospital, Whitefield"
+      },
+      "doctor_name": {
+        "value": "Dr. Deepak Gowda",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Dr. Deepak Gowda"
+      },
+      "registration_number": {
+        "value": "REG-HOSP-8811",
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: REG-HOSP-8811"
+      },
+      "admission_date": {
+        "value": "2026-05-25",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-25"
+      },
+      "discharge_date": {
+        "value": "2026-05-28",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-28"
+      }
+    },
+    "clinical": {
+      "diagnosis": {
+        "value": "Ureteric Calculus (Kidney Stone 8mm)",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Ureteric Calculus (Kidney Stone 8mm)"
+      },
+      "icd10_codes": {
+        "value": [
+          "N20.1"
+        ],
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: N20.1"
+      },
+      "symptoms": {
+        "value": "Excruciating left flank pain radiating to groin, hematuria, vomiting",
+        "confidence": 92,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Excruciating left flank pain radiating to groin, hematuria, vomiting"
+      },
+      "surgery": {
+        "value": "Laser Lithotripsy + DJ Stenting",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Laser Lithotripsy + DJ Stenting"
+      },
+      "procedure": {
+        "value": "URSL (Ureteroscopic Retrograde Stone Surgery)",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: URSL (Ureteroscopic Retrograde Stone Surgery)"
+      },
+      "length_of_stay": {
+        "value": 1,
+        "confidence": 95,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: 1"
+      },
+      "emergency_case": {
+        "value": false,
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      }
+    },
+    "financial": {
+      "room_rent": {
+        "value": 12000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 12000"
+      },
+      "icu_charges": {
+        "value": 0,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 0"
+      },
+      "ot_charges": {
+        "value": 45000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 45000"
+      },
+      "medicine": {
+        "value": 15000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 15000"
+      },
+      "investigations": {
+        "value": 12000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 12000"
+      },
+      "professional_fees": {
+        "value": 35000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 35000"
+      },
+      "final_bill": {
+        "value": 119000,
+        "confidence": 98,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 119000"
+      },
+      "total_claimed": {
+        "value": 119000,
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 119000"
+      }
+    },
+    "authorization": {
+      "patient_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "doctor_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "hospital_seal": {
+        "value": false,
+        "confidence": 0,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      },
+      "approval_stamp": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      }
+    }
+  },
+  "validationErrors": [
+    {
+      "field": "authorization.hospital_seal",
+      "issue": "Hospital seal or stamp was not detected on page 1 of Preauth form",
+      "severity": "high",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Affix the official hospital stamp and signature in Part B, then re-upload or mark verified if physically checked."
+    },
+    {
+      "field": "documents.discharge_summary",
+      "issue": "Missing required document: Discharge Summary. The hospital relief and billing summary was not detected in the document stream.",
+      "severity": "high",
+      "pages": [],
+      "suggestedAction": "Upload the treating doctor's signed Discharge Summary showing final outcomes and discharge vitals."
+    }
+  ],
+  "claimHealth": 71,
+  "readiness": 68,
+  "ocrConfidence": 98,
+  "extractionConfidence": 95,
+  "rejectionRisk": "medium",
+  "repairSuggestions": [
+    {
+      "fieldId": "authorization.hospital_seal",
+      "suggestion": "Hospital Seal missing. Mark Verified if verified offline.",
+      "confidence": 80,
+      "reason": "The seal block is empty. Hospital desk seal validation required."
+    },
+    {
+      "fieldId": "documents.discharge_summary",
+      "suggestion": "Upload a signed Discharge Summary.",
+      "confidence": 85,
+      "reason": "A signed summary must confirm final recovery status before cashless adjudication."
+    }
+  ],
+  "pdfType": "text_layer",
+  "state": "REVIEW_REQUIRED",
+  "documentChecklist": {
+    "items": [
+      {
+        "id": "preauth_form",
+        "label": "Pre-Authorization Form",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 98
+      },
+      {
+        "id": "insurance_card_member",
+        "label": "Insurance / TPA Membership Card",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 97
+      },
+      {
+        "id": "aadhaar_card",
+        "label": "Aadhaar Card",
+        "required": true,
+        "present": true,
+        "page": 5,
+        "confidence": 96
+      },
+      {
+        "id": "pan_card",
+        "label": "PAN Card",
+        "required": true,
+        "present": false,
+        "page": null,
+        "confidence": 0
+      },
+      {
+        "id": "clinical_note_doctor",
+        "label": "Doctor's Clinical Note",
+        "required": true,
+        "present": true,
+        "page": 4,
+        "confidence": 92
+      },
+      {
+        "id": "policy_schedule",
+        "label": "Insurance Policy Schedule",
+        "required": false,
+        "present": true,
+        "page": 4,
+        "confidence": 90
+      }
+    ],
+    "allRequiredPresent": false,
+    "missingRequired": [
+      "pan_card"
+    ]
+  },
+  "auditLogs": [
+    {
+      "stage": "UPLOADED",
+      "timestamp": "2026-05-30T07:44:43.988Z",
+      "message": "PDF document uploaded: Manipal_Urology_Claim.pdf"
+    },
+    {
+      "stage": "PROCESSING",
+      "timestamp": "2026-05-30T07:44:55.988Z",
+      "message": "OCR process initiated. Running Tesseract layout analysis."
+    },
+    {
+      "stage": "OCR_COMPLETE",
+      "timestamp": "2026-05-30T07:45:13.988Z",
+      "message": "OCR extraction complete. Text layers identified. Confidence: 98%"
+    },
+    {
+      "stage": "CLASSIFIED",
+      "timestamp": "2026-05-30T07:45:43.988Z",
+      "message": "Classified pages: preauth (p.1), hospital invoice (p.2), clinical note (p.4), aadhaar_card (p.5)"
+    },
+    {
+      "stage": "EXTRACTED",
+      "timestamp": "2026-05-30T07:46:13.988Z",
+      "message": "Entities extracted. Found patient Vijay Mallya, provider ICICI Lombard Health Insurance, hospital Manipal Hospital, Whitefield"
+    },
+    {
+      "stage": "REVIEW_REQUIRED",
+      "timestamp": "2026-05-30T07:46:43.988Z",
+      "message": "Validation flagged 2 errors. Review & repair required."
+    }
+  ]
+}
