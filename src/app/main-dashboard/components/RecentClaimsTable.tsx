@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import Link from 'next/link';
 import {
   Search,
   Filter,
@@ -296,20 +297,22 @@ export default function RecentClaimsTable({ claims }: { claims: Claim[] }) {
                   <td className="px-4 py-3.5">
                     <span className={statusCfg.className}>{statusCfg.label}</span>
                   </td>
-                  <td className="px-4 py-3.5">
+                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
+                      <Link
+                        href={`/claim-intake-document-upload?claimId=${encodeURIComponent(claim.claimId)}`}
                         title="View claim details"
                         className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                       >
                         <Eye size={14} />
-                      </button>
-                      <button
+                      </Link>
+                      <Link
+                        href={`/claim-intake-document-upload?claimId=${encodeURIComponent(claim.claimId)}`}
                         title="Edit claim"
                         className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
                       >
                         <Edit3 size={14} />
-                      </button>
+                      </Link>
                       <button
                         title="More actions"
                         className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
@@ -324,8 +327,7 @@ export default function RecentClaimsTable({ claims }: { claims: Claim[] }) {
             {paginated.length === 0 && (
               <tr>
                 <td className="px-5 py-10 text-center text-muted-foreground" colSpan={11}>
-                  No live claims are loaded yet. Turn on Demo Mode in Settings to view mock claim
-                  data.
+                  No live claims are loaded yet. Upload a claim in Demo Mode or process a PDF to populate the dashboard.
                 </td>
               </tr>
             )}

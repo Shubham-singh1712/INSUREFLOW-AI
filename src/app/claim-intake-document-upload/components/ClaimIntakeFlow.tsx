@@ -17,7 +17,6 @@ import {
   CheckSquare,
   FileCheck2,
   ArrowRight,
-  RefreshCw,
 } from 'lucide-react';
 
 export default function ClaimIntakeFlow() {
@@ -35,7 +34,13 @@ export default function ClaimIntakeFlow() {
     uiFields: UiClaimField[];
   } | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'patient' | 'insurance' | 'hospital' | 'clinical' | 'financial' | 'authorization'
+    | 'patient'
+    | 'insurance'
+    | 'hospital'
+    | 'clinical'
+    | 'financial'
+    | 'authorization'
+    | 'audit_trail'
   >('patient');
 
   // Load claim if claimId query param is present on mount
@@ -66,7 +71,7 @@ export default function ClaimIntakeFlow() {
           readiness: claim.readiness_score || 0,
           ocrConfidence: claim.ocr_confidence || 0,
           extractionConfidence: claim.ocr_confidence || 0,
-          rejectionRisk: (claim.health_score >= 80 ? 'low' : claim.health_score >= 50 ? 'medium' : 'high') as any,
+          rejectionRisk: (claim.rejection_risk || (claim.health_score >= 80 ? 'low' : claim.health_score >= 50 ? 'medium' : 'high')) as any,
           repairSuggestions: claim.repair_suggestions || [],
           intake: {
             claimId: claim.id,
@@ -78,7 +83,8 @@ export default function ClaimIntakeFlow() {
           pdfType: 'text_layer',
           state: claim.status,
           documentChecklist: claim.document_checklist || { items: [], allRequiredPresent: true, missingRequired: [] },
-        };
+          auditLogs: claim.audit_logs || []
+        } as any;
 
         setClaimData({ packet, uiFields: data.uiFields });
         setStep('review');
@@ -151,39 +157,38 @@ export default function ClaimIntakeFlow() {
   const handleFieldChange = (fieldId: string, newValue: string) => {
     if (!claimData) return;
 
-    // Update inside uiFields list // MODIFIED
+    // Update inside uiFields list
     const updatedUiFields = claimData.uiFields.map((f) =>
-      f.id === fieldId ? { ...f, value: newValue, confidence: 100 } : f // MODIFIED
+      f.id === fieldId ? { ...f, value: newValue, confidence: 100 } : f
     );
 
-    // Update structured nested path inside the packet // MODIFIED
-    const updatedPacket = { ...claimData.packet }; // MODIFIED
-    const parts = fieldId.split('.'); // e.g. "patient.full_name" or "authorization.patient_signature" // MODIFIED
-    if (parts.length === 2 && updatedPacket.extractedFields) { // MODIFIED
-      const [category, key] = parts; // MODIFIED
-      const cat = updatedPacket.extractedFields[ // MODIFIED
-        category as keyof typeof updatedPacket.extractedFields // MODIFIED
-      ] as any; // MODIFIED
-      if (cat && cat[key]) { // MODIFIED
-        let typedValue: any = newValue; // MODIFIED
-        // Sync correct types // MODIFIED
-        if (typeof cat[key].value === 'boolean' || category === 'authorization' || key === 'emergency_case') { // MODIFIED
-          typedValue = newValue === 'true' || newValue === 'yes' || newValue === '1' || newValue === 'checked' || newValue === 'true'; // MODIFIED
-        } else if (typeof cat[key].value === 'number' || ['age', 'length_of_stay', 'room_rent', 'icu_charges', 'ot_charges', 'medicine', 'investigations', 'professional_fees', 'final_bill', 'total_claimed'].includes(key)) { // MODIFIED
-          const num = parseFloat(newValue.replace(/[^0-9.]/g, '')); // MODIFIED
-          typedValue = isNaN(num) ? null : num; // MODIFIED
-        } else if (key === 'icd10_codes') { // MODIFIED
-          typedValue = newValue.split(',').map(s => s.trim().toUpperCase()).filter(Boolean); // MODIFIED
-        } else { // MODIFIED
-          typedValue = newValue === '' ? null : newValue; // MODIFIED
-        } // MODIFIED
+    // Update structured nested path inside the packet
+    const updatedPacket = { ...claimData.packet };
+    const parts = fieldId.split('.');
+    if (parts.length === 2 && updatedPacket.extractedFields) {
+      const [category, key] = parts;
+      const cat = updatedPacket.extractedFields[
+        category as keyof typeof updatedPacket.extractedFields
+      ] as any;
+      if (cat && cat[key]) {
+        let typedValue: any = newValue;
+        if (typeof cat[key].value === 'boolean' || category === 'authorization' || key === 'emergency_case') {
+          typedValue = newValue === 'true' || newValue === 'yes' || newValue === '1' || newValue === 'checked' || newValue === 'true';
+        } else if (typeof cat[key].value === 'number' || ['age', 'length_of_stay', 'room_rent', 'icu_charges', 'ot_charges', 'medicine', 'investigations', 'professional_fees', 'final_bill', 'total_claimed'].includes(key)) {
+          const num = parseFloat(newValue.replace(/[^0-9.]/g, ''));
+          typedValue = isNaN(num) ? null : num;
+        } else if (key === 'icd10_codes') {
+          typedValue = newValue.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+        } else {
+          typedValue = newValue === '' ? null : newValue;
+        }
         
-        cat[key].value = typedValue; // MODIFIED
-        cat[key].confidence = 100; // MODIFIED - OCR/UI confidence sync // MODIFIED
-      } // MODIFIED
-    } // MODIFIED
+        cat[key].value = typedValue;
+        cat[key].confidence = 100;
+      }
+    }
 
-    // Filter out resolved validation errors and trigger health/readiness jumps
+    // Filter out resolved validation errors locally first (for instant feedback)
     const originalErrorsCount = updatedPacket.validationErrors?.length || 0;
     let updatedErrors = (updatedPacket.validationErrors || []).filter(
       (err: any) => err.field !== fieldId
@@ -202,11 +207,43 @@ export default function ClaimIntakeFlow() {
       updatedPacket.rejectionRisk = 'low';
     }
 
-    setClaimData({ // MODIFIED
-      packet: updatedPacket, // MODIFIED
-      uiFields: updatedUiFields, // MODIFIED
-    }); // MODIFIED
-  }; // MODIFIED
+    // 1. Update client state locally for 100% responsive typing
+    setClaimData({
+      packet: updatedPacket,
+      uiFields: updatedUiFields,
+    });
+
+    // 2. Trigger database auto-save in background
+    fetch('/api/claims/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        claimId: updatedPacket.claimId,
+        extractedFields: updatedPacket.extractedFields,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data) {
+          setClaimData((prev) => {
+            if (!prev || prev.packet.claimId !== updatedPacket.claimId) return prev;
+            return {
+              packet: {
+                ...prev.packet,
+                claimHealth: data.data.claimHealth,
+                readiness: data.data.readiness,
+                rejectionRisk: data.data.rejectionRisk,
+                validationErrors: data.data.validationErrors,
+                repairSuggestions: data.data.repairSuggestions,
+                state: data.data.state,
+              },
+              uiFields: prev.uiFields,
+            };
+          });
+        }
+      })
+      .catch((err) => console.error('Autosave failed:', err));
+  };
 
   const handleSubmit = async () => {
     if (!claimData) return;
@@ -353,9 +390,12 @@ export default function ClaimIntakeFlow() {
       { id: 'clinical', label: 'Clinical Node', icon: Activity },
       { id: 'financial', label: 'Financial Info', icon: DollarSign },
       { id: 'authorization', label: 'Signatures / Seal', icon: CheckSquare },
+      { id: 'audit_trail', label: 'Audit Trail', icon: FileText },
     ] as const;
 
-    const filteredFields = uiFields.filter((f) => f.id.startsWith(activeTab + '.'));
+    const filteredFields = activeTab !== 'audit_trail'
+      ? uiFields.filter((f) => f.id.startsWith(activeTab + '.'))
+      : [];
 
     return (
       <div className="flex h-[calc(100vh-4rem)] bg-slate-50 overflow-hidden">
@@ -430,7 +470,28 @@ export default function ClaimIntakeFlow() {
               return (
                 <button
                   key={cat.id}
-                  onClick={() => setActiveTab(cat.id)}
+                  onClick={() => {
+                    setActiveTab(cat.id);
+                    if (cat.id === 'audit_trail') {
+                      fetch(`/api/claims/${packet.claimId}`)
+                        .then((res) => res.json())
+                        .then((data) => {
+                          if (data.success && data.claim) {
+                            setClaimData((prev) => {
+                              if (!prev) return null;
+                              return {
+                                packet: {
+                                  ...prev.packet,
+                                  auditLogs: data.claim.audit_logs || data.claim.auditLogs || [],
+                                },
+                                uiFields: prev.uiFields,
+                              };
+                            });
+                          }
+                        })
+                        .catch((err) => console.error('Failed to reload audit logs:', err));
+                    }
+                  }}
                   className={`flex items-center gap-2 px-5 py-4 border-b-2 font-medium text-xs tracking-wide uppercase transition-all whitespace-nowrap ${
                     isActive
                       ? 'border-indigo-600 text-indigo-600 bg-white font-bold'
@@ -446,7 +507,7 @@ export default function ClaimIntakeFlow() {
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Logic Validation Errors */}
-            {packet.validationErrors.length > 0 && (
+            {activeTab !== 'audit_trail' && packet.validationErrors.length > 0 && (
               <div className="p-4 bg-rose-50/80 border border-rose-100 text-rose-900 rounded-xl shadow-sm">
                 <h3 className="font-bold text-sm mb-2 flex items-center gap-2 text-rose-950">
                   <AlertTriangle className="w-4 h-4 text-rose-600" />
@@ -465,65 +526,95 @@ export default function ClaimIntakeFlow() {
               </div>
             )}
 
-            {/* Editable Form Inputs Grid */}
-            <div className="grid grid-cols-1 gap-5">
-              {filteredFields.map((field) => (
-                <div
-                  key={field.id}
-                  className="relative p-4 bg-white border border-slate-150 rounded-xl hover:shadow-sm transition-all flex flex-col group"
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      {field.label}
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {field.page && (
-                        <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold">
-                          Page {field.page}
+            {/* Editable Form Inputs Grid or Timeline */}
+            {activeTab === 'audit_trail' ? (
+              <div className="space-y-4">
+                {(packet.auditLogs || []).length > 0 ? (
+                  <div className="relative pl-6 border-l-2 border-slate-150 space-y-6">
+                    {(packet.auditLogs || []).map((log: any, idx: number) => (
+                      <div key={idx} className="relative">
+                        <span className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-indigo-600 border-4 border-white flex items-center justify-center shadow-sm" />
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100 hover:shadow-sm transition-all">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                              {log.action || log.stage}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-semibold font-tabular">
+                              {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-600 mt-1 leading-relaxed">{log.details || log.message}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 border border-dashed rounded-xl text-slate-400 flex flex-col items-center justify-center bg-slate-50/20">
+                    <FileText className="w-10 h-10 mb-2 text-slate-300" />
+                    <p className="text-sm font-medium">No audit logs available for this claim</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-5">
+                {filteredFields.map((field) => (
+                  <div
+                    key={field.id}
+                    className="relative p-4 bg-white border border-slate-150 rounded-xl hover:shadow-sm transition-all flex flex-col group"
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        {field.label}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {field.page && (
+                          <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold">
+                            Page {field.page}
+                          </span>
+                        )}
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            field.confidence >= 80
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                              : field.confidence >= 50
+                                ? 'bg-amber-50 text-amber-700 border border-amber-100'
+                                : 'bg-rose-50 text-rose-700 border border-rose-100'
+                          }`}
+                        >
+                          {field.confidence}% Confidence
+                        </span>
+                      </div>
+                    </div>
+                    <input
+                      type="text"
+                      value={field.value || ''}
+                      onChange={(e) => handleFieldChange(field.id, e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
+                      placeholder={`Enter ${field.label.toLowerCase()}`}
+                    />
+                    <div className="text-[9px] text-slate-400 mt-1.5 flex justify-between">
+                      <span>
+                        Source Node: <span className="font-mono">{field.source.toUpperCase()}</span>
+                      </span>
+                      {field.raw && (
+                        <span className="truncate max-w-[70%] italic text-slate-400">
+                          Raw match: &quot;{field.raw}&quot;
                         </span>
                       )}
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          field.confidence >= 80
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                            : field.confidence >= 50
-                              ? 'bg-amber-50 text-amber-700 border border-amber-100'
-                              : 'bg-rose-50 text-rose-700 border border-rose-100'
-                        }`}
-                      >
-                        {field.confidence}% Confidence
-                      </span>
                     </div>
                   </div>
-                  <input
-                    type="text"
-                    value={field.value || ''}
-                    onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-sm font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all shadow-inner"
-                    placeholder={`Enter ${field.label.toLowerCase()}`}
-                  />
-                  <div className="text-[9px] text-slate-400 mt-1.5 flex justify-between">
-                    <span>
-                      Source Node: <span className="font-mono">{field.source.toUpperCase()}</span>
-                    </span>
-                    {field.raw && (
-                      <span className="truncate max-w-[70%] italic text-slate-400">
-                        Raw match: &quot;{field.raw}&quot;
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+                ))}
 
-              {filteredFields.length === 0 && (
-                <div className="text-center py-12 border border-dashed rounded-xl text-slate-400 flex flex-col items-center justify-center bg-slate-50/20">
-                  <FileCheck2 className="w-10 h-10 mb-2 text-slate-300" />
-                  <p className="text-sm font-medium">
-                    No extracted fields in this node classification
-                  </p>
-                </div>
-              )}
-            </div>
+                {filteredFields.length === 0 && (
+                  <div className="text-center py-12 border border-dashed rounded-xl text-slate-400 flex flex-col items-center justify-center bg-slate-50/20">
+                    <FileCheck2 className="w-10 h-10 mb-2 text-slate-300" />
+                    <p className="text-sm font-medium">
+                      No extracted fields in this node classification
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

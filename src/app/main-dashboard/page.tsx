@@ -1,33 +1,25 @@
 import React from 'react';
 import AppLayout from '@/components/AppLayout';
 import DashboardMetricsGrid from './components/DashboardMetricsGrid';
-import DashboardChartsRow from './components/DashboardChartsRow';
 import RecentClaimsTable from './components/RecentClaimsTable';
-import ActivityTimeline from './components/ActivityTimeline';
-import SubmissionQueueWidget from './components/SubmissionQueueWidget';
-import { demoDashboardClaims, demoDashboardMetrics, emptyDashboardMetrics } from '@/lib/demoData';
-import { getDemoModeState } from '@/lib/demoMode';
-import { buildLiveDashboardMetrics, listLiveClaims, toDashboardClaims, toLiveClaimsFromDemo } from '@/lib/liveClaims';
+import { emptyDashboardMetrics } from '@/lib/demoData';
+import { buildLiveDashboardMetrics, listLiveClaims, toDashboardClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
 import { getTimeOfDayGreeting, getUserDisplayName } from '@/lib/serverGreeting';
 
 export default async function MainDashboardPage() {
-  const [demoMode, supabase] = await Promise.all([getDemoModeState(), createClient()]);
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const liveClaims = await listLiveClaims(user?.id);
-  const claims = demoMode.enabled
-    ? [...toDashboardClaims(liveClaims), ...demoDashboardClaims]
-    : toDashboardClaims(liveClaims);
-  const metrics = demoMode.enabled
-    ? buildLiveDashboardMetrics([...liveClaims, ...toLiveClaimsFromDemo(demoDashboardClaims, user?.id || 'demo-user')])
-    : liveClaims.length > 0
+  const claims = toDashboardClaims(liveClaims);
+  const metrics =
+    liveClaims.length > 0
       ? buildLiveDashboardMetrics(liveClaims)
       : emptyDashboardMetrics;
-  const attentionCount = claims.filter(
-    (claim) => claim.repairStatus === 'ocr_failed' || claim.repairStatus === 'signature_missing'
-  ).length;
+
+  const attentionCount = liveClaims.filter((claim) => claim.status === 'repairs_pending').length;
   const heading = `${getTimeOfDayGreeting()}, ${getUserDisplayName(user)}`;
 
   return (
@@ -37,8 +29,7 @@ export default async function MainDashboardPage() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">{heading}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              <span className="text-warning-foreground font-medium">{attentionCount}</span> claims
-              need your attention.
+              <span className="text-warning-foreground font-medium">{attentionCount}</span> claim{attentionCount === 1 ? '' : 's'} need your attention.
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -56,32 +47,8 @@ export default async function MainDashboardPage() {
 
         <DashboardMetricsGrid metrics={metrics} />
 
-        {demoMode.enabled ? (
-          <DashboardChartsRow />
-        ) : (
-          <div className="card p-6 text-sm text-muted-foreground">
-            {liveClaims.length > 0
-              ? `${liveClaims.length} live claim${liveClaims.length === 1 ? '' : 's'} processed today. Detailed trend charts will build as more claims are submitted.`
-              : 'Live analytics will appear here after real claims and OCR extraction records are connected.'}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 xl:grid-cols-4 2xl:grid-cols-4 gap-6">
-          <div className="xl:col-span-3 2xl:col-span-3">
-            <RecentClaimsTable claims={claims} />
-          </div>
-          {demoMode.enabled ? (
-            <div className="xl:col-span-1 2xl:col-span-1 space-y-6">
-              <SubmissionQueueWidget />
-              <ActivityTimeline />
-            </div>
-          ) : (
-            <div className="xl:col-span-1 2xl:col-span-1 card p-5 text-sm text-muted-foreground">
-              {liveClaims.length > 0
-                ? `${liveClaims.length} submitted claim${liveClaims.length === 1 ? '' : 's'} waiting in the live TPA queue.`
-                : 'Submission queue and activity timeline are hidden while Demo Mode is off.'}
-            </div>
-          )}
+        <div className="grid grid-cols-1 gap-6">
+          <RecentClaimsTable claims={claims} />
         </div>
       </div>
     </AppLayout>

@@ -3,58 +3,41 @@ import Link from 'next/link';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import QueueActionButton from '@/components/QueueActionButton';
 import SectionShell, { MetricCard, StatusPill } from '@/components/SectionShell';
-import { getDemoModeState } from '@/lib/demoMode';
 import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
 
-const queue = [
-  {
-    claim: 'CLM-2847',
-    issue: 'Physician signature not detected',
-    severity: 'High',
-    progress: ['OCR passed', 'Signature failed', 'Repair pending'],
-  },
-  {
-    claim: 'CLM-2850',
-    issue: 'Invoice total mismatch',
-    severity: 'Medium',
-    progress: ['OCR passed', 'Math failed', 'Repair suggested'],
-  },
-  {
-    claim: 'CLM-2840',
-    issue: 'Low CPT confidence',
-    severity: 'Medium',
-    progress: ['Extraction complete', 'Manual coding review', 'Awaiting confirmation'],
-  },
-];
-
 export default async function ValidationQueuePage() {
-  const [demoMode, supabase] = await Promise.all([getDemoModeState(), createClient()]);
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const liveClaims = await listLiveClaims(user?.id);
-  const liveQueue = liveClaims
-    .filter((claim) => claim.status === 'repairs_pending')
-    .map((claim) => ({
+
+  // Filter claims that need validation review (status = repairs_pending)
+  const validationClaims = liveClaims.filter((claim) => claim.status === 'repairs_pending');
+
+  const waitingReview = validationClaims.length;
+  const criticalRisks = validationClaims.filter((claim) => claim.rejectionRisk === 'high').length;
+  const cleanCount = liveClaims.filter(
+    (claim) => claim.status === 'ready' || claim.status === 'submitted' || claim.status === 'approved'
+  ).length;
+
+  const queueItems = validationClaims.map((claim) => {
+    const valCount = claim.validationCount || claim.reviewReasons?.length || 0;
+    return {
       claim: claim.claimId,
-      issue: claim.reviewReasons?.[0] || 'Claim needs manual repair review',
-      severity: claim.aiConfidence < 60 ? 'High' as const : 'Medium' as const,
-      progress: ['OCR passed', 'Scrubbing passed', 'Repair suggested'],
-    }));
-  const visibleQueue = demoMode.enabled ? [...liveQueue, ...queue] : liveQueue;
-  const waitingReview = liveClaims.filter((claim) => claim.repairStatus !== 'clean').length;
-  const cleanCount = liveClaims.filter((claim) => claim.repairStatus === 'clean').length;
+      issue: `${valCount} validation issue${valCount === 1 ? '' : 's'} detected`,
+      severity: claim.rejectionRisk === 'high' ? 'High' : claim.rejectionRisk === 'medium' ? 'Medium' : 'Low',
+      status: 'Repairs Pending',
+      issues: claim.reviewReasons && claim.reviewReasons.length > 0 ? claim.reviewReasons : ['Needs manual review'],
+    };
+  });
 
   return (
     <SectionShell
       currentPath="/validation-queue"
       title="Validation Queue"
-      subtitle={
-        demoMode.enabled
-          ? 'Demo validation queue populated with mock AI-detected risks.'
-          : 'Live validation queue. Demo risks are hidden because Demo Mode is off.'
-      }
+      subtitle="Resolve AI-detected compliance mismatches, missing seals, and logical errors before submission."
       action={
         <QueueActionButton
           endpoint="/api/claims/batch-validation"
@@ -68,68 +51,68 @@ export default async function ValidationQueuePage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <MetricCard
           label="Waiting Review"
-          value={demoMode.enabled ? '5' : String(waitingReview)}
+          value={String(waitingReview)}
           helper="Assigned to insurance desk"
-          tone="warning"
+          tone={waitingReview > 0 ? 'warning' : 'muted'}
         />
         <MetricCard
           label="Critical Risks"
-          value={demoMode.enabled ? '2' : '0'}
+          value={String(criticalRisks)}
           helper="Likely rejection without repair"
-          tone="danger"
+          tone={criticalRisks > 0 ? 'danger' : 'muted'}
         />
         <MetricCard
           label="Validated Clean"
-          value={demoMode.enabled ? '11' : String(cleanCount)}
+          value={String(cleanCount)}
           helper="Passed AI checks today"
           tone="success"
         />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        {visibleQueue.map((item) => (
-          <div key={item.claim} className="card p-5">
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <p className="font-bold text-foreground font-tabular">{item.claim}</p>
-                <p className="text-sm text-muted-foreground mt-1">{item.issue}</p>
-              </div>
-              <StatusPill
-                tone={
-                  item.severity === 'Clean'
-                    ? 'success'
-                    : item.severity === 'High'
-                      ? 'danger'
-                      : 'warning'
-                }
-              >
-                {item.severity}
-              </StatusPill>
-            </div>
-            <div className="space-y-3">
-              {item.progress.map((step, index) => (
-                <div key={step} className="flex items-center gap-3">
-                  {item.severity !== 'Clean' && index === item.progress.length - 1 ? (
-                    <AlertTriangle size={15} className="text-warning" />
-                  ) : (
-                    <CheckCircle2 size={15} className="text-success" />
-                  )}
-                  <span className="text-sm text-foreground">{step}</span>
+        {queueItems.map((item) => (
+          <div key={item.claim} className="card p-5 hover:shadow-lg transition-all flex flex-col justify-between">
+            <div>
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div>
+                  <p className="font-bold text-foreground font-tabular text-lg">{item.claim}</p>
+                  <p className="text-xs font-semibold text-rose-600 mt-1 uppercase tracking-wider">{item.issue}</p>
                 </div>
-              ))}
+                <StatusPill
+                  tone={
+                    item.severity === 'High'
+                      ? 'danger'
+                      : item.severity === 'Medium'
+                        ? 'warning'
+                        : 'info'
+                  }
+                >
+                  {item.severity} Severity
+                </StatusPill>
+              </div>
+              <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Unresolved Errors</p>
+                {item.issues.map((issue, idx) => (
+                  <div key={idx} className="flex items-start gap-2">
+                    <AlertTriangle size={13} className="text-warning shrink-0 mt-0.5" />
+                    <span className="text-xs text-slate-700 leading-snug font-medium truncate max-w-[220px]" title={issue}>
+                      {issue}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
             <Link
               href={`/claim-intake-document-upload?claimId=${encodeURIComponent(item.claim)}`}
-              className="btn-secondary w-full mt-5 justify-center"
+              className="btn-primary w-full justify-center text-center py-2.5 font-semibold text-sm"
             >
-              Open Review
+              Open Workspace
             </Link>
           </div>
         ))}
-        {visibleQueue.length === 0 && (
+        {queueItems.length === 0 && (
           <div className="xl:col-span-3 card p-8 text-center text-muted-foreground">
-            No live validation items are loaded yet. Create and submit a claim to populate this
-            queue.
+            No claims require review in the validation queue. All claim records are validated clean!
           </div>
         )}
       </div>

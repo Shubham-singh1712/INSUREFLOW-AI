@@ -2,6 +2,8 @@ import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
 import { calculateExtractionConfidence, type ExtractedClaimData } from './claims';
 import type { ClaimRegisterRow, DashboardClaim, DashboardMetric } from './demoData';
+import { createClient } from '@/lib/supabase/server';
+import { saveClaimState, addAuditLog } from '@/lib/claim-processing/db';
 
 export type LiveClaim = {
   id: string;
@@ -14,11 +16,22 @@ export type LiveClaim = {
   submissionScore: number;
   documentsTotal: number;
   documentsPassed: number;
-  status: 'submitted' | 'ready' | 'repairs_pending' | 'approved' | 'rejected';
+  status: 'ai_processing' | 'submitted' | 'ready' | 'repairs_pending' | 'approved' | 'rejected';
   repairStatus: DashboardClaim['repairStatus'];
   submittedAt: string;
   confirmedData: ExtractedClaimData;
   reviewReasons?: string[];
+  // Unified fields
+  hospitalName?: string;
+  claimHealth?: number;
+  readiness?: number;
+  rejectionRisk?: 'low' | 'medium' | 'high';
+  createdAt?: string;
+  updatedAt?: string;
+  validationCount?: number;
+  repairSuggestionCount?: number;
+  assignedReviewer?: string;
+  auditLogs?: Array<{ action: string; details?: string; timestamp: string }>;
 };
 
 const storePath = path.join(process.cwd(), '.data', 'live-claims.json');
@@ -44,93 +57,132 @@ const normalizeStoredClaim = (claim: LiveClaim): LiveClaim => ({
   aiConfidence: confidencePercent(claim.confirmedData),
 });
 
-const normalizeIdentityPart = (value?: string) => value?.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-const claimIdentityKey = (data: ExtractedClaimData) => {
-  const patient = normalizeIdentityPart(data.patient.full_name);
-  const memberId = normalizeIdentityPart(data.insurance.member_id);
-  const dob = normalizeIdentityPart(data.patient.date_of_birth);
-  const admissionDate = normalizeIdentityPart(data.clinical.admission_date);
-  const total = normalizeIdentityPart(data.billing.total_billed_amount);
-
-  if (memberId) {
-    return ['member', memberId, admissionDate, total].filter(Boolean).join(':');
-  }
-
-  if (patient && dob) {
-    return ['patient-dob', patient, dob, admissionDate, total].filter(Boolean).join(':');
-  }
-
-  if (patient && admissionDate && total) {
-    return ['patient-episode', patient, admissionDate, total].join(':');
-  }
-
-  return null;
+const mapDbClaimToLiveClaim = (dbClaim: any): LiveClaim => {
+  const ext = dbClaim.extracted_data || {};
+  return {
+    id: dbClaim.id,
+    userId: dbClaim.user_id || 'unknown',
+    claimId: dbClaim.id,
+    patient: dbClaim.patient_name || ext.patient?.full_name?.value || 'Unknown Patient',
+    tpa: ext.insurance?.provider_name?.value || 'Unknown TPA',
+    amount: ext.financial?.final_bill?.value 
+      ? `INR ${Number(ext.financial.final_bill.value).toLocaleString('en-IN')}`
+      : 'INR 0',
+    aiConfidence: dbClaim.health_score || 0,
+    submissionScore: dbClaim.readiness_score || 0,
+    documentsTotal: 6,
+    documentsPassed: Math.max(0, 6 - (dbClaim.validation_errors?.length || 0)),
+    status: (dbClaim.status === 'UPLOADED' || dbClaim.status === 'PROCESSING' || dbClaim.status === 'OCR_COMPLETE' || dbClaim.status === 'CLASSIFIED' || dbClaim.status === 'EXTRACTED')
+      ? 'ai_processing'
+      : dbClaim.status === 'REVIEW_REQUIRED'
+        ? 'repairs_pending'
+        : dbClaim.status === 'READY'
+          ? 'ready'
+          : dbClaim.status === 'SUBMITTED'
+            ? 'submitted'
+            : dbClaim.status === 'APPROVED'
+              ? 'approved'
+              : 'rejected',
+    repairStatus: (dbClaim.status === 'READY' || dbClaim.status === 'APPROVED' || dbClaim.status === 'SUBMITTED') ? 'clean' : 'repairs_pending',
+    submittedAt: dbClaim.updated_at || dbClaim.created_at,
+    confirmedData: {
+      patient: {
+        full_name: ext.patient?.full_name?.value || '',
+        date_of_birth: ext.patient?.dob?.value || '',
+        gender: ext.patient?.gender?.value || '',
+        address: ext.patient?.address?.value || '',
+        contact_phone: ext.patient?.phone?.value || '',
+        contact_email: '',
+      },
+      insurance: {
+        policyholder_name: '',
+        group_number: ext.insurance?.corporate_or_group_id?.value || '',
+        member_id: ext.insurance?.member_id?.value || '',
+        payer_id: ext.insurance?.insurance_id?.value || '',
+        plan_name: ext.insurance?.provider_name?.value || '',
+      },
+      pre_authorization: { approval_code: '', authorized_from: '', authorized_to: '' },
+      clinical: {
+        admission_date: ext.hospital?.admission_date?.value || '',
+        discharge_date: ext.hospital?.discharge_date?.value || '',
+        attending_physician: ext.hospital?.doctor_name?.value || '',
+        hospital_npi: '',
+        hospital_tax_id: '',
+        facility_name: ext.hospital?.facility_name?.value || '',
+        principal_diagnosis: ext.clinical?.diagnosis?.value || '',
+      },
+      coding: {
+        icd10_codes: (ext.clinical?.icd10_codes?.value || []).map((code: string) => ({
+          code, description: '', confidence: 100
+        })),
+        cpt_codes: [],
+      },
+      billing: {
+        total_billed_amount: String(ext.financial?.final_bill?.value || '0'),
+        line_items: [],
+      },
+      extraction_meta: {
+        overall_confidence: dbClaim.ocr_confidence || 90,
+        low_confidence_fields: [],
+        requires_manual_review: dbClaim.status !== 'READY',
+      }
+    },
+    reviewReasons: dbClaim.validation_errors?.map((e: any) => e.issue) || [],
+    hospitalName: dbClaim.hospital_name || ext.hospital?.facility_name?.value || 'Unknown Hospital',
+    claimHealth: dbClaim.health_score || 0,
+    readiness: dbClaim.readiness_score || 0,
+    rejectionRisk: dbClaim.rejection_risk || 'low',
+    createdAt: dbClaim.created_at,
+    updatedAt: dbClaim.updated_at,
+    validationCount: dbClaim.validation_count || 0,
+    repairSuggestionCount: dbClaim.repair_suggestion_count || 0,
+    assignedReviewer: dbClaim.assigned_reviewer || 'Desk Agent',
+    auditLogs: [] // filled later if cache falls back or loaded from DB
+  };
 };
 
-const dedupeClaimsByIdentity = (claims: LiveClaim[]) => {
-  const seen = new Set<string>();
+export const listLiveClaims = async (userId?: string | null): Promise<LiveClaim[]> => {
+  // 1. Try Supabase
+  try {
+    const supabase = await createClient();
+    let query = supabase.from('claims').select('*');
+    if (userId) {
+      query = query.eq('user_id', userId);
+    }
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (!error && data) {
+      return data.map(mapDbClaimToLiveClaim);
+    }
+  } catch (err: any) {
+    console.error('Supabase listLiveClaims failed, falling back to cache:', err.message);
+  }
 
-  return claims.filter((claim) => {
-    const key = claimIdentityKey(claim.confirmedData);
-    if (!key) return true;
-
-    const scopedKey = `${claim.userId}:${key}`;
-    if (seen.has(scopedKey)) return false;
-
-    seen.add(scopedKey);
-    return true;
-  });
-};
-
-export const listLiveClaims = async (userId?: string | null) => {
-  const claims = dedupeClaimsByIdentity((await readAllClaims()).map(normalizeStoredClaim));
+  // 2. Fall back to local JSON file
+  const claims = (await readAllClaims()).map(normalizeStoredClaim);
   return userId ? claims.filter((claim) => claim.userId === userId) : claims;
 };
 
-export const getLiveClaim = async (userId: string, claimId: string) => {
+export const getLiveClaim = async (userId: string, claimId: string): Promise<LiveClaim | null> => {
+  // 1. Try Supabase
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('claims')
+      .select('*')
+      .eq('id', claimId)
+      .eq('user_id', userId)
+      .single();
+
+    if (!error && data) {
+      return mapDbClaimToLiveClaim(data);
+    }
+  } catch (err: any) {
+    console.error('Supabase getLiveClaim failed, falling back to cache:', err.message);
+  }
+
+  // 2. Fall back to local JSON
   const claims = (await readAllClaims()).map(normalizeStoredClaim);
   return claims.find((claim) => claim.userId === userId && claim.claimId === claimId) ?? null;
-};
-
-const patientName = (data: ExtractedClaimData) => data.patient.full_name || 'Unknown Patient';
-
-const tpaName = (data: ExtractedClaimData) =>
-  data.insurance.plan_name || data.insurance.payer_id || 'Unknown TPA';
-
-const claimAmount = (data: ExtractedClaimData) => {
-  const amount = Number.parseInt(data.billing.total_billed_amount || '0', 10);
-  return amount > 0 ? `INR ${amount.toLocaleString('en-IN')}` : 'INR 0';
-};
-
-const matchingIdentityClaim = (
-  claims: LiveClaim[],
-  userId: string,
-  confirmedData: ExtractedClaimData
-) => {
-  const key = claimIdentityKey(confirmedData);
-  if (!key) return null;
-
-  return (
-    claims.find(
-      (claim) => claim.userId === userId && claimIdentityKey(claim.confirmedData) === key
-    ) ?? null
-  );
-};
-
-const replacementWithoutClaim = (
-  claims: LiveClaim[],
-  userId: string,
-  claimId: string,
-  confirmedData: ExtractedClaimData
-) => {
-  const key = claimIdentityKey(confirmedData);
-
-  return claims.filter((claim) => {
-    if (claim.userId !== userId) return true;
-    if (claim.claimId === claimId) return false;
-    return !key || claimIdentityKey(claim.confirmedData) !== key;
-  });
 };
 
 export const saveSubmittedClaim = async ({
@@ -143,15 +195,17 @@ export const saveSubmittedClaim = async ({
   confirmedData: ExtractedClaimData;
 }) => {
   const claims = await readAllClaims();
-  const existingClaim = matchingIdentityClaim(claims, userId, confirmedData);
+  const existingClaim = claims.find(c => c.claimId === claimId);
   const resolvedClaimId = existingClaim?.claimId || claimId;
   const liveClaim: LiveClaim = {
     id: resolvedClaimId,
     userId,
     claimId: resolvedClaimId,
-    patient: patientName(confirmedData),
-    tpa: tpaName(confirmedData),
-    amount: claimAmount(confirmedData),
+    patient: confirmedData.patient.full_name || 'Unknown Patient',
+    tpa: confirmedData.insurance.plan_name || 'Unknown TPA',
+    amount: confirmedData.billing.total_billed_amount 
+      ? `INR ${Number(confirmedData.billing.total_billed_amount).toLocaleString('en-IN')}`
+      : 'INR 0',
     aiConfidence: confidencePercent(confirmedData),
     submissionScore: 96,
     documentsTotal: 6,
@@ -160,11 +214,21 @@ export const saveSubmittedClaim = async ({
     repairStatus: 'clean',
     submittedAt: new Date().toISOString(),
     confirmedData,
+    hospitalName: confirmedData.clinical.facility_name || 'Unknown Hospital',
+    claimHealth: confidencePercent(confirmedData),
+    readiness: 96,
+    rejectionRisk: 'low',
+    createdAt: existingClaim?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    validationCount: 0,
+    repairSuggestionCount: 0,
+    assignedReviewer: 'Desk Agent',
+    auditLogs: existingClaim?.auditLogs || []
   };
 
   const nextClaims = [
     liveClaim,
-    ...replacementWithoutClaim(claims, userId, claimId, confirmedData),
+    ...claims.filter(c => c.claimId !== claimId)
   ];
   await writeAllClaims(nextClaims);
   return liveClaim;
@@ -182,36 +246,67 @@ export const saveReviewClaim = async ({
   reviewReasons?: string[];
 }) => {
   const claims = await readAllClaims();
-  const existingClaim = matchingIdentityClaim(claims, userId, confirmedData);
+  const existingClaim = claims.find(c => c.claimId === claimId);
   const resolvedClaimId = existingClaim?.claimId || claimId;
   const aiConfidence = confidencePercent(confirmedData);
   const liveClaim: LiveClaim = {
     id: resolvedClaimId,
     userId,
     claimId: resolvedClaimId,
-    patient: patientName(confirmedData),
-    tpa: tpaName(confirmedData),
-    amount: claimAmount(confirmedData),
+    patient: confirmedData.patient.full_name || 'Unknown Patient',
+    tpa: confirmedData.insurance.plan_name || 'Unknown TPA',
+    amount: confirmedData.billing.total_billed_amount 
+      ? `INR ${Number(confirmedData.billing.total_billed_amount).toLocaleString('en-IN')}`
+      : 'INR 0',
     aiConfidence,
     submissionScore: Math.max(0, Math.min(100, aiConfidence - 20)),
     documentsTotal: 6,
     documentsPassed: Math.max(0, 6 - (reviewReasons?.length || 1)),
-    status: 'repairs_pending',
-    repairStatus: 'repairs_pending',
+    status: (reviewReasons && reviewReasons.length === 0) ? 'ready' : 'repairs_pending',
+    repairStatus: (reviewReasons && reviewReasons.length === 0) ? 'clean' : 'repairs_pending',
     submittedAt: new Date().toISOString(),
     confirmedData,
     reviewReasons,
+    hospitalName: confirmedData.clinical.facility_name || 'Unknown Hospital',
+    claimHealth: aiConfidence,
+    readiness: Math.max(0, Math.min(100, aiConfidence - 20)),
+    rejectionRisk: (reviewReasons && reviewReasons.length > 3) ? 'high' : (reviewReasons && reviewReasons.length > 0) ? 'medium' : 'low',
+    createdAt: existingClaim?.createdAt || new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    validationCount: reviewReasons?.length || 0,
+    repairSuggestionCount: reviewReasons?.length || 0,
+    assignedReviewer: 'Desk Agent',
+    auditLogs: existingClaim?.auditLogs || []
   };
 
   const nextClaims = [
     liveClaim,
-    ...replacementWithoutClaim(claims, userId, claimId, confirmedData),
+    ...claims.filter(c => c.claimId !== claimId)
   ];
   await writeAllClaims(nextClaims);
   return liveClaim;
 };
 
 export const submitReadyClaims = async (userId: string) => {
+  // 1. Update Supabase claims that are READY
+  try {
+    const supabase = await createClient();
+    const { data: readyClaims } = await supabase
+      .from('claims')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'READY');
+
+    if (readyClaims && readyClaims.length > 0) {
+      for (const rc of readyClaims) {
+        await saveClaimState(rc.id, 'SUBMITTED');
+      }
+    }
+  } catch (err: any) {
+    console.error('Supabase submitReadyClaims failed:', err.message);
+  }
+
+  // 2. Update local cache
   const claims = await readAllClaims();
   const submittedAt = new Date().toISOString();
   let submitted = 0;
@@ -222,10 +317,20 @@ export const submitReadyClaims = async (userId: string) => {
     }
 
     submitted += 1;
+    
+    // Push audit log directly in the claim object
+    const updatedLogs = [...(claim.auditLogs || [])];
+    updatedLogs.push({
+      action: 'Claim Submitted',
+      details: 'Claim submitted to TPA queue via batch run.',
+      timestamp: submittedAt
+    });
+
     return {
       ...claim,
       status: 'submitted' as const,
       submittedAt,
+      auditLogs: updatedLogs
     };
   });
 
@@ -238,31 +343,20 @@ export const submitReadyClaims = async (userId: string) => {
   };
 };
 
-const ageFromDob = (dob?: string) => {
-  if (!dob) return 0;
-  const birthDate = new Date(dob);
-  if (Number.isNaN(birthDate.getTime())) return 0;
-  const now = new Date();
-  let age = now.getFullYear() - birthDate.getFullYear();
-  const monthDelta = now.getMonth() - birthDate.getMonth();
-  if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < birthDate.getDate())) age -= 1;
-  return age;
-};
-
 export const toDashboardClaims = (claims: LiveClaim[]): DashboardClaim[] =>
   claims.map((claim) => ({
     id: claim.id,
     claimId: claim.claimId,
     patient: claim.patient,
-    age: ageFromDob(claim.confirmedData.patient.date_of_birth),
+    age: claim.confirmedData.patient.date_of_birth ? Math.max(0, new Date().getFullYear() - new Date(claim.confirmedData.patient.date_of_birth).getFullYear()) : 35,
     tpa: claim.tpa,
     documents: { total: claim.documentsTotal, passed: claim.documentsPassed },
-    aiConfidence: claim.aiConfidence,
+    aiConfidence: claim.claimHealth || claim.aiConfidence,
     repairStatus: claim.repairStatus,
-    submissionScore: claim.submissionScore,
+    submissionScore: claim.readiness || claim.submissionScore,
     amount: claim.amount,
     admissionDate: claim.confirmedData.clinical.admission_date || claim.submittedAt.slice(0, 10),
-    status: claim.status,
+    status: claim.status as any,
   }));
 
 export const toClaimRegisterRows = (claims: LiveClaim[]): ClaimRegisterRow[] =>
@@ -271,13 +365,15 @@ export const toClaimRegisterRows = (claims: LiveClaim[]): ClaimRegisterRow[] =>
     patient: claim.patient,
     tpa: claim.tpa,
     issue: claim.repairStatus === 'clean' ? 'Clean packet submitted' : 'Needs validation review',
-    score: String(claim.submissionScore),
+    score: String(claim.readiness || claim.submissionScore),
     status:
       claim.status === 'submitted'
         ? 'Queued'
-        : claim.repairStatus === 'clean'
-          ? 'Ready'
-          : 'Needs Repair',
+        : claim.status === 'approved'
+          ? 'Ready' // Mapped nicely
+          : claim.repairStatus === 'clean'
+            ? 'Ready'
+            : 'Needs Repair',
   }));
 
 export const toLiveClaimsFromDemo = (claims: DashboardClaim[], userId: string): LiveClaim[] =>
@@ -296,133 +392,97 @@ export const toLiveClaimsFromDemo = (claims: DashboardClaim[], userId: string): 
     repairStatus: claim.repairStatus,
     submittedAt: new Date().toISOString(),
     confirmedData: {
-      patient: {
-        full_name: claim.patient,
-        date_of_birth: '1970-01-01',
-        gender: '',
-        address: '',
-        contact_phone: '',
-        contact_email: '',
-      },
-      insurance: {
-        policyholder_name: '',
-        group_number: '',
-        member_id: '',
-        payer_id: '',
-        plan_name: claim.tpa,
-      },
-      pre_authorization: {
-        approval_code: '',
-        authorized_from: '',
-        authorized_to: '',
-      },
-      clinical: {
-        admission_date: claim.admissionDate,
-        discharge_date: '',
-        attending_physician: '',
-        hospital_npi: '',
-        hospital_tax_id: '',
-        facility_name: '',
-        principal_diagnosis: '',
-      },
-      coding: {
-        icd10_codes: [],
-        cpt_codes: [],
-      },
-      billing: {
-        total_billed_amount: claim.amount.replace(/[^0-9]/g, ''),
-        line_items: [],
-      },
-      extraction_meta: {
-        overall_confidence: claim.aiConfidence,
-        low_confidence_fields: [],
-        requires_manual_review: claim.repairStatus !== 'clean',
-      },
+      patient: { full_name: claim.patient, date_of_birth: '1970-01-01', gender: '', address: '', contact_phone: '', contact_email: '' },
+      insurance: { policyholder_name: '', group_number: '', member_id: '', payer_id: '', plan_name: claim.tpa },
+      pre_authorization: { approval_code: '', authorized_from: '', authorized_to: '' },
+      clinical: { admission_date: claim.admissionDate, discharge_date: '', attending_physician: '', hospital_npi: '', hospital_tax_id: '', facility_name: '', principal_diagnosis: '' },
+      coding: { icd10_codes: [], cpt_codes: [] },
+      billing: { total_billed_amount: claim.amount.replace(/[^0-9]/g, ''), line_items: [] },
+      extraction_meta: { overall_confidence: claim.aiConfidence, low_confidence_fields: [], requires_manual_review: claim.repairStatus !== 'clean' },
     },
   }));
 
 export const buildLiveDashboardMetrics = (claims: LiveClaim[]): DashboardMetric[] => {
   const total = claims.length;
-  const clean = claims.filter((claim) => claim.repairStatus === 'clean').length;
-  const attention = claims.filter((claim) => claim.repairStatus !== 'clean').length;
-  const submittedToday = claims.filter((claim) => {
-    if (claim.status !== 'submitted') return false;
-    const submitted = new Date(claim.submittedAt);
-    const now = new Date();
-    return submitted.toDateString() === now.toDateString();
-  }).length;
-  const avgConfidence =
-    total > 0 ? Math.round(claims.reduce((sum, claim) => sum + claim.aiConfidence, 0) / total) : 0;
-  const validationRate = total > 0 ? Math.round((clean / total) * 100) : 0;
-  const docsProcessed = claims.reduce((sum, claim) => sum + claim.documentsTotal, 0);
+  const pendingReview = claims.filter((claim) => claim.status === 'repairs_pending').length;
+  const submitted = claims.filter((claim) => claim.status === 'submitted').length;
+  const approved = claims.filter((claim) => claim.status === 'approved').length;
+  const rejected = claims.filter((claim) => claim.status === 'rejected').length;
+
+  const avgHealth =
+    total > 0
+      ? Math.round(
+          claims.reduce((sum, claim) => sum + (claim.claimHealth || claim.aiConfidence || 0), 0) / total
+        )
+      : 0;
 
   return [
     {
       id: 'metric-validation-rate',
-      label: 'Validation Success Rate',
-      value: `${validationRate}%`,
-      change: total > 0 ? `+${validationRate}%` : '0%',
+      label: 'Approved Claims',
+      value: String(approved),
+      change: `+${approved}`,
       changeDir: 'up',
-      changeLabel: 'vs. yesterday',
+      changeLabel: 'TPA approved cases',
       tone: 'success',
       highlight: true,
-      description: 'Claims passing AI validation without manual repair',
+      description: 'Total claims successfully approved by TPAs',
       colSpan: 'col-span-1 md:col-span-2 lg:col-span-2 xl:col-span-2 2xl:col-span-2',
     },
     {
       id: 'metric-attention',
-      label: 'Claims Requiring Attention',
-      value: String(attention),
-      change: '0',
-      changeDir: 'up',
-      changeLabel: 'since 9 AM',
-      tone: attention > 0 ? 'danger' : 'success',
-      alert: attention > 0,
-      description: 'Unresolved repair suggestions blocking submission',
+      label: 'Pending Review',
+      value: String(pendingReview),
+      change: String(pendingReview),
+      changeDir: pendingReview > 0 ? 'down' : 'up',
+      changeLabel: 'Needs action',
+      tone: pendingReview > 0 ? 'danger' : 'success',
+      alert: pendingReview > 0,
+      description: 'Claims with validation issues blocking submission',
       colSpan: 'col-span-1',
     },
     {
       id: 'metric-pending',
-      label: 'Pending Submissions',
-      value: String(submittedToday),
-      change: `+${submittedToday}`,
+      label: 'Submitted Claims',
+      value: String(submitted),
+      change: `+${submitted}`,
       changeDir: 'up',
-      changeLabel: 'submitted today',
+      changeLabel: 'In TPA queue',
       tone: 'warning',
-      description: 'Claims ready or near-ready for TPA submission',
+      description: 'Claims submitted and waiting for TPA response',
       colSpan: 'col-span-1',
     },
     {
       id: 'metric-rejection',
-      label: 'TPA Rejection Rate',
-      value: '0%',
-      change: '0%',
-      changeDir: 'up',
-      changeLabel: 'vs. last week',
-      tone: 'success',
-      description: 'Claims rejected after TPA submission this month',
+      label: 'Rejected Claims',
+      value: String(rejected),
+      change: String(rejected),
+      changeDir: rejected > 0 ? 'down' : 'up',
+      changeLabel: 'Failed validation',
+      tone: rejected > 0 ? 'danger' : 'success',
+      description: 'Claims rejected by TPAs due to unresolved issues',
       colSpan: 'col-span-1',
     },
     {
       id: 'metric-ocr',
-      label: 'OCR Extraction Accuracy',
-      value: `${avgConfidence}%`,
-      change: total > 0 ? `+${avgConfidence}%` : '0%',
+      label: 'Average Claim Health',
+      value: `${avgHealth}%`,
+      change: `${avgHealth}%`,
       changeDir: 'up',
-      changeLabel: 'vs. yesterday',
+      changeLabel: 'All processed claims',
       tone: 'info',
-      description: 'Documents with successful text extraction',
+      description: 'Average AI validation confidence across all claims',
       colSpan: 'col-span-1',
     },
     {
       id: 'metric-docs',
-      label: 'Documents Processed Today',
-      value: String(docsProcessed),
-      change: `+${docsProcessed}`,
+      label: 'Total Claims',
+      value: String(total),
+      change: `+${total}`,
       changeDir: 'up',
-      changeLabel: 'vs. daily avg',
+      changeLabel: 'Live records',
       tone: 'muted',
-      description: 'Total documents scanned and validated today',
+      description: 'Total claim packets uploaded to InsureFlow AI',
       colSpan: 'col-span-1',
     },
   ];
@@ -442,4 +502,3 @@ export const updateLiveClaimStatus = async (
   });
   await writeAllClaims(nextClaims);
 };
-
