@@ -5,6 +5,7 @@ import { validateExtractedData } from '@/lib/claim-processing/validation';
 import { calculateScores } from '@/lib/claim-processing/scoring';
 import { getLiveClaim } from '@/lib/liveClaims';
 import type { ExtractedFields } from '@/lib/claim-processing/types';
+import { revalidateClaimViews } from '@/lib/claimViewRevalidation';
 
 export async function GET(request: NextRequest) {
   const { user, response } = await requireUser();
@@ -59,6 +60,8 @@ export async function POST(request: NextRequest) {
 
   // Log audit log for field edit
   await addAuditLog(claimId, 'Field Edited', `Claim fields edited and re-validated (health: ${claimHealth}%, readiness: ${readiness}%, issues remaining: ${errors.length}).`);
+
+  revalidateClaimViews();
 
   return jsonOk({
     success: true,

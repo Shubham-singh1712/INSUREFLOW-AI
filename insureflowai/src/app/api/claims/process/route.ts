@@ -11,6 +11,7 @@ import { saveReviewClaim } from '@/lib/liveClaims';
 import type { ExtractedClaimData } from '@/lib/claims';
 import { getWorkflowSettings } from '@/lib/workflowSettings';
 import { shouldRequireManualReview } from '@/lib/claimLifecycle';
+import { revalidateClaimViews } from '@/lib/claimViewRevalidation';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -148,5 +149,7 @@ export async function POST(request: Request) {
       },
       { status: error.status || 500 }
     );
+  } finally {
+    revalidateClaimViews();
   }
 }

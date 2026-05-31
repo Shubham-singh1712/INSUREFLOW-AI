@@ -7,6 +7,7 @@ import { saveSubmittedClaim, updateLiveClaimStatus } from '@/lib/liveClaims';
 import type { ExtractedClaimData } from '@/lib/claims';
 import { getClaimById } from '@/lib/claim-processing/db';
 import { isReadyToSubmit, normalizeClaimStatus } from '@/lib/claimLifecycle';
+import { revalidateClaimViews } from '@/lib/claimViewRevalidation';
 
 export const runtime = 'nodejs';
 
@@ -142,6 +143,7 @@ export async function POST(request: Request) {
         }, 6000);
       }
 
+      revalidateClaimViews();
       return NextResponse.json({ success: true, message: 'Claim submitted successfully' });
     } else if (action === 'reject') {
       await saveClaimState(claimId, 'REJECTED');
@@ -153,6 +155,7 @@ export async function POST(request: Request) {
       }
 
       logger.info('API', `Claim ${claimId} rejected`);
+      revalidateClaimViews();
       return NextResponse.json({ success: true, message: 'Claim rejected' });
     }
 
