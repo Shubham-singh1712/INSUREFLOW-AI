@@ -26,11 +26,11 @@ export function calculateScores( // MODIFIED
 
   // Readiness Calculation (0-100) based on critical fields presence
   const requiredFields = [
-    extracted.patient.full_name.value,
-    extracted.patient.dob.value,
-    extracted.hospital.facility_name.value,
-    extracted.clinical.diagnosis.value,
-    extracted.financial.total_claimed.value || extracted.financial.final_bill.value,
+    extracted?.patient?.full_name?.value,
+    extracted?.patient?.dob?.value,
+    extracted?.hospital?.facility_name?.value,
+    extracted?.clinical?.diagnosis?.value,
+    extracted?.financial?.total_claimed?.value || extracted?.financial?.final_bill?.value,
   ];
 
   const presentRequired = requiredFields.filter(Boolean).length;

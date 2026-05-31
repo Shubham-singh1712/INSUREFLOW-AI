@@ -31,24 +31,27 @@ export function validateExtractedData(
   };
 
   // 1. Patient validations (Missing fields + Invalid dates) // MODIFIED
-  if (!extracted.patient.full_name.value) {
+  const patient = extracted?.patient || {};
+  if (!patient.full_name?.value) {
     addError('patient.full_name', 'Patient name is missing', 'critical', []);
   }
 
   const today = new Date(); // MODIFIED
-  if (extracted.patient.dob.value) { // MODIFIED
-    const dob = new Date(extracted.patient.dob.value); // MODIFIED
+  if (patient.dob?.value) { // MODIFIED
+    const dob = new Date(patient.dob.value); // MODIFIED
     if (isNaN(dob.getTime())) { // MODIFIED
-      addError('patient.dob', 'Patient Date of Birth is invalid', 'high', [extracted.patient.dob.page || 1]); // MODIFIED
+      addError('patient.dob', 'Patient Date of Birth is invalid', 'high', [patient.dob.page || 1]); // MODIFIED
     } else if (dob > today) { // MODIFIED
-      addError('patient.dob', 'Patient Date of Birth is in the future', 'critical', [extracted.patient.dob.page || 1]); // MODIFIED
+      addError('patient.dob', 'Patient Date of Birth is in the future', 'critical', [patient.dob.page || 1]); // MODIFIED
     } // MODIFIED
   } else { // MODIFIED
     addError('patient.dob', 'Patient Date of Birth is missing', 'critical', []); // MODIFIED
   } // MODIFIED
 
   // 2. Hospital & Care validations (LOS mismatch + negative stay + future stay) // MODIFIED
-  const { admission_date, discharge_date } = extracted.hospital;
+  const hospital = extracted?.hospital || {};
+  const admission_date = hospital.admission_date || {};
+  const discharge_date = hospital.discharge_date || {};
   if (admission_date.value) { // MODIFIED
     const adm = new Date(admission_date.value); // MODIFIED
     if (isNaN(adm.getTime())) { // MODIFIED
@@ -57,10 +60,10 @@ export function validateExtractedData(
       addError('hospital.admission_date', 'Admission Date is in the future', 'high', [admission_date.page || 1]); // MODIFIED
     } // MODIFIED
 
-    if (extracted.patient.dob.value) { // MODIFIED
-      const dob = new Date(extracted.patient.dob.value); // MODIFIED
+    if (patient.dob?.value) { // MODIFIED
+      const dob = new Date(patient.dob.value); // MODIFIED
       if (!isNaN(dob.getTime()) && !isNaN(adm.getTime()) && dob >= adm) { // MODIFIED
-        addError('patient.dob', 'Date of Birth must be before admission date', 'critical', [extracted.patient.dob.page || 1, admission_date.page || 1]); // MODIFIED
+        addError('patient.dob', 'Date of Birth must be before admission date', 'critical', [patient.dob.page || 1, admission_date.page || 1]); // MODIFIED
       } // MODIFIED
     } // MODIFIED
   } else { // MODIFIED
@@ -92,7 +95,7 @@ export function validateExtractedData(
         'Swap dates to fix negative length of stay',
         80
       );
-    } else if (los !== null && extracted.clinical.length_of_stay.value !== null) {
+    } else if (los !== null && extracted?.clinical?.length_of_stay?.value !== null && extracted?.clinical?.length_of_stay?.value !== undefined) {
       if (los !== extracted.clinical.length_of_stay.value) {
         addError(
           'clinical.length_of_stay',
@@ -111,7 +114,9 @@ export function validateExtractedData(
   }
 
   // 3. Policy Mismatch validations // MODIFIED
-  const { policy_number, member_id } = extracted.insurance; // MODIFIED
+  const insurance = extracted?.insurance || {};
+  const policy_number = insurance.policy_number || {};
+  const member_id = insurance.member_id || {};
   if (policy_number.value && member_id.value && policy_number.value === member_id.value) { // MODIFIED
     addError( // MODIFIED
       'insurance.policy_number', // MODIFIED
@@ -130,18 +135,19 @@ export function validateExtractedData(
   } // MODIFIED
 
   // 4. Clinical validations (Primary diagnosis + Duplicate ICD-10) // MODIFIED
-  if (!extracted.clinical.diagnosis.value) {
+  const clinical = extracted?.clinical || {};
+  if (!clinical.diagnosis?.value) {
     addError('clinical.diagnosis', 'Primary diagnosis is missing', 'high', []);
   }
 
-  if (!extracted.clinical.icd10_codes.value || extracted.clinical.icd10_codes.value.length === 0) {
+  if (!clinical.icd10_codes?.value || clinical.icd10_codes.value.length === 0) {
     addError('clinical.icd10_codes', 'No ICD-10 codes found', 'medium', []);
   } else {
     // Check for duplicate ICD codes
-    const uniqueCodes = new Set(extracted.clinical.icd10_codes.value);
-    if (uniqueCodes.size !== extracted.clinical.icd10_codes.value.length) {
+    const uniqueCodes = new Set(clinical.icd10_codes.value);
+    if (uniqueCodes.size !== clinical.icd10_codes.value.length) {
       addError('clinical.icd10_codes', 'Duplicate ICD-10 codes found', 'low', [
-        extracted.clinical.icd10_codes.page || 1,
+        clinical.icd10_codes.page || 1,
       ]);
       addSuggestion(
         'clinical.icd10_codes',
@@ -153,8 +159,14 @@ export function validateExtractedData(
   }
 
   // 5. Financial validations (Billing mismatch) // MODIFIED
-  const { total_claimed, final_bill, room_rent, icu_charges, medicine, investigations, professional_fees } = // MODIFIED
-    extracted.financial;
+  const financial = extracted?.financial || {};
+  const total_claimed = financial.total_claimed || {};
+  const final_bill = financial.final_bill || {};
+  const room_rent = financial.room_rent || {};
+  const icu_charges = financial.icu_charges || {};
+  const medicine = financial.medicine || {};
+  const investigations = financial.investigations || {};
+  const professional_fees = financial.professional_fees || {};
   if (!total_claimed.value && !final_bill.value) {
     addError(
       'financial.total_claimed',
@@ -190,10 +202,11 @@ export function validateExtractedData(
   }
 
   // 6. Authorization validations (Missing signatures) // MODIFIED
-  if (!extracted.authorization.patient_signature.value) {
+  const authorization = extracted?.authorization || {};
+  if (!authorization.patient_signature?.value) {
     addError('authorization.patient_signature', 'Patient signature is missing or not detected', 'low', []); // Cannot be reliably detected from text OCR
   }
-  if (!extracted.authorization.doctor_signature.value) {
+  if (!authorization.doctor_signature?.value) {
     addError('authorization.doctor_signature', 'Doctor signature is missing or not detected', 'low', []); // Cannot be reliably detected from text OCR
   }
 
