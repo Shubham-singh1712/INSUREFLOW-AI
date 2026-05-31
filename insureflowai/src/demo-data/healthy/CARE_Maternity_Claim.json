@@ -1,0 +1,439 @@
+{
+  "success": true,
+  "extractionMethod": "mixed",
+  "claimId": "CLM-2854",
+  "uploadSessionId": "",
+  "pageCount": 6,
+  "classifiedPages": [
+    {
+      "page": 1,
+      "type": "preauth",
+      "confidence": 98
+    },
+    {
+      "page": 2,
+      "type": "hospital invoice",
+      "confidence": 95
+    },
+    {
+      "page": 3,
+      "type": "discharge summary",
+      "confidence": 94
+    },
+    {
+      "page": 4,
+      "type": "clinical note",
+      "confidence": 92
+    },
+    {
+      "page": 5,
+      "type": "aadhaar_card",
+      "confidence": 96
+    },
+    {
+      "page": 6,
+      "type": "pan_card",
+      "confidence": 95
+    }
+  ],
+  "extractedFields": {
+    "patient": {
+      "full_name": {
+        "value": "Priyanka Sen",
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Priyanka Sen"
+      },
+      "dob": {
+        "value": "1992-08-22",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 1992-08-22"
+      },
+      "gender": {
+        "value": "Female",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Female"
+      },
+      "age": {
+        "value": 33,
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 33"
+      },
+      "phone": {
+        "value": "+91 99890 54321",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: +91 99890 54321"
+      },
+      "address": {
+        "value": "H.No. 12-2-416/A, Gagan Mahal, Hyderabad - 500029",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: H.No. 12-2-416/A, Gagan Mahal, Hyderabad - 500029"
+      }
+    },
+    "insurance": {
+      "provider_name": {
+        "value": "Star Health Health Insurance",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Star Health Health Insurance"
+      },
+      "tpa_name": {
+        "value": "Star Health In-house TPA",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Star Health In-house TPA"
+      },
+      "policy_number": {
+        "value": "SH-884712-01",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: SH-884712-01"
+      },
+      "member_id": {
+        "value": "MEM-SH-09321",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: MEM-SH-09321"
+      },
+      "corporate_or_group_id": {
+        "value": "CORP-INFY-99",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: CORP-INFY-99"
+      },
+      "insurance_id": {
+        "value": "INS-SH-1102",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INS-SH-1102"
+      }
+    },
+    "hospital": {
+      "facility_name": {
+        "value": "CARE Hospitals, Banjara Hills",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: CARE Hospitals, Banjara Hills"
+      },
+      "doctor_name": {
+        "value": "Dr. Ananya Reddy",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Dr. Ananya Reddy"
+      },
+      "registration_number": {
+        "value": "REG-HOSP-8802",
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: REG-HOSP-8802"
+      },
+      "admission_date": {
+        "value": "2026-05-25",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-25"
+      },
+      "discharge_date": {
+        "value": "2026-05-28",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-28"
+      }
+    },
+    "clinical": {
+      "diagnosis": {
+        "value": "Single spontaneous delivery (Maternity - Pregnancy Term)",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Single spontaneous delivery (Maternity - Pregnancy Term)"
+      },
+      "icd10_codes": {
+        "value": [
+          "O80",
+          "Z37.0"
+        ],
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: O80,Z37.0"
+      },
+      "symptoms": {
+        "value": "Labor pains, term pregnancy",
+        "confidence": 92,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Labor pains, term pregnancy"
+      },
+      "surgery": {
+        "value": "Normal Vaginal Delivery",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Normal Vaginal Delivery"
+      },
+      "procedure": {
+        "value": "Obstetric Delivery Support",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Obstetric Delivery Support"
+      },
+      "length_of_stay": {
+        "value": 2,
+        "confidence": 95,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: 2"
+      },
+      "emergency_case": {
+        "value": false,
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      }
+    },
+    "financial": {
+      "room_rent": {
+        "value": 8000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 8000"
+      },
+      "icu_charges": {
+        "value": 0,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 0"
+      },
+      "ot_charges": {
+        "value": 20000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 20000"
+      },
+      "medicine": {
+        "value": 15000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 15000"
+      },
+      "investigations": {
+        "value": 8000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 8000"
+      },
+      "professional_fees": {
+        "value": 25000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 25000"
+      },
+      "final_bill": {
+        "value": 76000,
+        "confidence": 98,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 76000"
+      },
+      "total_claimed": {
+        "value": 76000,
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 76000"
+      }
+    },
+    "authorization": {
+      "patient_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "doctor_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "hospital_seal": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "approval_stamp": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      }
+    }
+  },
+  "validationErrors": [],
+  "claimHealth": 95,
+  "readiness": 98,
+  "ocrConfidence": 98,
+  "extractionConfidence": 95,
+  "rejectionRisk": "low",
+  "repairSuggestions": [],
+  "pdfType": "text_layer",
+  "state": "READY",
+  "documentChecklist": {
+    "items": [
+      {
+        "id": "preauth_form",
+        "label": "Pre-Authorization Form",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 98
+      },
+      {
+        "id": "insurance_card_member",
+        "label": "Insurance / TPA Membership Card",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 97
+      },
+      {
+        "id": "aadhaar_card",
+        "label": "Aadhaar Card",
+        "required": true,
+        "present": true,
+        "page": 5,
+        "confidence": 96
+      },
+      {
+        "id": "pan_card",
+        "label": "PAN Card",
+        "required": true,
+        "present": true,
+        "page": 6,
+        "confidence": 95
+      },
+      {
+        "id": "clinical_note_doctor",
+        "label": "Doctor's Clinical Note",
+        "required": true,
+        "present": true,
+        "page": 4,
+        "confidence": 92
+      },
+      {
+        "id": "policy_schedule",
+        "label": "Insurance Policy Schedule",
+        "required": false,
+        "present": true,
+        "page": 4,
+        "confidence": 90
+      }
+    ],
+    "allRequiredPresent": true,
+    "missingRequired": []
+  },
+  "auditLogs": [
+    {
+      "stage": "UPLOADED",
+      "timestamp": "2026-05-30T07:44:43.972Z",
+      "message": "PDF document uploaded: CARE_Maternity_Claim.pdf"
+    },
+    {
+      "stage": "PROCESSING",
+      "timestamp": "2026-05-30T07:44:55.972Z",
+      "message": "OCR process initiated. Running Tesseract layout analysis."
+    },
+    {
+      "stage": "OCR_COMPLETE",
+      "timestamp": "2026-05-30T07:45:13.972Z",
+      "message": "OCR extraction complete. Text layers identified. Confidence: 98%"
+    },
+    {
+      "stage": "CLASSIFIED",
+      "timestamp": "2026-05-30T07:45:43.972Z",
+      "message": "Classified pages: preauth (p.1), hospital invoice (p.2), discharge summary (p.3), clinical note (p.4), aadhaar_card (p.5), pan_card (p.6)"
+    },
+    {
+      "stage": "EXTRACTED",
+      "timestamp": "2026-05-30T07:46:13.972Z",
+      "message": "Entities extracted. Found patient Priyanka Sen, provider Star Health Health Insurance, hospital CARE Hospitals, Banjara Hills"
+    },
+    {
+      "stage": "READY",
+      "timestamp": "2026-05-30T07:46:43.972Z",
+      "message": "Validation complete. No errors flagged. Ready to submit."
+    }
+  ]
+}

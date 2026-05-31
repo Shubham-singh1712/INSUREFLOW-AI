@@ -1,0 +1,489 @@
+{
+  "success": true,
+  "extractionMethod": "mixed",
+  "claimId": "CLM-2869",
+  "uploadSessionId": "",
+  "pageCount": 4,
+  "classifiedPages": [
+    {
+      "page": 1,
+      "type": "preauth",
+      "confidence": 98
+    },
+    {
+      "page": 2,
+      "type": "hospital invoice",
+      "confidence": 95
+    },
+    {
+      "page": 3,
+      "type": "discharge summary",
+      "confidence": 94
+    },
+    {
+      "page": 4,
+      "type": "clinical note",
+      "confidence": 92
+    }
+  ],
+  "extractedFields": {
+    "patient": {
+      "full_name": {
+        "value": "Subbarami Reddy",
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Subbarami Reddy"
+      },
+      "dob": {
+        "value": null,
+        "confidence": 0,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 1949-08-18"
+      },
+      "gender": {
+        "value": "Male",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Male"
+      },
+      "age": {
+        "value": 76,
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 76"
+      },
+      "phone": {
+        "value": "+91 98490 22110",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: +91 98490 22110"
+      },
+      "address": {
+        "value": "Road No. 12, Banjara Hills, Hyderabad - 500034",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Road No. 12, Banjara Hills, Hyderabad - 500034"
+      }
+    },
+    "insurance": {
+      "provider_name": {
+        "value": "Apollo Munich Health Insurance",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Apollo Munich Health Insurance"
+      },
+      "tpa_name": {
+        "value": "Medi Assist TPA",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Medi Assist TPA"
+      },
+      "policy_number": {
+        "value": "AP-55410-09",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: AP-55410-09"
+      },
+      "member_id": {
+        "value": "MED-AP-11902",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: MED-AP-11902"
+      },
+      "corporate_or_group_id": {
+        "value": "VIP-GOLD",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: VIP-GOLD"
+      },
+      "insurance_id": {
+        "value": "INS-AP-9908",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INS-AP-9908"
+      }
+    },
+    "hospital": {
+      "facility_name": {
+        "value": "Apollo Hospitals, Jubilee Hills",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Apollo Hospitals, Jubilee Hills"
+      },
+      "doctor_name": {
+        "value": "Dr. C. Shekhar",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Dr. C. Shekhar"
+      },
+      "registration_number": {
+        "value": "REG-HOSP-8817",
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: REG-HOSP-8817"
+      },
+      "admission_date": {
+        "value": "2026-05-25",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-25"
+      },
+      "discharge_date": {
+        "value": "2026-05-28",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-28"
+      }
+    },
+    "clinical": {
+      "diagnosis": {
+        "value": "Advanced Primary Open Angle Glaucoma (Bilateral)",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Advanced Primary Open Angle Glaucoma (Bilateral)"
+      },
+      "icd10_codes": {
+        "value": [
+          "H40.113"
+        ],
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: H40.113"
+      },
+      "symptoms": {
+        "value": "Progressive loss of peripheral vision, elevated intraocular pressure",
+        "confidence": 92,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Progressive loss of peripheral vision, elevated intraocular pressure"
+      },
+      "surgery": {
+        "value": "Trabeculectomy with MMC (Mitomycin-C) in Right Eye",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Trabeculectomy with MMC (Mitomycin-C) in Right Eye"
+      },
+      "procedure": {
+        "value": "Glaucoma Filtering Surgery",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Glaucoma Filtering Surgery"
+      },
+      "length_of_stay": {
+        "value": 2,
+        "confidence": 95,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: 2"
+      },
+      "emergency_case": {
+        "value": false,
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      }
+    },
+    "financial": {
+      "room_rent": {
+        "value": 15000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 15000"
+      },
+      "icu_charges": {
+        "value": 0,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 0"
+      },
+      "ot_charges": {
+        "value": 45000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 45000"
+      },
+      "medicine": {
+        "value": 18000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 18000"
+      },
+      "investigations": {
+        "value": 15000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 15000"
+      },
+      "professional_fees": {
+        "value": 40000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 40000"
+      },
+      "final_bill": {
+        "value": 148000,
+        "confidence": 98,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 148000"
+      },
+      "total_claimed": {
+        "value": 148000,
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 148000"
+      }
+    },
+    "authorization": {
+      "patient_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "doctor_signature": {
+        "value": false,
+        "confidence": 0,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "hospital_seal": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "approval_stamp": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      }
+    }
+  },
+  "validationErrors": [
+    {
+      "field": "patient.dob",
+      "issue": "Patient Date of Birth is missing from demographics",
+      "severity": "critical",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Please enter patient's Date of Birth from Aadhaar or policy schedule."
+    },
+    {
+      "field": "clinical.length_of_stay",
+      "issue": "Chronological inconsistency: Length of Stay (12 days) exceeds the duration between Admission and Discharge dates (3 days)",
+      "severity": "critical",
+      "pages": [
+        1,
+        4
+      ],
+      "suggestedAction": "Resolve length of stay discrepancy in clinical summary."
+    },
+    {
+      "field": "documents.aadhaar_card",
+      "issue": "Missing required document: Aadhaar Card. Govt-mandated KYC ID proof not detected.",
+      "severity": "critical",
+      "pages": [],
+      "suggestedAction": "Upload the patient's Aadhaar card (front and back) to resolve the KYC check."
+    },
+    {
+      "field": "financial.final_bill",
+      "issue": "Math validation failed: Billed item totals sum to INR 352,000, which does not match final bill INR 537,000",
+      "severity": "high",
+      "pages": [
+        2
+      ],
+      "suggestedAction": "Correct the itemized charges to match the total final bill amount."
+    },
+    {
+      "field": "authorization.doctor_signature",
+      "issue": "Treating Physician signature missing on page 4 clinical report",
+      "severity": "critical",
+      "pages": [
+        4
+      ],
+      "suggestedAction": "Obtain doctor's digital or physical signature on the clinical note."
+    }
+  ],
+  "claimHealth": 35,
+  "readiness": 30,
+  "ocrConfidence": 98,
+  "extractionConfidence": 95,
+  "rejectionRisk": "high",
+  "repairSuggestions": [
+    {
+      "fieldId": "patient.dob",
+      "suggestion": "Manually input DOB from policy certificate.",
+      "confidence": 90,
+      "reason": "Demographics block is incomplete."
+    },
+    {
+      "fieldId": "authorization.doctor_signature",
+      "suggestion": "Upload signed doctor clinical referral sheet.",
+      "confidence": 65,
+      "reason": "Signature line is blank."
+    }
+  ],
+  "pdfType": "text_layer",
+  "state": "REVIEW_REQUIRED",
+  "documentChecklist": {
+    "items": [
+      {
+        "id": "preauth_form",
+        "label": "Pre-Authorization Form",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 98
+      },
+      {
+        "id": "insurance_card_member",
+        "label": "Insurance / TPA Membership Card",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 97
+      },
+      {
+        "id": "aadhaar_card",
+        "label": "Aadhaar Card",
+        "required": true,
+        "present": false,
+        "page": 5,
+        "confidence": 96
+      },
+      {
+        "id": "pan_card",
+        "label": "PAN Card",
+        "required": true,
+        "present": false,
+        "page": null,
+        "confidence": 0
+      },
+      {
+        "id": "clinical_note_doctor",
+        "label": "Doctor's Clinical Note",
+        "required": true,
+        "present": true,
+        "page": 4,
+        "confidence": 92
+      },
+      {
+        "id": "policy_schedule",
+        "label": "Insurance Policy Schedule",
+        "required": false,
+        "present": true,
+        "page": 4,
+        "confidence": 90
+      }
+    ],
+    "allRequiredPresent": false,
+    "missingRequired": [
+      "aadhaar_card",
+      "pan_card"
+    ]
+  },
+  "auditLogs": [
+    {
+      "stage": "UPLOADED",
+      "timestamp": "2026-05-30T07:44:44.002Z",
+      "message": "PDF document uploaded: Apollo_Glaucoma_HighRisk_Claim.pdf"
+    },
+    {
+      "stage": "PROCESSING",
+      "timestamp": "2026-05-30T07:44:56.002Z",
+      "message": "OCR process initiated. Running Tesseract layout analysis."
+    },
+    {
+      "stage": "OCR_COMPLETE",
+      "timestamp": "2026-05-30T07:45:14.002Z",
+      "message": "OCR extraction complete. Text layers identified. Confidence: 98%"
+    },
+    {
+      "stage": "CLASSIFIED",
+      "timestamp": "2026-05-30T07:45:44.002Z",
+      "message": "Classified pages: preauth (p.1), hospital invoice (p.2), discharge summary (p.3), clinical note (p.4)"
+    },
+    {
+      "stage": "EXTRACTED",
+      "timestamp": "2026-05-30T07:46:14.002Z",
+      "message": "Entities extracted. Found patient Subbarami Reddy, provider Apollo Munich Health Insurance, hospital Apollo Hospitals, Jubilee Hills"
+    },
+    {
+      "stage": "REVIEW_REQUIRED",
+      "timestamp": "2026-05-30T07:46:44.002Z",
+      "message": "Validation flagged 5 errors. Review & repair required."
+    }
+  ]
+}

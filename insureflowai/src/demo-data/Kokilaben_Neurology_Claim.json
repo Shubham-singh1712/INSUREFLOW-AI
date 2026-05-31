@@ -1,0 +1,480 @@
+{
+  "success": true,
+  "extractionMethod": "mixed",
+  "claimId": "CLM-2868",
+  "uploadSessionId": "",
+  "pageCount": 4,
+  "classifiedPages": [
+    {
+      "page": 1,
+      "type": "preauth",
+      "confidence": 98
+    },
+    {
+      "page": 2,
+      "type": "hospital invoice",
+      "confidence": 95
+    },
+    {
+      "page": 3,
+      "type": "discharge summary",
+      "confidence": 94
+    },
+    {
+      "page": 4,
+      "type": "clinical note",
+      "confidence": 92
+    }
+  ],
+  "extractedFields": {
+    "patient": {
+      "full_name": {
+        "value": "Ramesh Tendulkar",
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Ramesh Tendulkar"
+      },
+      "dob": {
+        "value": null,
+        "confidence": 0,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 1955-04-24"
+      },
+      "gender": {
+        "value": "Male",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Male"
+      },
+      "age": {
+        "value": 71,
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 71"
+      },
+      "phone": {
+        "value": "+91 98200 88776",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: +91 98200 88776"
+      },
+      "address": {
+        "value": "Perry Cross Road, Bandra West, Mumbai - 400050",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Perry Cross Road, Bandra West, Mumbai - 400050"
+      }
+    },
+    "insurance": {
+      "provider_name": {
+        "value": "HDFC ERGO Health Insurance",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: HDFC ERGO Health Insurance"
+      },
+      "tpa_name": {
+        "value": "Paramount Health Services",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Paramount Health Services"
+      },
+      "policy_number": {
+        "value": "HE-0092182",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: HE-0092182"
+      },
+      "member_id": {
+        "value": "PAR-HE-77610",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: PAR-HE-77610"
+      },
+      "corporate_or_group_id": {
+        "value": "INDIVIDUAL-SENIOR",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INDIVIDUAL-SENIOR"
+      },
+      "insurance_id": {
+        "value": "INS-HE-1142",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INS-HE-1142"
+      }
+    },
+    "hospital": {
+      "facility_name": {
+        "value": "Kokilaben Dhirubhai Ambani Hospital",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Kokilaben Dhirubhai Ambani Hospital"
+      },
+      "doctor_name": {
+        "value": "Dr. Mohit Bhatt",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Dr. Mohit Bhatt"
+      },
+      "registration_number": {
+        "value": "REG-HOSP-8816",
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: REG-HOSP-8816"
+      },
+      "admission_date": {
+        "value": "2026-05-25",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-25"
+      },
+      "discharge_date": {
+        "value": "2026-05-20",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-28"
+      }
+    },
+    "clinical": {
+      "diagnosis": {
+        "value": "Acute Ischemic Stroke - Right MCA Territory",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Acute Ischemic Stroke - Right MCA Territory"
+      },
+      "icd10_codes": {
+        "value": [
+          "I63.9",
+          "R47.01"
+        ],
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: I63.9,R47.01"
+      },
+      "symptoms": {
+        "value": "Sudden left-sided hemiplegia, facial deviation, slurred speech",
+        "confidence": 92,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Sudden left-sided hemiplegia, facial deviation, slurred speech"
+      },
+      "surgery": {
+        "value": "None",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: None"
+      },
+      "procedure": {
+        "value": "Intravenous Thrombolysis (Tissue Plasminogen Activator), MRI stroke protocol",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Intravenous Thrombolysis (Tissue Plasminogen Activator), MRI stroke protocol"
+      },
+      "length_of_stay": {
+        "value": 5,
+        "confidence": 95,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: 5"
+      },
+      "emergency_case": {
+        "value": false,
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      }
+    },
+    "financial": {
+      "room_rent": {
+        "value": 12000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 12000"
+      },
+      "icu_charges": {
+        "value": 48000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 48000"
+      },
+      "ot_charges": {
+        "value": 0,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 0"
+      },
+      "medicine": {
+        "value": 115000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 115000"
+      },
+      "investigations": {
+        "value": 34000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 34000"
+      },
+      "professional_fees": {
+        "value": 50000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 50000"
+      },
+      "final_bill": {
+        "value": 307000,
+        "confidence": 98,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 307000"
+      },
+      "total_claimed": {
+        "value": 307000,
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 307000"
+      }
+    },
+    "authorization": {
+      "patient_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "doctor_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "hospital_seal": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "approval_stamp": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      }
+    }
+  },
+  "validationErrors": [
+    {
+      "field": "patient.dob",
+      "issue": "Patient Date of Birth is missing from demographics",
+      "severity": "critical",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Please enter patient's Date of Birth from Aadhaar or policy schedule."
+    },
+    {
+      "field": "clinical.discharge_date",
+      "issue": "Chronological inconsistency: Discharge Date (2026-05-20) is before Admission Date (2026-05-25)",
+      "severity": "critical",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Verify dates in hospital log and correct the discharge date to the actual discharge."
+    },
+    {
+      "field": "documents.aadhaar_card",
+      "issue": "Missing required document: Aadhaar Card. Govt-mandated KYC ID proof not detected.",
+      "severity": "critical",
+      "pages": [],
+      "suggestedAction": "Upload the patient's Aadhaar card (front and back) to resolve the KYC check."
+    },
+    {
+      "field": "financial.final_bill",
+      "issue": "Math validation failed: Line items sum does not equal final bill. Expected final bill: INR 3,07,000",
+      "severity": "high",
+      "pages": [
+        2
+      ],
+      "suggestedAction": "Recalculate or inspect line items details and adjust final billing total."
+    }
+  ],
+  "claimHealth": 42,
+  "readiness": 32,
+  "ocrConfidence": 98,
+  "extractionConfidence": 95,
+  "rejectionRisk": "high",
+  "repairSuggestions": [
+    {
+      "fieldId": "patient.dob",
+      "suggestion": "Retrieve DOB from Aadhaar or manual input.",
+      "confidence": 90,
+      "reason": "OCR could not read the blurry birth date field in the photo copy."
+    },
+    {
+      "fieldId": "clinical.discharge_date",
+      "suggestion": "Correct discharge date to 2026-05-28.",
+      "confidence": 75,
+      "reason": "Invoice shows discharge date is 28th May, but form has a typo of 20th May."
+    }
+  ],
+  "pdfType": "text_layer",
+  "state": "REVIEW_REQUIRED",
+  "documentChecklist": {
+    "items": [
+      {
+        "id": "preauth_form",
+        "label": "Pre-Authorization Form",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 98
+      },
+      {
+        "id": "insurance_card_member",
+        "label": "Insurance / TPA Membership Card",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 97
+      },
+      {
+        "id": "aadhaar_card",
+        "label": "Aadhaar Card",
+        "required": true,
+        "present": false,
+        "page": 5,
+        "confidence": 96
+      },
+      {
+        "id": "pan_card",
+        "label": "PAN Card",
+        "required": true,
+        "present": false,
+        "page": null,
+        "confidence": 0
+      },
+      {
+        "id": "clinical_note_doctor",
+        "label": "Doctor's Clinical Note",
+        "required": true,
+        "present": true,
+        "page": 4,
+        "confidence": 92
+      },
+      {
+        "id": "policy_schedule",
+        "label": "Insurance Policy Schedule",
+        "required": false,
+        "present": true,
+        "page": 4,
+        "confidence": 90
+      }
+    ],
+    "allRequiredPresent": false,
+    "missingRequired": [
+      "aadhaar_card",
+      "pan_card"
+    ]
+  },
+  "auditLogs": [
+    {
+      "stage": "UPLOADED",
+      "timestamp": "2026-05-30T07:34:42.985Z",
+      "message": "PDF document uploaded: Kokilaben_Neurology_Claim.json"
+    },
+    {
+      "stage": "PROCESSING",
+      "timestamp": "2026-05-30T07:34:54.985Z",
+      "message": "OCR process initiated. Running Tesseract layout analysis."
+    },
+    {
+      "stage": "OCR_COMPLETE",
+      "timestamp": "2026-05-30T07:35:12.985Z",
+      "message": "OCR extraction complete. Text layers identified. Confidence: 98%"
+    },
+    {
+      "stage": "CLASSIFIED",
+      "timestamp": "2026-05-30T07:35:42.985Z",
+      "message": "Classified pages: preauth (p.1), hospital invoice (p.2), discharge summary (p.3), clinical note (p.4)"
+    },
+    {
+      "stage": "EXTRACTED",
+      "timestamp": "2026-05-30T07:36:12.985Z",
+      "message": "Entities extracted. Found patient Ramesh Tendulkar, provider HDFC ERGO Health Insurance, hospital Kokilaben Dhirubhai Ambani Hospital"
+    },
+    {
+      "stage": "REVIEW_REQUIRED",
+      "timestamp": "2026-05-30T07:36:42.985Z",
+      "message": "Validation flagged 4 errors. Review & repair required."
+    }
+  ]
+}

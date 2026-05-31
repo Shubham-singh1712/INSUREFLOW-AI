@@ -1,0 +1,65 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 2385 >>
+stream
+BT /F1 18 Tf 48 770 Td (Review Needed Claim Packet) Tj ET
+BT /F1 11 Tf 48 750 Td (Apollo Hospitals, Greams Road, Chennai) Tj ET
+BT /F1 11 Tf 48 730 Td (SAMPLE DOCUMENT - NOT REAL PATIENT DATA) Tj ET
+BT /F1 11 Tf 48 710 Td (Claim Fields) Tj ET
+BT /F1 9 Tf 48 690 Td (- Patient Name: Meera Test Sharma) Tj ET
+BT /F1 9 Tf 48 670 Td (- Date of Birth:) Tj ET
+BT /F1 9 Tf 48 650 Td (- Gender: Female) Tj ET
+BT /F1 9 Tf 48 630 Td (- Address: 22 Validation Road, Chennai - 600001, Tamil Nadu) Tj ET
+BT /F1 9 Tf 48 610 Td (- Phone: +91 90000 11111) Tj ET
+BT /F1 9 Tf 48 590 Td (- Email: meera.review@example.com) Tj ET
+BT /F1 9 Tf 48 570 Td (- Policyholder Name: Meera Test Sharma) Tj ET
+BT /F1 9 Tf 48 550 Td (- Member ID: MEM-BAD-445566) Tj ET
+BT /F1 9 Tf 48 530 Td (- Group Number: GRP-REVIEW-0001) Tj ET
+BT /F1 9 Tf 48 510 Td (- Payer ID: APMH-PAYER-001) Tj ET
+BT /F1 9 Tf 48 490 Td (- Plan Name: Apollo Munich Optima Restore) Tj ET
+BT /F1 9 Tf 48 470 Td (- Approval Code: PA-REVIEW-FAIL-01) Tj ET
+BT /F1 9 Tf 48 450 Td (- Authorized From: 2026-05-01) Tj ET
+BT /F1 9 Tf 48 430 Td (- Authorized To: 2026-05-03) Tj ET
+BT /F1 9 Tf 48 410 Td (- Admission Date: 2026-05-06) Tj ET
+BT /F1 9 Tf 48 390 Td (- Discharge Date: 2026-05-01) Tj ET
+BT /F1 9 Tf 48 370 Td (- Attending Physician: Dr. Kavya Rao, Cardiologist) Tj ET
+BT /F1 9 Tf 48 350 Td (- Hospital NPI:) Tj ET
+BT /F1 9 Tf 48 330 Td (- Hospital Tax ID: 33-AAACH1234C1Z5) Tj ET
+BT /F1 9 Tf 48 310 Td (- Principal Diagnosis: I21.0) Tj ET
+BT /F1 9 Tf 48 290 Td (- I21.0 - Acute transmural myocardial infarction of anterior wall) Tj ET
+BT /F1 9 Tf 48 270 Td (- I25.10 - Atherosclerotic heart disease of native coronary artery) Tj ET
+BT /F1 9 Tf 48 250 Td (- 92928 - Percutaneous transcatheter placement of intracoronary stent) Tj ET
+BT /F1 9 Tf 48 230 Td (- 93510 - Left heart catheterization) Tj ET
+BT /F1 9 Tf 48 210 Td (- Total Billed Amount: INR 999999) Tj ET
+BT /F1 9 Tf 48 190 Td (- ICU Charges 5 days: Qty 5 x INR 12000 = INR 60000) Tj ET
+BT /F1 9 Tf 48 170 Td (- Coronary Angioplasty Procedure: Qty 1 x INR 85000 = INR 85000) Tj ET
+BT /F1 9 Tf 48 150 Td (- Stent Drug Eluting: Qty 1 x INR 28000 = INR 28000) Tj ET
+BT /F1 9 Tf 48 130 Td (- Pharmacy and Consumables: Qty 1 x INR 11500 = INR 11500) Tj ET
+BT /F1 9 Tf 48 110 Td (Expected validation failures: missing DOB, missing NPI, discharge before admission, and total mismatch.) Tj ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000311 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2747
+%%EOF

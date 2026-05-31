@@ -9,7 +9,7 @@ export async function GET() {
   if (response) return response;
   const demoMode = await getDemoModeState();
   const liveClaims = await listLiveClaims(user.id);
-  const claims = demoMode.enabled ? demoDashboardClaims : toDashboardClaims(liveClaims);
+  const claims = toDashboardClaims(liveClaims);
 
   return jsonOk({
     user,
@@ -20,11 +20,7 @@ export async function GET() {
       greeting: getTimeOfDayGreeting(),
       displayName: getUserDisplayName(user),
     },
-    metrics: demoMode.enabled
-      ? demoDashboardMetrics
-      : liveClaims.length > 0
-        ? buildLiveDashboardMetrics(liveClaims)
-        : emptyDashboardMetrics,
+    metrics: buildLiveDashboardMetrics(liveClaims),
     claims,
     submissionWindow: {
       closesAt: '17:00',

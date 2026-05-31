@@ -58,30 +58,30 @@ export default function DemoModeCard() {
 
   return (
     <div
-      className={`card p-5 ${enabled ? 'border-success/30 bg-success-bg/10' : 'border-info/20'}`}
+      className={`card p-5 ${enabled ? 'border-amber-500/30 bg-amber-500/5' : 'border-info/20'}`}
     >
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           {enabled ? (
-            <ToggleRight size={22} className="text-success mb-3" />
+            <ToggleRight size={22} className="text-amber-500 mb-3" />
           ) : (
             <ToggleLeft size={22} className="text-muted-foreground mb-3" />
           )}
-          <h2 className="section-header mb-2">Demo Mode</h2>
+          <h2 className="section-header mb-2">⚡ Accelerator Demo Mode</h2>
         </div>
         <span
-          className={`text-xs font-bold px-2.5 py-1 rounded-full ${enabled ? 'bg-success-bg text-success-foreground' : 'bg-info-bg text-info'}`}
+          className={`text-xs font-bold px-2.5 py-1 rounded-full ${enabled ? 'bg-amber-500/20 text-amber-600' : 'bg-info-bg text-info'}`}
         >
-          {enabled ? 'Demo On' : 'Live On'}
+          {enabled ? 'Demo Active' : 'Live Mode'}
         </span>
       </div>
 
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground leading-relaxed">
         {enabled
-          ? 'Mock dashboard, claim register, and extraction fixtures are visible.'
+          ? 'High-fidelity mock claims, interactive matching simulator, and simulated extraction pipelines (Green/Yellow/Red paths) are active. TPA auto-approval is enabled for fast 90-second pitches.'
           : isLocalOcr
-            ? 'Local OCR extraction is active. Mock fixtures stay hidden unless you turn demo mode on.'
-            : `${state?.providerLabel || 'Live AI'} is active. Mock fixtures stay hidden unless you turn demo mode on.`}
+            ? 'Production extraction is active (using Local OCR). Mock fixtures stay hidden unless you turn demo mode on.'
+            : `${state?.providerLabel || 'Live AI'} is active. Mock fixtures and simulated flows stay hidden unless you turn demo mode on.`}
       </p>
 
       <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1">

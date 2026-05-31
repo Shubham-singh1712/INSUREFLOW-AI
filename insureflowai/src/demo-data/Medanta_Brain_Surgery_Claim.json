@@ -1,0 +1,479 @@
+{
+  "success": true,
+  "extractionMethod": "mixed",
+  "claimId": "CLM-2867",
+  "uploadSessionId": "",
+  "pageCount": 4,
+  "classifiedPages": [
+    {
+      "page": 1,
+      "type": "preauth",
+      "confidence": 98
+    },
+    {
+      "page": 2,
+      "type": "hospital invoice",
+      "confidence": 95
+    },
+    {
+      "page": 3,
+      "type": "discharge summary",
+      "confidence": 94
+    },
+    {
+      "page": 4,
+      "type": "clinical note",
+      "confidence": 92
+    }
+  ],
+  "extractedFields": {
+    "patient": {
+      "full_name": {
+        "value": "Gurpreet Singh",
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Gurpreet Singh"
+      },
+      "dob": {
+        "value": null,
+        "confidence": 0,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 1972-04-03"
+      },
+      "gender": {
+        "value": "Male",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Male"
+      },
+      "age": {
+        "value": 54,
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 54"
+      },
+      "phone": {
+        "value": "+91 99100 88776",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: +91 99100 88776"
+      },
+      "address": {
+        "value": "C-18, Model Town 3, Delhi - 110009",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: C-18, Model Town 3, Delhi - 110009"
+      }
+    },
+    "insurance": {
+      "provider_name": {
+        "value": "ICICI Lombard Health Insurance",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: ICICI Lombard Health Insurance"
+      },
+      "tpa_name": {
+        "value": "Family Health Plan In-house TPA",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Family Health Plan In-house TPA"
+      },
+      "policy_number": {
+        "value": "IL-990821-ZZ",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: IL-990821-ZZ"
+      },
+      "member_id": {
+        "value": "FHPL-IL-00982",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: FHPL-IL-00982"
+      },
+      "corporate_or_group_id": {
+        "value": "CORP-PEPSI",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: CORP-PEPSI"
+      },
+      "insurance_id": {
+        "value": "INS-IL-5541",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INS-IL-5541"
+      }
+    },
+    "hospital": {
+      "facility_name": {
+        "value": "Medanta - The Medicity",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Medanta - The Medicity"
+      },
+      "doctor_name": {
+        "value": "Dr. Naresh Trehan",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Dr. Naresh Trehan"
+      },
+      "registration_number": {
+        "value": "REG-HOSP-8815",
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: REG-HOSP-8815"
+      },
+      "admission_date": {
+        "value": "2026-05-25",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-25"
+      },
+      "discharge_date": {
+        "value": "2026-05-20",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-28"
+      }
+    },
+    "clinical": {
+      "diagnosis": {
+        "value": "Right Frontal Lobe Meningioma (Brain Tumor)",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Right Frontal Lobe Meningioma (Brain Tumor)"
+      },
+      "icd10_codes": {
+        "value": [
+          "D32.0"
+        ],
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: D32.0"
+      },
+      "symptoms": {
+        "value": "New onset seizures, progressive morning headaches, left-sided weakness",
+        "confidence": 92,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: New onset seizures, progressive morning headaches, left-sided weakness"
+      },
+      "surgery": {
+        "value": "Right Frontal Craniotomy and Total Excision of Meningioma",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Right Frontal Craniotomy and Total Excision of Meningioma"
+      },
+      "procedure": {
+        "value": "Brain Tumor Craniotomy Surgery",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Brain Tumor Craniotomy Surgery"
+      },
+      "length_of_stay": {
+        "value": 6,
+        "confidence": 95,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: 6"
+      },
+      "emergency_case": {
+        "value": false,
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      }
+    },
+    "financial": {
+      "room_rent": {
+        "value": 14000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 14000"
+      },
+      "icu_charges": {
+        "value": 80000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 80000"
+      },
+      "ot_charges": {
+        "value": 140000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 140000"
+      },
+      "medicine": {
+        "value": 95000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 95000"
+      },
+      "investigations": {
+        "value": 54000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 54000"
+      },
+      "professional_fees": {
+        "value": 120000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 120000"
+      },
+      "final_bill": {
+        "value": 587000,
+        "confidence": 98,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 587000"
+      },
+      "total_claimed": {
+        "value": 587000,
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 587000"
+      }
+    },
+    "authorization": {
+      "patient_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "doctor_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "hospital_seal": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "approval_stamp": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      }
+    }
+  },
+  "validationErrors": [
+    {
+      "field": "patient.dob",
+      "issue": "Patient Date of Birth is missing from demographics",
+      "severity": "critical",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Please enter patient's Date of Birth from Aadhaar or policy schedule."
+    },
+    {
+      "field": "clinical.discharge_date",
+      "issue": "Chronological inconsistency: Discharge Date (2026-05-20) is before Admission Date (2026-05-25)",
+      "severity": "critical",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Verify dates in hospital log and correct the discharge date to the actual discharge."
+    },
+    {
+      "field": "documents.aadhaar_card",
+      "issue": "Missing required document: Aadhaar Card. Govt-mandated KYC ID proof not detected.",
+      "severity": "critical",
+      "pages": [],
+      "suggestedAction": "Upload the patient's Aadhaar card (front and back) to resolve the KYC check."
+    },
+    {
+      "field": "financial.final_bill",
+      "issue": "Math validation failed: Line items sum does not equal final bill. Expected final bill: INR 5,87,000",
+      "severity": "high",
+      "pages": [
+        2
+      ],
+      "suggestedAction": "Recalculate or inspect line items details and adjust final billing total."
+    }
+  ],
+  "claimHealth": 42,
+  "readiness": 32,
+  "ocrConfidence": 98,
+  "extractionConfidence": 95,
+  "rejectionRisk": "high",
+  "repairSuggestions": [
+    {
+      "fieldId": "patient.dob",
+      "suggestion": "Retrieve DOB from Aadhaar or manual input.",
+      "confidence": 90,
+      "reason": "OCR could not read the blurry birth date field in the photo copy."
+    },
+    {
+      "fieldId": "clinical.discharge_date",
+      "suggestion": "Correct discharge date to 2026-05-28.",
+      "confidence": 75,
+      "reason": "Invoice shows discharge date is 28th May, but form has a typo of 20th May."
+    }
+  ],
+  "pdfType": "text_layer",
+  "state": "REVIEW_REQUIRED",
+  "documentChecklist": {
+    "items": [
+      {
+        "id": "preauth_form",
+        "label": "Pre-Authorization Form",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 98
+      },
+      {
+        "id": "insurance_card_member",
+        "label": "Insurance / TPA Membership Card",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 97
+      },
+      {
+        "id": "aadhaar_card",
+        "label": "Aadhaar Card",
+        "required": true,
+        "present": false,
+        "page": 5,
+        "confidence": 96
+      },
+      {
+        "id": "pan_card",
+        "label": "PAN Card",
+        "required": true,
+        "present": false,
+        "page": null,
+        "confidence": 0
+      },
+      {
+        "id": "clinical_note_doctor",
+        "label": "Doctor's Clinical Note",
+        "required": true,
+        "present": true,
+        "page": 4,
+        "confidence": 92
+      },
+      {
+        "id": "policy_schedule",
+        "label": "Insurance Policy Schedule",
+        "required": false,
+        "present": true,
+        "page": 4,
+        "confidence": 90
+      }
+    ],
+    "allRequiredPresent": false,
+    "missingRequired": [
+      "aadhaar_card",
+      "pan_card"
+    ]
+  },
+  "auditLogs": [
+    {
+      "stage": "UPLOADED",
+      "timestamp": "2026-05-30T07:34:42.983Z",
+      "message": "PDF document uploaded: Medanta_Brain_Surgery_Claim.json"
+    },
+    {
+      "stage": "PROCESSING",
+      "timestamp": "2026-05-30T07:34:54.983Z",
+      "message": "OCR process initiated. Running Tesseract layout analysis."
+    },
+    {
+      "stage": "OCR_COMPLETE",
+      "timestamp": "2026-05-30T07:35:12.983Z",
+      "message": "OCR extraction complete. Text layers identified. Confidence: 98%"
+    },
+    {
+      "stage": "CLASSIFIED",
+      "timestamp": "2026-05-30T07:35:42.983Z",
+      "message": "Classified pages: preauth (p.1), hospital invoice (p.2), discharge summary (p.3), clinical note (p.4)"
+    },
+    {
+      "stage": "EXTRACTED",
+      "timestamp": "2026-05-30T07:36:12.983Z",
+      "message": "Entities extracted. Found patient Gurpreet Singh, provider ICICI Lombard Health Insurance, hospital Medanta - The Medicity"
+    },
+    {
+      "stage": "REVIEW_REQUIRED",
+      "timestamp": "2026-05-30T07:36:42.983Z",
+      "message": "Validation flagged 4 errors. Review & repair required."
+    }
+  ]
+}

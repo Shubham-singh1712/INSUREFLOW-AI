@@ -61,6 +61,7 @@
     "next": "15.1.11",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "5.4.296",
+    "pdfkit": "^0.18.0",
     "react": "19.0.3",
     "react-dom": "19.0.3",
     "react-hook-form": "^7.75.0",
