@@ -5,6 +5,7 @@ import QueueActionButton from '@/components/QueueActionButton';
 import SectionShell, { MetricCard, StatusPill } from '@/components/SectionShell';
 import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
+import { isApproved, isReadyToSubmit, isSubmitted, isValidationRequired } from '@/lib/claimLifecycle';
 
 export default async function ValidationQueuePage() {
   let user: any = null;
@@ -30,12 +31,12 @@ export default async function ValidationQueuePage() {
   }
 
   // Filter claims that need validation review (status = VALIDATION_REQUIRED)
-  const validationClaims = liveClaims.filter((claim) => claim.status === 'VALIDATION_REQUIRED');
+  const validationClaims = liveClaims.filter((claim) => isValidationRequired(claim.status));
 
   const waitingReview = validationClaims.length;
   const criticalRisks = validationClaims.filter((claim) => claim.rejectionRisk === 'high').length;
   const cleanCount = liveClaims.filter(
-    (claim) => claim.status === 'READY_TO_SUBMIT' || claim.status === 'SUBMITTED' || claim.status === 'APPROVED'
+    (claim) => isReadyToSubmit(claim.status) || isSubmitted(claim.status) || isApproved(claim.status)
   ).length;
 
   const queueItems = validationClaims.map((claim) => {

@@ -10,6 +10,7 @@ import { getDemoModeState } from '@/lib/demoMode';
 import { saveReviewClaim } from '@/lib/liveClaims';
 import type { ExtractedClaimData } from '@/lib/claims';
 import { getWorkflowSettings } from '@/lib/workflowSettings';
+import { shouldRequireManualReview } from '@/lib/claimLifecycle';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
         extraction_meta: {
           overall_confidence: packet.ocrConfidence,
           low_confidence_fields: [],
-          requires_manual_review: packet.state !== 'READY',
+          requires_manual_review: shouldRequireManualReview(packet.state),
         },
       };
 

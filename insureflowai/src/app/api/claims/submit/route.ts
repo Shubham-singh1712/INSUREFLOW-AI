@@ -5,6 +5,8 @@ import { logger } from '@/lib/claim-processing/logger';
 import { getDemoModeState } from '@/lib/demoMode';
 import { saveSubmittedClaim, updateLiveClaimStatus } from '@/lib/liveClaims';
 import type { ExtractedClaimData } from '@/lib/claims';
+import { getClaimById } from '@/lib/claim-processing/db';
+import { isReadyToSubmit, normalizeClaimStatus } from '@/lib/claimLifecycle';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +31,19 @@ export async function POST(request: Request) {
     const demoMode = await getDemoModeState();
 
     if (action === 'submit') {
+      const existingClaim = await getClaimById(claimId);
+      const currentStatus = normalizeClaimStatus(existingClaim?.status);
+
+      if (!isReadyToSubmit(currentStatus)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Claim must be in READY_TO_SUBMIT before submission. Current status: ${currentStatus}.`,
+          },
+          { status: 409 }
+        );
+      }
+
       await saveClaimState(claimId, 'SUBMITTED', {
         extractedFields: finalData?.extractedFields,
       });

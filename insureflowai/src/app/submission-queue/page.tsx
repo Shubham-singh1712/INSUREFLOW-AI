@@ -5,6 +5,7 @@ import QueueActionButton from '@/components/QueueActionButton';
 import SectionShell, { MetricCard, StatusPill } from '@/components/SectionShell';
 import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
+import { isApproved, isReadyToSubmit, isRejected, isSubmitted } from '@/lib/claimLifecycle';
 
 export default async function SubmissionQueuePage() {
   let user: any = null;
@@ -29,18 +30,18 @@ export default async function SubmissionQueuePage() {
     }
   }
 
-  const liveReadyCount = liveClaims.filter((claim) => claim.status === 'READY_TO_SUBMIT').length;
+  const liveReadyCount = liveClaims.filter((claim) => isReadyToSubmit(claim.status)).length;
   const liveSubmittedCount = liveClaims.filter(
-    (claim) => claim.status === 'SUBMITTED' || claim.status === 'APPROVED' || claim.status === 'REJECTED'
+    (claim) => isSubmitted(claim.status) || isApproved(claim.status) || isRejected(claim.status)
   ).length;
 
   const liveSubmittedToday = liveClaims.filter((claim) => {
-    if (claim.status !== 'SUBMITTED' && claim.status !== 'APPROVED' && claim.status !== 'REJECTED') return false;
+    if (!isSubmitted(claim.status) && !isApproved(claim.status) && !isRejected(claim.status)) return false;
     return new Date(claim.submittedAt).toDateString() === new Date().toDateString();
   }).length;
 
   const submissionItems = liveClaims
-    .filter((claim) => claim.status === 'READY_TO_SUBMIT')
+    .filter((claim) => isReadyToSubmit(claim.status))
     .map((claim) => {
       const status = 'Ready';
       const detail = 'UB-04 + EDI ready for TPA dispatch';

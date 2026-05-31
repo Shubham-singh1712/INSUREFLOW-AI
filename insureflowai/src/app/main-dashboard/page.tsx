@@ -7,6 +7,7 @@ import { emptyDashboardMetrics } from '@/lib/demoData';
 import { buildLiveDashboardMetrics, listLiveClaims, toDashboardClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
 import { getTimeOfDayGreeting, getUserDisplayName } from '@/lib/serverGreeting';
+import { isValidationRequired } from '@/lib/claimLifecycle';
 
 export default async function MainDashboardPage() {
   let user: any = null;
@@ -37,7 +38,7 @@ export default async function MainDashboardPage() {
       ? buildLiveDashboardMetrics(liveClaims)
       : emptyDashboardMetrics;
 
-  const attentionCount = liveClaims.filter((claim) => claim.status === 'VALIDATION_REQUIRED' || claim.status === 'repairs_pending').length;
+  const attentionCount = liveClaims.filter((claim) => isValidationRequired(claim.status)).length;
   const heading = `${getTimeOfDayGreeting()}, ${getUserDisplayName(user)}`;
 
   return (

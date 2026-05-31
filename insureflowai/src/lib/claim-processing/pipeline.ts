@@ -12,6 +12,7 @@ import { runPythonExtraction } from './python-bridge';
 import { runOcrWorkerSubprocess, runLlmExtraction } from './node-bridge';
 import { buildDocumentChecklist, getDocumentChecklistErrors } from './document-checklist';
 import { getWorkflowSettings } from '../workflowSettings';
+import { calculateLifecycleStatus } from '../claimLifecycle';
 
 export async function processClaimPipeline(
   buffer: Buffer,
@@ -145,7 +146,7 @@ export async function processClaimPipeline(
       }
     }
 
-    await saveClaimState(claimId, 'OCR_COMPLETE' as any, { extractedFields });
+    await saveClaimState(claimId, 'EXTRACTED', { extractedFields });
 
     // 4. Validation
     const { errors: validationErrors, repairSuggestions } = validateExtractedData(
@@ -183,11 +184,11 @@ export async function processClaimPipeline(
       // ignore
     }
 
-    const nextState = validationErrors.length > 0 
-      ? 'VALIDATION_REQUIRED' 
-      : readiness >= threshold 
-        ? 'READY_TO_SUBMIT' 
-        : 'VALIDATION_REQUIRED';
+    const nextState = calculateLifecycleStatus({
+      validationIssueCount: validationErrors.length,
+      readinessScore: readiness,
+      threshold,
+    });
 
     await saveClaimState(claimId, nextState, { // // MODIFIED
       extractedFields, // // MODIFIED

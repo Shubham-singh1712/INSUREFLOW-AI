@@ -2,6 +2,7 @@ import React from 'react';
 import { ShieldCheck, Upload, AlertTriangle, CheckCircle2, FileText, XCircle, Clock } from 'lucide-react';
 import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
+import { getClaimStatusLabel, normalizeClaimStatus } from '@/lib/claimLifecycle';
 
 export default async function ActivityTimeline() {
   let user: any = null;
@@ -24,7 +25,6 @@ export default async function ActivityTimeline() {
     } catch {}
   }
 
-  // Collect all audit logs from all claims
   const allEvents: Array<{
     id: string;
     claimId: string;
@@ -37,26 +37,23 @@ export default async function ActivityTimeline() {
   }> = [];
 
   for (const claim of liveClaims) {
-    if (claim.auditLogs && Array.isArray(claim.auditLogs)) {
-      claim.auditLogs.forEach((log: any, idx: number) => {
-        allEvents.push({
-          id: `${claim.claimId}-${idx}-${log.timestamp || log.created_at}`,
-          claimId: claim.claimId,
-          patient: claim.patient || 'Unknown Patient',
-          tpa: claim.tpa || 'Unknown TPA',
-          amount: claim.amount || 'INR 0',
-          action: log.action || log.stage || 'Log',
-          details: log.details || log.message || '',
-          timestamp: log.timestamp || log.created_at || claim.submittedAt || new Date().toISOString()
-        });
+    if (!claim.auditLogs || !Array.isArray(claim.auditLogs)) continue;
+
+    claim.auditLogs.forEach((log: any, idx: number) => {
+      allEvents.push({
+        id: `${claim.claimId}-${idx}-${log.timestamp || log.created_at}`,
+        claimId: claim.claimId,
+        patient: claim.patient || 'Unknown Patient',
+        tpa: claim.tpa || 'Unknown TPA',
+        amount: claim.amount || 'INR 0',
+        action: log.action || log.stage || 'Log',
+        details: log.details || log.message || '',
+        timestamp: log.timestamp || log.created_at || claim.submittedAt || new Date().toISOString(),
       });
-    }
+    });
   }
 
-  // Sort by timestamp descending
   allEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-  // Take top 8 events
   const visibleEvents = allEvents.slice(0, 8);
 
   const getIconConfig = (action: string) => {
@@ -64,7 +61,12 @@ export default async function ActivityTimeline() {
     if (act.includes('UPLOAD')) {
       return { icon: Upload, iconClass: 'text-info', bgClass: 'bg-info-bg' };
     }
-    if (act.includes('PROCESSING') || act.includes('OCR') || act.includes('CLASSIF') || act.includes('EXTRACT')) {
+    if (
+      act.includes('PROCESSING') ||
+      act.includes('OCR') ||
+      act.includes('CLASSIF') ||
+      act.includes('EXTRACT')
+    ) {
       return { icon: FileText, iconClass: 'text-muted-foreground', bgClass: 'bg-muted' };
     }
     if (act.includes('VALIDATION_REQUIRED') || act.includes('REVIEW') || act.includes('VALIDATION REQUIRED')) {
@@ -109,7 +111,7 @@ export default async function ActivityTimeline() {
       return `${claimPart}: AI processing completed`;
     }
     if (act === 'VALIDATION_REQUIRED' || act === 'REVIEW_REQUIRED') {
-      return `${claimPart}: Validation required — ${event.details || 'issues detected'}`;
+      return `${claimPart}: Validation required - ${event.details || 'issues detected'}`;
     }
     if (act === 'READY_TO_SUBMIT' || act === 'READY') {
       return `${claimPart} ready for submission`;
@@ -123,6 +125,12 @@ export default async function ActivityTimeline() {
     if (act === 'REJECTED') {
       return `${claimPart} rejected`;
     }
+
+    const normalizedStatus = normalizeClaimStatus(event.action);
+    if (normalizedStatus !== 'PROCESSING' || act === 'PROCESSING') {
+      return `${claimPart}: ${getClaimStatusLabel(normalizedStatus)}`;
+    }
+
     return `${claimPart}: ${event.details || event.action}`;
   };
 
@@ -140,7 +148,9 @@ export default async function ActivityTimeline() {
 
           return (
             <div key={event.id} className="flex items-start gap-3">
-              <div className={`w-7 h-7 rounded-xl ${cfg.bgClass} flex items-center justify-center shrink-0 mt-0.5`}>
+              <div
+                className={`w-7 h-7 rounded-xl ${cfg.bgClass} flex items-center justify-center shrink-0 mt-0.5`}
+              >
                 <Icon size={13} className={cfg.iconClass} />
               </div>
               <div className="min-w-0 flex-1">

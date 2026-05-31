@@ -5,6 +5,18 @@ import type { ClaimRegisterRow, DashboardClaim, DashboardMetric } from './demoDa
 import { createClient } from '@/lib/supabase/server';
 import { saveClaimState, addAuditLog } from '@/lib/claim-processing/db';
 import { logger } from './claim-processing/logger';
+import {
+  calculateLifecycleStatus,
+  getRepairStatusFromClaimStatus,
+  isApproved,
+  isReadyToSubmit,
+  isRejected,
+  isSubmitted,
+  isValidationRequired,
+  normalizeClaimStatus,
+  shouldRequireManualReview,
+  type CanonicalClaimStatus,
+} from './claimLifecycle';
 
 export type LiveClaim = {
   id: string;
@@ -17,7 +29,7 @@ export type LiveClaim = {
   submissionScore: number;
   documentsTotal: number;
   documentsPassed: number;
-  status: 'PROCESSING' | 'VALIDATION_REQUIRED' | 'READY_TO_SUBMIT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+  status: CanonicalClaimStatus;
   repairStatus: DashboardClaim['repairStatus'];
   submittedAt: string;
   confirmedData: ExtractedClaimData;
@@ -54,6 +66,8 @@ const confidencePercent = (data: ExtractedClaimData) =>
 
 const normalizeStoredClaim = (claim: LiveClaim): LiveClaim => ({
   ...claim,
+  status: normalizeClaimStatus(claim.status),
+  repairStatus: getRepairStatusFromClaimStatus(claim.status),
   aiConfidence: confidencePercent(claim.confirmedData),
 });
 
@@ -99,27 +113,8 @@ const mapDbClaimToLiveClaim = (dbClaim: any): LiveClaim => {
     }
     const finalBillNum = parseFloat(finalBillStr) || 0;
 
-    // Map ClaimState to proper uppercase status
-    let uiStatus: LiveClaim['status'] = 'PROCESSING';
-    const state = String(dbClaim.status || '').toUpperCase();
-    if (state === 'REVIEW_REQUIRED' || state === 'VALIDATION_REQUIRED' || state === 'REPAIRS_PENDING') {
-      uiStatus = 'VALIDATION_REQUIRED';
-    } else if (state === 'READY' || state === 'READY_TO_SUBMIT') {
-      uiStatus = 'READY_TO_SUBMIT';
-    } else if (state === 'SUBMITTED') {
-      uiStatus = 'SUBMITTED';
-    } else if (state === 'APPROVED') {
-      uiStatus = 'APPROVED';
-    } else if (state === 'REJECTED') {
-      uiStatus = 'REJECTED';
-    } else {
-      uiStatus = 'PROCESSING';
-    }
-
-    let repairStatus: any = 'repairs_pending';
-    if (uiStatus === 'READY_TO_SUBMIT' || uiStatus === 'APPROVED' || uiStatus === 'SUBMITTED') {
-      repairStatus = 'clean';
-    }
+    const uiStatus = normalizeClaimStatus(dbClaim.status);
+    const repairStatus = getRepairStatusFromClaimStatus(uiStatus);
 
     // Safely reconstruct audit logs
     const auditLogs: any[] = [];
@@ -187,7 +182,7 @@ const mapDbClaimToLiveClaim = (dbClaim: any): LiveClaim => {
         extraction_meta: {
           overall_confidence: ocrConfidence || 90,
           low_confidence_fields: [],
-          requires_manual_review: state !== 'READY',
+          requires_manual_review: shouldRequireManualReview(uiStatus),
         }
       },
       reviewReasons: valErrors.map((e: any) => e.issue || 'Issue detected'),
@@ -215,7 +210,7 @@ const mapDbClaimToLiveClaim = (dbClaim: any): LiveClaim => {
       submissionScore: 0,
       documentsTotal: 6,
       documentsPassed: 6,
-      status: 'ai_processing',
+      status: 'PROCESSING',
       repairStatus: 'repairs_pending',
       submittedAt: new Date().toISOString(),
       confirmedData: {
@@ -340,7 +335,7 @@ export const saveSubmittedClaim = async ({
     documentsTotal: 6,
     documentsPassed: 6,
     status: 'SUBMITTED',
-    repairStatus: 'clean',
+    repairStatus: getRepairStatusFromClaimStatus('SUBMITTED'),
     submittedAt: new Date().toISOString(),
     confirmedData,
     hospitalName: confirmedData.clinical.facility_name || 'Unknown Hospital',
@@ -386,14 +381,11 @@ export const saveReviewClaim = async ({
   const validationIssuesCount = reviewReasons?.length || 0;
   const readinessScore = readiness !== undefined ? readiness : Math.max(0, Math.min(100, aiConfidence - 20));
 
-  let status: LiveClaim['status'] = 'PROCESSING';
-  if (validationIssuesCount > 0) {
-    status = 'VALIDATION_REQUIRED';
-  } else if (readinessScore >= threshold) {
-    status = 'READY_TO_SUBMIT';
-  } else {
-    status = 'VALIDATION_REQUIRED';
-  }
+  const status = calculateLifecycleStatus({
+    validationIssueCount: validationIssuesCount,
+    readinessScore,
+    threshold,
+  });
 
   const liveClaim: LiveClaim = {
     id: resolvedClaimId,
@@ -409,13 +401,13 @@ export const saveReviewClaim = async ({
     documentsTotal: 6,
     documentsPassed: Math.max(0, 6 - validationIssuesCount),
     status,
-    repairStatus: status === 'READY_TO_SUBMIT' ? 'clean' : 'repairs_pending',
+    repairStatus: getRepairStatusFromClaimStatus(status),
     submittedAt: new Date().toISOString(),
     confirmedData,
     reviewReasons,
     hospitalName: confirmedData.clinical.facility_name || 'Unknown Hospital',
     claimHealth: aiConfidence,
-    readiness: Math.max(0, Math.min(100, aiConfidence - 20)),
+    readiness: readinessScore,
     rejectionRisk: (reviewReasons && reviewReasons.length > 3) ? 'high' : (reviewReasons && reviewReasons.length > 0) ? 'medium' : 'low',
     createdAt: existingClaim?.createdAt || new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -441,7 +433,7 @@ export const submitReadyClaims = async (userId: string) => {
       .from('claims')
       .select('id')
       .eq('user_id', userId)
-      .or('status.eq.READY_TO_SUBMIT,status.eq.READY');
+      .eq('status', 'READY_TO_SUBMIT');
 
     if (readyClaims && readyClaims.length > 0) {
       for (const rc of readyClaims) {
@@ -458,7 +450,7 @@ export const submitReadyClaims = async (userId: string) => {
   let submitted = 0;
 
   const nextClaims = claims.map((claim) => {
-    if (claim.userId !== userId || (claim.status !== 'READY_TO_SUBMIT' && claim.status !== 'ready')) {
+    if (claim.userId !== userId || !isReadyToSubmit(claim.status)) {
       return claim;
     }
 
@@ -475,7 +467,7 @@ export const submitReadyClaims = async (userId: string) => {
       ...claim,
       status: 'SUBMITTED' as const,
       submittedAt,
-      repairStatus: 'clean' as const,
+      repairStatus: getRepairStatusFromClaimStatus('SUBMITTED'),
       auditLogs: updatedLogs
     };
   });
@@ -484,8 +476,7 @@ export const submitReadyClaims = async (userId: string) => {
 
   return {
     submitted,
-    queued: nextClaims.filter((claim) => claim.userId === userId && claim.status === 'submitted')
-      .length,
+    queued: nextClaims.filter((claim) => claim.userId === userId && isSubmitted(claim.status)).length,
   };
 };
 
@@ -512,14 +503,11 @@ export const toClaimRegisterRows = (claims: LiveClaim[]): ClaimRegisterRow[] =>
     tpa: claim.tpa,
     issue: claim.repairStatus === 'clean' ? 'Clean packet submitted' : 'Needs validation review',
     score: String(claim.readiness || claim.submissionScore),
-    status:
-      claim.status === 'SUBMITTED' || claim.status === 'submitted'
-        ? 'Queued'
-        : claim.status === 'APPROVED' || claim.status === 'approved'
-          ? 'Ready'
-          : claim.status === 'READY_TO_SUBMIT' || claim.status === 'ready' || claim.repairStatus === 'clean'
-            ? 'Ready'
-            : 'Needs Repair',
+    status: isSubmitted(claim.status)
+      ? 'Queued'
+      : isApproved(claim.status) || isReadyToSubmit(claim.status)
+        ? 'Ready'
+        : 'Needs Repair',
   }));
 
 export const toLiveClaimsFromDemo = (claims: DashboardClaim[], userId: string): LiveClaim[] =>
@@ -534,8 +522,8 @@ export const toLiveClaimsFromDemo = (claims: DashboardClaim[], userId: string): 
     submissionScore: claim.submissionScore,
     documentsTotal: claim.documents.total,
     documentsPassed: claim.documents.passed,
-    status: claim.status as any,
-    repairStatus: claim.repairStatus,
+    status: normalizeClaimStatus(claim.status) as any,
+    repairStatus: getRepairStatusFromClaimStatus(claim.status),
     submittedAt: new Date().toISOString(),
     confirmedData: {
       patient: { full_name: claim.patient, date_of_birth: '1970-01-01', gender: '', address: '', contact_phone: '', contact_email: '' },
@@ -544,16 +532,20 @@ export const toLiveClaimsFromDemo = (claims: DashboardClaim[], userId: string): 
       clinical: { admission_date: claim.admissionDate, discharge_date: '', attending_physician: '', hospital_npi: '', hospital_tax_id: '', facility_name: '', principal_diagnosis: '' },
       coding: { icd10_codes: [], cpt_codes: [] },
       billing: { total_billed_amount: claim.amount.replace(/[^0-9]/g, ''), line_items: [] },
-      extraction_meta: { overall_confidence: claim.aiConfidence, low_confidence_fields: [], requires_manual_review: claim.repairStatus !== 'clean' },
+      extraction_meta: {
+        overall_confidence: claim.aiConfidence,
+        low_confidence_fields: [],
+        requires_manual_review: shouldRequireManualReview(claim.status),
+      },
     },
   }));
 
 export const buildLiveDashboardMetrics = (claims: LiveClaim[]): DashboardMetric[] => {
   const total = claims.length;
-  const pendingReview = claims.filter((claim) => claim.status === 'VALIDATION_REQUIRED' || claim.status === 'repairs_pending').length;
-  const submitted = claims.filter((claim) => claim.status === 'SUBMITTED' || claim.status === 'submitted').length;
-  const approved = claims.filter((claim) => claim.status === 'APPROVED' || claim.status === 'approved').length;
-  const rejected = claims.filter((claim) => claim.status === 'REJECTED' || claim.status === 'rejected').length;
+  const pendingReview = claims.filter((claim) => isValidationRequired(claim.status)).length;
+  const submitted = claims.filter((claim) => isSubmitted(claim.status)).length;
+  const approved = claims.filter((claim) => isApproved(claim.status)).length;
+  const rejected = claims.filter((claim) => isRejected(claim.status)).length;
 
   const avgHealth =
     total > 0
@@ -589,7 +581,7 @@ export const buildLiveDashboardMetrics = (claims: LiveClaim[]): DashboardMetric[
     },
     {
       id: 'metric-pending',
-      label: 'Submitted Claims',
+      label: 'Submitted',
       value: String(submitted),
       change: `+${submitted}`,
       changeDir: 'up',
@@ -642,7 +634,12 @@ export const updateLiveClaimStatus = async (
   const claims = await readAllClaims();
   const nextClaims = claims.map((claim) => {
     if (claim.userId === userId && claim.claimId === claimId) {
-      return { ...claim, status };
+      return {
+        ...claim,
+        status: normalizeClaimStatus(status),
+        repairStatus: getRepairStatusFromClaimStatus(status),
+        updatedAt: new Date().toISOString(),
+      };
     }
     return claim;
   });

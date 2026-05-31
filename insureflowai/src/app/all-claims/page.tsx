@@ -4,6 +4,12 @@ import { Filter, Search, SlidersHorizontal } from 'lucide-react';
 import SectionShell, { MetricCard, StatusPill } from '@/components/SectionShell';
 import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
+import {
+  getClaimStatusLabel,
+  getClaimStatusTone,
+  isReadyToSubmit,
+  isValidationRequired,
+} from '@/lib/claimLifecycle';
 
 export default async function AllClaimsPage() {
   let user: any = null;
@@ -28,8 +34,8 @@ export default async function AllClaimsPage() {
     }
   }
 
-  const needsAttention = liveClaims.filter((claim) => claim.status === 'VALIDATION_REQUIRED' || claim.status === 'repairs_pending').length;
-  const readyCount = liveClaims.filter((claim) => claim.status === 'READY_TO_SUBMIT' || claim.status === 'ready').length;
+  const needsAttention = liveClaims.filter((claim) => isValidationRequired(claim.status)).length;
+  const readyCount = liveClaims.filter((claim) => isReadyToSubmit(claim.status)).length;
   const highRiskCount = liveClaims.filter((claim) => claim.rejectionRisk === 'high').length;
 
   return (
@@ -127,28 +133,8 @@ export default async function AllClaimsPage() {
                   <td className="px-5 py-4 text-foreground font-semibold">{claim.patient}</td>
                   <td className="px-5 py-4 text-muted-foreground">{claim.hospitalName || 'Unknown Hospital'}</td>
                   <td className="px-5 py-4">
-                    <StatusPill
-                      tone={
-                        claim.status === 'APPROVED' || claim.status === 'approved' || claim.status === 'READY_TO_SUBMIT' || claim.status === 'ready'
-                          ? 'success'
-                          : claim.status === 'REJECTED' || claim.status === 'rejected'
-                            ? 'danger'
-                            : claim.status === 'VALIDATION_REQUIRED' || claim.status === 'repairs_pending'
-                              ? 'warning'
-                              : 'info'
-                      }
-                    >
-                      {claim.status === 'PROCESSING' || claim.status === 'ai_processing'
-                        ? 'AI Processing'
-                        : claim.status === 'VALIDATION_REQUIRED' || claim.status === 'repairs_pending'
-                          ? 'Validation Required'
-                          : claim.status === 'READY_TO_SUBMIT' || claim.status === 'ready'
-                            ? 'Ready to Submit'
-                            : claim.status === 'SUBMITTED' || claim.status === 'submitted'
-                              ? 'Queued'
-                              : claim.status === 'APPROVED' || claim.status === 'approved'
-                                ? 'Approved'
-                                : 'Rejected'}
+                    <StatusPill tone={getClaimStatusTone(claim.status)}>
+                      {getClaimStatusLabel(claim.status)}
                     </StatusPill>
                   </td>
                   <td className="px-5 py-4 font-tabular font-semibold text-foreground">

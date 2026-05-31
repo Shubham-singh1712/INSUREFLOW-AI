@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClaimPacket, UiClaimField, ClaimState } from '@/lib/claim-processing/types';
+import { isReadyToSubmit } from '@/lib/claimLifecycle';
 import {
   UploadCloud,
   CheckCircle,
@@ -247,9 +248,14 @@ export default function ClaimIntakeFlow() {
 
   const handleSubmit = async () => {
     if (!claimData) return;
-    setStep('submitted');
+    if (!isReadyToSubmit(claimData.packet.state) || claimData.packet.validationErrors.length > 0) {
+      setError('Resolve all validation issues before submitting this claim.');
+      return;
+    }
+
     try {
-      await fetch('/api/claims/submit', {
+      setError(null);
+      const response = await fetch('/api/claims/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -258,8 +264,16 @@ export default function ClaimIntakeFlow() {
           finalData: claimData.packet,
         }),
       });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Submission failed.');
+      }
+
+      setStep('submitted');
     } catch (err) {
       console.error('Submission failed:', err);
+      setError(err instanceof Error ? err.message : 'Submission failed.');
     }
   };
 
@@ -381,6 +395,7 @@ export default function ClaimIntakeFlow() {
   // Review Step
   if (step === 'review' && claimData) {
     const { packet, uiFields } = claimData;
+    const canSubmit = isReadyToSubmit(packet.state) && packet.validationErrors.length === 0;
 
     // Categorized items mapper
     const categories = [
@@ -455,7 +470,8 @@ export default function ClaimIntakeFlow() {
             </div>
             <button
               onClick={handleSubmit}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm hover:shadow-md transition-all text-sm"
+              disabled={!canSubmit}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm hover:shadow-md transition-all text-sm"
             >
               Submit Claim
               <ArrowRight className="w-4 h-4" />

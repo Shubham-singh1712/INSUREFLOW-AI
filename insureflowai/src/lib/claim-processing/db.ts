@@ -3,6 +3,11 @@ import { ClaimState, ClaimPacket } from './types';
 import { logger } from './logger';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
+import {
+  getRepairStatusFromClaimStatus,
+  normalizeClaimStatus,
+  shouldRequireManualReview,
+} from '@/lib/claimLifecycle';
 
 const storePath = path.join(process.cwd(), '.data', 'live-claims.json');
 
@@ -156,22 +161,7 @@ export const saveClaimState = async (
   // 1. Update Supabase
   try {
     const supabase = await createClient();
-    // Map input state to core uppercase status to save exactly that in Supabase status column
-    let coreStatus = state;
-    const s = String(state || '').toUpperCase();
-    if (s === 'PROCESSING' || s === 'UPLOADED' || s === 'OCR_COMPLETE' || s === 'CLASSIFIED' || s === 'EXTRACTED') {
-      coreStatus = 'PROCESSING';
-    } else if (s === 'REVIEW_REQUIRED' || s === 'VALIDATION_REQUIRED') {
-      coreStatus = 'VALIDATION_REQUIRED';
-    } else if (s === 'READY' || s === 'READY_TO_SUBMIT') {
-      coreStatus = 'READY_TO_SUBMIT';
-    } else if (s === 'SUBMITTED') {
-      coreStatus = 'SUBMITTED';
-    } else if (s === 'APPROVED') {
-      coreStatus = 'APPROVED';
-    } else if (s === 'REJECTED') {
-      coreStatus = 'REJECTED';
-    }
+    const coreStatus = normalizeClaimStatus(state);
 
     const updatePayload: any = {
       status: coreStatus,
@@ -224,29 +214,8 @@ export const saveClaimState = async (
     const claims = await readAllClaimsCache();
     const existing = claims.find((c) => c.claimId === claimId);
     if (existing) {
-      // Map ClaimState to proper uppercase status
-      let uiStatus = existing.status;
-      const s = String(state || '').toUpperCase();
-      if (s === 'PROCESSING' || s === 'UPLOADED' || s === 'OCR_COMPLETE' || s === 'CLASSIFIED' || s === 'EXTRACTED') {
-        uiStatus = 'PROCESSING';
-      } else if (s === 'REVIEW_REQUIRED' || s === 'VALIDATION_REQUIRED') {
-        uiStatus = 'VALIDATION_REQUIRED';
-      } else if (s === 'READY' || s === 'READY_TO_SUBMIT') {
-        uiStatus = 'READY_TO_SUBMIT';
-      } else if (s === 'SUBMITTED') {
-        uiStatus = 'SUBMITTED';
-      } else if (s === 'APPROVED') {
-        uiStatus = 'APPROVED';
-      } else if (s === 'REJECTED') {
-        uiStatus = 'REJECTED';
-      }
-
-      let repairStatus = existing.repairStatus;
-      if (uiStatus === 'READY_TO_SUBMIT' || uiStatus === 'APPROVED' || uiStatus === 'SUBMITTED') {
-        repairStatus = 'clean';
-      } else if (uiStatus === 'VALIDATION_REQUIRED') {
-        repairStatus = 'repairs_pending';
-      }
+      const uiStatus = normalizeClaimStatus(state);
+      const repairStatus = getRepairStatusFromClaimStatus(uiStatus);
 
       // Extract patient/hospital/amount info from incoming extractedFields if present
       let patient = existing.patient;
@@ -305,7 +274,7 @@ export const saveClaimState = async (
           extraction_meta: {
             overall_confidence: data.ocrConfidence || confirmedData.extraction_meta.overall_confidence,
             low_confidence_fields: confirmedData.extraction_meta.low_confidence_fields,
-            requires_manual_review: state !== 'READY',
+            requires_manual_review: shouldRequireManualReview(uiStatus),
           }
         };
       }
@@ -408,7 +377,7 @@ export const getClaimById = async (claimId: string) => {
           upload_session_id: cached.claimId,
           file_name: cached.confirmedData?.patient?.full_name ? `${cached.confirmedData.patient.full_name}.pdf` : 'claim.pdf',
           file_size: 1024 * 1024,
-          status: cached.status === 'ai_processing' ? 'PROCESSING' : cached.status === 'repairs_pending' ? 'VALIDATION_REQUIRED' : cached.status === 'ready' ? 'READY_TO_SUBMIT' : cached.status === 'submitted' ? 'SUBMITTED' : cached.status === 'approved' ? 'APPROVED' : cached.status === 'rejected' ? 'REJECTED' : (cached.status || 'PROCESSING'),
+          status: normalizeClaimStatus(cached.status),
           created_at: cached.submittedAt,
           updated_at: cached.updatedAt || cached.submittedAt,
           extracted_data: cached.confirmedData ? {

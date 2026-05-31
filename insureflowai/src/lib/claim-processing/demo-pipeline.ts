@@ -6,6 +6,7 @@ import { extractPdfTextFirst } from './pdf';
 import { classifyPages } from './classification';
 import { saveClaimState } from './db';
 import { logger } from './logger';
+import { calculateLifecycleStatus } from '../claimLifecycle';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -446,11 +447,11 @@ export async function processDemoClaimPipeline(
     // ignore
   }
 
-  const finalState = validationErrors.length > 0 
-    ? 'VALIDATION_REQUIRED' 
-    : readiness >= threshold 
-      ? 'READY_TO_SUBMIT' 
-      : 'VALIDATION_REQUIRED';
+  const finalState = calculateLifecycleStatus({
+    validationIssueCount: validationErrors.length,
+    readinessScore: readiness,
+    threshold,
+  });
 
   // Apply scores
   mockPacket.claimHealth = claimHealth;
@@ -473,10 +474,10 @@ export async function processDemoClaimPipeline(
     { stage: 'EXTRACTED', timestamp: new Date(now - 40000).toISOString(), message: `Completeness assessed: ${completenessScore}%. Routed to ${pathCategory.toUpperCase()} PATH.` }
   ];
 
-  if (finalState === 'READY') {
-    auditLogs.push({ stage: 'READY', timestamp: new Date(now - 20000).toISOString(), message: 'Validation complete. All required nodes resolved. Ready to submit.' });
+  if (finalState === 'READY_TO_SUBMIT') {
+    auditLogs.push({ stage: 'READY_TO_SUBMIT', timestamp: new Date(now - 20000).toISOString(), message: 'Validation complete. All required nodes resolved. Ready to submit.' });
   } else {
-    auditLogs.push({ stage: 'REVIEW_REQUIRED', timestamp: new Date(now - 20000).toISOString(), message: `Validation flagged ${validationErrors.length} issues (rejection risk: ${rejectionRisk.toUpperCase()}).` });
+    auditLogs.push({ stage: 'VALIDATION_REQUIRED', timestamp: new Date(now - 20000).toISOString(), message: `Validation flagged ${validationErrors.length} issues (rejection risk: ${rejectionRisk.toUpperCase()}).` });
   }
 
   mockPacket.auditLogs = auditLogs;
