@@ -265,8 +265,32 @@ const dedupeClaimsByIdentity = (claims: LiveClaim[]) => {
   });
 };
 
+const mergeClaimsById = (claims: LiveClaim[]) => {
+  const byId = new Map<string, LiveClaim>();
+
+  for (const claim of claims) {
+    const existing = byId.get(claim.claimId);
+    if (!existing) {
+      byId.set(claim.claimId, claim);
+      continue;
+    }
+
+    const existingTime = new Date(existing.updatedAt || existing.submittedAt || existing.createdAt || 0).getTime();
+    const nextTime = new Date(claim.updatedAt || claim.submittedAt || claim.createdAt || 0).getTime();
+    byId.set(claim.claimId, nextTime >= existingTime ? claim : existing);
+  }
+
+  return Array.from(byId.values()).sort((a, b) => {
+    const aTime = new Date(a.createdAt || a.submittedAt || 0).getTime();
+    const bTime = new Date(b.createdAt || b.submittedAt || 0).getTime();
+    return bTime - aTime;
+  });
+};
+
 export const listLiveClaims = async (userId?: string | null): Promise<LiveClaim[]> => {
-  // 1. Try Supabase
+  const localClaims = (await readAllClaims()).map(normalizeStoredClaim);
+  let supabaseClaims: LiveClaim[] = [];
+
   try {
     const supabase = await createClient();
     let query = supabase.from('claims').select('*');
@@ -275,15 +299,19 @@ export const listLiveClaims = async (userId?: string | null): Promise<LiveClaim[
     }
     const { data, error } = await query.order('created_at', { ascending: false });
     if (!error && data) {
-      return dedupeClaimsByIdentity(data.map(mapDbClaimToLiveClaim));
+      supabaseClaims = data.map(mapDbClaimToLiveClaim);
+    } else if (error) {
+      console.error('Supabase listLiveClaims failed, using local cache too:', error.message);
     }
   } catch (err: any) {
-    console.error('Supabase listLiveClaims failed, falling back to cache:', err.message);
+    console.error('Supabase listLiveClaims failed, using local cache too:', err.message);
   }
 
-  // 2. Fall back to local JSON file
-  const claims = dedupeClaimsByIdentity((await readAllClaims()).map(normalizeStoredClaim));
-  return userId ? claims.filter((claim) => claim.userId === userId) : claims;
+  const scopedLocalClaims = userId
+    ? localClaims.filter((claim) => claim.userId === userId)
+    : localClaims;
+  const mergedClaims = mergeClaimsById([...scopedLocalClaims, ...supabaseClaims]);
+  return mergedClaims;
 };
 
 export const getLiveClaim = async (userId: string, claimId: string): Promise<LiveClaim | null> => {

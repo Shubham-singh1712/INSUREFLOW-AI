@@ -7,6 +7,9 @@ import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
 import { isApproved, isReadyForSubmission, isSubmitted, isUnderReview } from '@/lib/claimLifecycle';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function ValidationQueuePage() {
   let user: any = null;
   let liveClaims: any[] = [];

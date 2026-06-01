@@ -9,6 +9,9 @@ import { createClient } from '@/lib/supabase/server';
 import { getTimeOfDayGreeting, getUserDisplayName } from '@/lib/serverGreeting';
 import { isUnderReview } from '@/lib/claimLifecycle';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function MainDashboardPage() {
   let user: any = null;
   let liveClaims: any[] = [];
