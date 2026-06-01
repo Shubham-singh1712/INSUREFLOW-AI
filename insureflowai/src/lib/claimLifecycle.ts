@@ -77,9 +77,10 @@ export const calculateLifecycleStatus = ({
   readinessScore: number;
   threshold: number;
 }): CanonicalClaimStatus => {
+  void validationIssueCount;
   void readinessScore;
   void threshold;
-  return validationIssueCount > 0 ? 'UNDER_REVIEW' : 'READY_FOR_SUBMISSION';
+  return 'UNDER_REVIEW';
 };
 
 export const getClaimStatusLabel = (status?: string | null) => {
