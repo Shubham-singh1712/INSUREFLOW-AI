@@ -6,6 +6,8 @@ import { calculateScores } from '@/lib/claim-processing/scoring';
 import { getLiveClaim } from '@/lib/liveClaims';
 import type { ExtractedFields } from '@/lib/claim-processing/types';
 import { revalidateClaimViews } from '@/lib/claimViewRevalidation';
+import { getWorkflowSettings } from '@/lib/workflowSettings';
+import { calculateLifecycleStatus } from '@/lib/claimLifecycle';
 
 export async function GET(request: NextRequest) {
   const { user, response } = await requireUser();
@@ -27,6 +29,7 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const claimId = String(body?.claimId || '');
   const extractedFields = body?.extractedFields as ExtractedFields | undefined;
+  const action = String(body?.action || '');
 
   if (!claimId || !extractedFields) {
     return jsonError('Claim ID and extractedFields are required.');
@@ -44,8 +47,19 @@ export async function POST(request: NextRequest) {
     errors,
     ocrConfidence
   );
+  const settings = await getWorkflowSettings();
+  let nextState = calculateLifecycleStatus({
+    validationIssueCount: errors.length,
+    readinessScore: readiness,
+    threshold: settings.aiThreshold,
+  });
 
-  const nextState = errors.length > 0 ? 'VALIDATION_REQUIRED' : 'READY_TO_SUBMIT';
+  if (action === 'complete-validation' || action === 'approve-validation') {
+    if (errors.length > 0) {
+      return jsonError('Resolve all validation issues before completing validation.', 409);
+    }
+    nextState = 'READY_FOR_SUBMISSION';
+  }
 
   // Save the updated fields, health, readiness, risk to Supabase & cache bridge
   await saveClaimState(claimId, nextState, {
@@ -60,6 +74,13 @@ export async function POST(request: NextRequest) {
 
   // Log audit log for field edit
   await addAuditLog(claimId, 'Field Edited', `Claim fields edited and re-validated (health: ${claimHealth}%, readiness: ${readiness}%, issues remaining: ${errors.length}).`);
+  if ((action === 'complete-validation' || action === 'approve-validation') && nextState === 'READY_FOR_SUBMISSION') {
+    await addAuditLog(
+      claimId,
+      'READY_FOR_SUBMISSION',
+      `Manual validation completed. Claim moved to submission queue with readiness ${readiness}%.`
+    );
+  }
 
   revalidateClaimViews();
 
@@ -72,6 +93,7 @@ export async function POST(request: NextRequest) {
     claimHealth,
     readiness,
     rejectionRisk,
+    readyForSubmission: errors.length === 0,
     state: nextState
   });
 }

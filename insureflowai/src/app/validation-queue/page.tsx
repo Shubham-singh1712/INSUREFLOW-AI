@@ -5,7 +5,7 @@ import QueueActionButton from '@/components/QueueActionButton';
 import SectionShell, { MetricCard, StatusPill } from '@/components/SectionShell';
 import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
-import { isApproved, isReadyToSubmit, isSubmitted, isValidationRequired } from '@/lib/claimLifecycle';
+import { isApproved, isReadyForSubmission, isSubmitted, isUnderReview } from '@/lib/claimLifecycle';
 
 export default async function ValidationQueuePage() {
   let user: any = null;
@@ -30,13 +30,13 @@ export default async function ValidationQueuePage() {
     }
   }
 
-  // Filter claims that need validation review (status = VALIDATION_REQUIRED)
-  const validationClaims = liveClaims.filter((claim) => isValidationRequired(claim.status));
+  // Filter claims that need validation review (status = UNDER_REVIEW)
+  const validationClaims = liveClaims.filter((claim) => isUnderReview(claim.status));
 
   const waitingReview = validationClaims.length;
   const criticalRisks = validationClaims.filter((claim) => claim.rejectionRisk === 'high').length;
   const cleanCount = liveClaims.filter(
-    (claim) => isReadyToSubmit(claim.status) || isSubmitted(claim.status) || isApproved(claim.status)
+    (claim) => isReadyForSubmission(claim.status) || isSubmitted(claim.status) || isApproved(claim.status)
   ).length;
 
   const queueItems = validationClaims.map((claim) => {
@@ -45,7 +45,7 @@ export default async function ValidationQueuePage() {
       claim: claim.claimId,
       issue: `${valCount} validation issue${valCount === 1 ? '' : 's'} detected`,
       severity: claim.rejectionRisk === 'high' ? 'High' : claim.rejectionRisk === 'medium' ? 'Medium' : 'Low',
-      status: 'Repairs Pending',
+      status: 'Under Review',
       issues: claim.reviewReasons && claim.reviewReasons.length > 0 ? claim.reviewReasons : ['Needs manual review'],
     };
   });
@@ -54,7 +54,7 @@ export default async function ValidationQueuePage() {
     <SectionShell
       currentPath="/validation-queue"
       title="Validation Queue"
-      subtitle="Resolve AI-detected compliance mismatches, missing seals, and logical errors before submission."
+      subtitle="Review only the claims flagged by AI validation, repair issues, and clear them for submission."
       action={
         <QueueActionButton
           endpoint="/api/claims/batch-validation"
@@ -69,7 +69,7 @@ export default async function ValidationQueuePage() {
         <MetricCard
           label="Waiting Review"
           value={String(waitingReview)}
-          helper="Assigned to insurance desk"
+          helper="Claims available for claims-team review"
           tone={waitingReview > 0 ? 'warning' : 'muted'}
         />
         <MetricCard
@@ -79,9 +79,9 @@ export default async function ValidationQueuePage() {
           tone={criticalRisks > 0 ? 'danger' : 'muted'}
         />
         <MetricCard
-          label="Validated Clean"
+          label="Moved to Submission"
           value={String(cleanCount)}
-          helper="Passed AI checks today"
+          helper="Claims already approved for submission or sent"
           tone="success"
         />
       </div>
@@ -129,7 +129,7 @@ export default async function ValidationQueuePage() {
         ))}
         {queueItems.length === 0 && (
           <div className="xl:col-span-3 card p-8 text-center text-muted-foreground">
-            No claims require review in the validation queue. All claim records are validated clean!
+            No claims are waiting in the validation queue right now.
           </div>
         )}
       </div>

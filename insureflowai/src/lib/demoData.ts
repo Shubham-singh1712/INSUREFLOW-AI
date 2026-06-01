@@ -28,8 +28,8 @@ export type DashboardClaim = {
   admissionDate: string;
   status:
     | 'PROCESSING'
-    | 'VALIDATION_REQUIRED'
-    | 'READY_TO_SUBMIT'
+    | 'UNDER_REVIEW'
+    | 'READY_FOR_SUBMISSION'
     | 'SUBMITTED'
     | 'APPROVED'
     | 'REJECTED'

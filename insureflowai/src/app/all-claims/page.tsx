@@ -7,8 +7,8 @@ import { createClient } from '@/lib/supabase/server';
 import {
   getClaimStatusLabel,
   getClaimStatusTone,
-  isReadyToSubmit,
-  isValidationRequired,
+  isReadyForSubmission,
+  isUnderReview,
 } from '@/lib/claimLifecycle';
 
 export default async function AllClaimsPage() {
@@ -34,8 +34,8 @@ export default async function AllClaimsPage() {
     }
   }
 
-  const needsAttention = liveClaims.filter((claim) => isValidationRequired(claim.status)).length;
-  const readyCount = liveClaims.filter((claim) => isReadyToSubmit(claim.status)).length;
+  const needsAttention = liveClaims.filter((claim) => isUnderReview(claim.status)).length;
+  const readyCount = liveClaims.filter((claim) => isReadyForSubmission(claim.status)).length;
   const highRiskCount = liveClaims.filter((claim) => claim.rejectionRisk === 'high').length;
 
   return (
@@ -56,15 +56,15 @@ export default async function AllClaimsPage() {
           helper="Across active hospital workspace"
         />
         <MetricCard
-          label="Need Attention"
+          label="Pending Review"
           value={String(needsAttention)}
-          helper="OCR, signature, or compliance issues"
+          helper="Claims in the validation working queue"
           tone={needsAttention > 0 ? 'warning' : 'muted'}
         />
         <MetricCard
-          label="Ready"
+          label="Ready To Submit"
           value={String(readyCount)}
-          helper="Validated and submission-ready"
+          helper="Approved by validation and waiting for submission"
           tone="success"
         />
         <MetricCard

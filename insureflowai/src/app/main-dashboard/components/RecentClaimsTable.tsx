@@ -12,12 +12,12 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import type { DashboardClaim as Claim } from '@/lib/demoData';
-import { getClaimStatusLabel, getClaimStatusTone, isValidationRequired } from '@/lib/claimLifecycle';
+import { getClaimStatusLabel, getClaimStatusTone, isUnderReview } from '@/lib/claimLifecycle';
 
 const repairStatusConfig = {
   clean: { label: 'AI Verified', className: 'badge-success' },
   ready: { label: 'Ready to Submit', className: 'badge-success' },
-  repairs_pending: { label: 'Repairs Pending', className: 'badge-warning' },
+  repairs_pending: { label: 'Under Review', className: 'badge-warning' },
   signature_missing: { label: 'Signature Missing', className: 'badge-danger' },
   ocr_failed: { label: 'OCR Failed', className: 'badge-danger' },
 };
@@ -95,7 +95,7 @@ export default function RecentClaimsTable({ claims }: { claims: Claim[] }) {
           <p className="text-xs text-muted-foreground mt-0.5">
             {filtered.length} claims -{' '}
             {
-              claims.filter((claim) => isValidationRequired(claim.status)).length
+              claims.filter((claim) => isUnderReview(claim.status)).length
             }{' '}
             need attention
           </p>
@@ -177,7 +177,7 @@ export default function RecentClaimsTable({ claims }: { claims: Claim[] }) {
             {paginated.map((claim) => {
               const repairCfg = repairStatusConfig[claim.repairStatus];
               const isSelected = selectedRows.has(claim.id);
-              const isAlert = isValidationRequired(claim.status);
+              const isAlert = isUnderReview(claim.status);
 
               return (
                 <tr

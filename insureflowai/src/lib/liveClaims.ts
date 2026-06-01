@@ -9,10 +9,10 @@ import {
   calculateLifecycleStatus,
   getRepairStatusFromClaimStatus,
   isApproved,
-  isReadyToSubmit,
+  isReadyForSubmission,
   isRejected,
   isSubmitted,
-  isValidationRequired,
+  isUnderReview,
   normalizeClaimStatus,
   shouldRequireManualReview,
   type CanonicalClaimStatus,
@@ -380,8 +380,7 @@ export const saveReviewClaim = async ({
   
   const validationIssuesCount = reviewReasons?.length || 0;
   const readinessScore = readiness !== undefined ? readiness : Math.max(0, Math.min(100, aiConfidence - 20));
-
-  const status = calculateLifecycleStatus({
+  const status: LiveClaim['status'] = calculateLifecycleStatus({
     validationIssueCount: validationIssuesCount,
     readinessScore,
     threshold,
@@ -426,14 +425,14 @@ export const saveReviewClaim = async ({
 };
 
 export const submitReadyClaims = async (userId: string) => {
-  // 1. Update Supabase claims that are READY_TO_SUBMIT
+  // 1. Update Supabase claims that are READY_FOR_SUBMISSION
   try {
     const supabase = await createClient();
     const { data: readyClaims } = await supabase
       .from('claims')
       .select('id')
       .eq('user_id', userId)
-      .eq('status', 'READY_TO_SUBMIT');
+      .eq('status', 'READY_FOR_SUBMISSION');
 
     if (readyClaims && readyClaims.length > 0) {
       for (const rc of readyClaims) {
@@ -450,7 +449,7 @@ export const submitReadyClaims = async (userId: string) => {
   let submitted = 0;
 
   const nextClaims = claims.map((claim) => {
-    if (claim.userId !== userId || !isReadyToSubmit(claim.status)) {
+    if (claim.userId !== userId || !isReadyForSubmission(claim.status)) {
       return claim;
     }
 
@@ -501,13 +500,25 @@ export const toClaimRegisterRows = (claims: LiveClaim[]): ClaimRegisterRow[] =>
     id: claim.claimId,
     patient: claim.patient,
     tpa: claim.tpa,
-    issue: claim.repairStatus === 'clean' ? 'Clean packet submitted' : 'Needs validation review',
+    issue: isUnderReview(claim.status)
+      ? 'Awaiting manual validation review'
+      : isReadyForSubmission(claim.status)
+        ? 'Approved for insurer submission'
+        : isSubmitted(claim.status)
+          ? 'Submitted to insurer queue'
+          : 'Claim in active processing',
     score: String(claim.readiness || claim.submissionScore),
     status: isSubmitted(claim.status)
-      ? 'Queued'
-      : isApproved(claim.status) || isReadyToSubmit(claim.status)
-        ? 'Ready'
-        : 'Needs Repair',
+      ? 'Submitted'
+      : isApproved(claim.status)
+        ? 'Approved'
+        : isRejected(claim.status)
+          ? 'Rejected'
+          : isReadyForSubmission(claim.status)
+            ? 'Ready for Submission'
+            : isUnderReview(claim.status)
+              ? 'Under Review'
+              : 'Processing',
   }));
 
 export const toLiveClaimsFromDemo = (claims: DashboardClaim[], userId: string): LiveClaim[] =>
@@ -542,7 +553,8 @@ export const toLiveClaimsFromDemo = (claims: DashboardClaim[], userId: string): 
 
 export const buildLiveDashboardMetrics = (claims: LiveClaim[]): DashboardMetric[] => {
   const total = claims.length;
-  const pendingReview = claims.filter((claim) => isValidationRequired(claim.status)).length;
+  const pendingReview = claims.filter((claim) => isUnderReview(claim.status)).length;
+  const readyForSubmission = claims.filter((claim) => isReadyForSubmission(claim.status)).length;
   const submitted = claims.filter((claim) => isSubmitted(claim.status)).length;
   const approved = claims.filter((claim) => isApproved(claim.status)).length;
   const rejected = claims.filter((claim) => isRejected(claim.status)).length;
@@ -576,7 +588,18 @@ export const buildLiveDashboardMetrics = (claims: LiveClaim[]): DashboardMetric[
       changeLabel: 'Needs action',
       tone: pendingReview > 0 ? 'danger' : 'success',
       alert: pendingReview > 0,
-      description: 'Claims with validation issues blocking submission',
+      description: 'Claims awaiting manual validation before they can move to submission',
+      colSpan: 'col-span-1',
+    },
+    {
+      id: 'metric-ready',
+      label: 'Ready To Submit',
+      value: String(readyForSubmission),
+      change: String(readyForSubmission),
+      changeDir: readyForSubmission > 0 ? 'up' : 'up',
+      changeLabel: 'Cleared for submission',
+      tone: readyForSubmission > 0 ? 'success' : 'muted',
+      description: 'Claims with no remaining validation issues and waiting for insurer submission',
       colSpan: 'col-span-1',
     },
     {

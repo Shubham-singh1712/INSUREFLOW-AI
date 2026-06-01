@@ -14,6 +14,7 @@ import type { DashboardMetric } from '@/lib/demoData';
 const metricIcons = {
   'metric-validation-rate': ShieldCheck,
   'metric-attention': AlertTriangle,
+  'metric-ready': FileCheck,
   'metric-pending': Clock,
   'metric-rejection': TrendingDown,
   'metric-ocr': ScanLine,

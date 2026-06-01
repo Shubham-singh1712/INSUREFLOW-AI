@@ -1,7 +1,7 @@
 export const CLAIM_STATUSES = [
   'PROCESSING',
-  'VALIDATION_REQUIRED',
-  'READY_TO_SUBMIT',
+  'UNDER_REVIEW',
+  'READY_FOR_SUBMISSION',
   'SUBMITTED',
   'APPROVED',
   'REJECTED',
@@ -17,12 +17,14 @@ const LEGACY_STATUS_MAP: Record<string, CanonicalClaimStatus> = {
   EXTRACTED: 'PROCESSING',
   AI_PROCESSING: 'PROCESSING',
   PROCESSING: 'PROCESSING',
-  REVIEW_REQUIRED: 'VALIDATION_REQUIRED',
-  REPAIRS_PENDING: 'VALIDATION_REQUIRED',
-  VALIDATION_REQUIRED: 'VALIDATION_REQUIRED',
-  READY: 'READY_TO_SUBMIT',
-  VALIDATION_COMPLETE: 'READY_TO_SUBMIT',
-  READY_TO_SUBMIT: 'READY_TO_SUBMIT',
+  REVIEW_REQUIRED: 'UNDER_REVIEW',
+  REPAIRS_PENDING: 'UNDER_REVIEW',
+  VALIDATION_REQUIRED: 'UNDER_REVIEW',
+  UNDER_REVIEW: 'UNDER_REVIEW',
+  READY: 'READY_FOR_SUBMISSION',
+  VALIDATION_COMPLETE: 'READY_FOR_SUBMISSION',
+  READY_TO_SUBMIT: 'READY_FOR_SUBMISSION',
+  READY_FOR_SUBMISSION: 'READY_FOR_SUBMISSION',
   SUBMITTED: 'SUBMITTED',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
@@ -37,21 +39,25 @@ export const getRepairStatusFromClaimStatus = (
   status?: string | null
 ): CanonicalRepairStatus => {
   const normalizedStatus = normalizeClaimStatus(status);
-  return normalizedStatus === 'PROCESSING' || normalizedStatus === 'VALIDATION_REQUIRED'
+  return normalizedStatus === 'PROCESSING' || normalizedStatus === 'UNDER_REVIEW'
     ? 'repairs_pending'
     : 'clean';
 };
 
 export const shouldRequireManualReview = (status?: string | null) => {
   const normalizedStatus = normalizeClaimStatus(status);
-  return normalizedStatus === 'PROCESSING' || normalizedStatus === 'VALIDATION_REQUIRED';
+  return normalizedStatus === 'PROCESSING' || normalizedStatus === 'UNDER_REVIEW';
 };
 
-export const isValidationRequired = (status?: string | null) =>
-  normalizeClaimStatus(status) === 'VALIDATION_REQUIRED';
+export const isUnderReview = (status?: string | null) =>
+  normalizeClaimStatus(status) === 'UNDER_REVIEW';
 
-export const isReadyToSubmit = (status?: string | null) =>
-  normalizeClaimStatus(status) === 'READY_TO_SUBMIT';
+export const isValidationRequired = isUnderReview;
+
+export const isReadyForSubmission = (status?: string | null) =>
+  normalizeClaimStatus(status) === 'READY_FOR_SUBMISSION';
+
+export const isReadyToSubmit = isReadyForSubmission;
 
 export const isSubmitted = (status?: string | null) =>
   normalizeClaimStatus(status) === 'SUBMITTED';
@@ -71,23 +77,17 @@ export const calculateLifecycleStatus = ({
   readinessScore: number;
   threshold: number;
 }): CanonicalClaimStatus => {
-  if (validationIssueCount > 0) {
-    return 'VALIDATION_REQUIRED';
-  }
-
-  if (readinessScore >= threshold) {
-    return 'READY_TO_SUBMIT';
-  }
-
-  return 'VALIDATION_REQUIRED';
+  void readinessScore;
+  void threshold;
+  return validationIssueCount > 0 ? 'UNDER_REVIEW' : 'READY_FOR_SUBMISSION';
 };
 
 export const getClaimStatusLabel = (status?: string | null) => {
   const normalizedStatus = normalizeClaimStatus(status);
 
   if (normalizedStatus === 'PROCESSING') return 'AI Processing';
-  if (normalizedStatus === 'VALIDATION_REQUIRED') return 'Validation Required';
-  if (normalizedStatus === 'READY_TO_SUBMIT') return 'Ready to Submit';
+  if (normalizedStatus === 'UNDER_REVIEW') return 'Under Review';
+  if (normalizedStatus === 'READY_FOR_SUBMISSION') return 'Ready for Submission';
   if (normalizedStatus === 'SUBMITTED') return 'Submitted';
   if (normalizedStatus === 'APPROVED') return 'Approved';
   return 'Rejected';
@@ -96,7 +96,7 @@ export const getClaimStatusLabel = (status?: string | null) => {
 export const getClaimStatusTone = (status?: string | null) => {
   const normalizedStatus = normalizeClaimStatus(status);
 
-  if (normalizedStatus === 'APPROVED' || normalizedStatus === 'READY_TO_SUBMIT') {
+  if (normalizedStatus === 'APPROVED' || normalizedStatus === 'READY_FOR_SUBMISSION') {
     return 'success' as const;
   }
 
@@ -104,7 +104,7 @@ export const getClaimStatusTone = (status?: string | null) => {
     return 'danger' as const;
   }
 
-  if (normalizedStatus === 'VALIDATION_REQUIRED') {
+  if (normalizedStatus === 'UNDER_REVIEW') {
     return 'warning' as const;
   }
 

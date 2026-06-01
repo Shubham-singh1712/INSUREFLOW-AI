@@ -315,11 +315,14 @@ export const saveClaimState = async (
     logMessage = `AI processing initiated`;
   } else if (sUpper === 'EXTRACTED') {
     logMessage = `AI processing completed`;
-  } else if (sUpper === 'REVIEW_REQUIRED' || sUpper === 'VALIDATION_REQUIRED') {
+  } else if (sUpper === 'REVIEW_REQUIRED' || sUpper === 'VALIDATION_REQUIRED' || sUpper === 'UNDER_REVIEW') {
     const errCount = data?.validationErrors?.length || 0;
-    logMessage = `Validation required: ${errCount} issue${errCount === 1 ? '' : 's'}`;
-  } else if (sUpper === 'READY' || sUpper === 'READY_TO_SUBMIT') {
-    logMessage = `Claim ready for submission`;
+    logMessage =
+      errCount > 0
+        ? `Under review: ${errCount} issue${errCount === 1 ? '' : 's'}`
+        : 'Queued for manual validation';
+  } else if (sUpper === 'READY' || sUpper === 'READY_TO_SUBMIT' || sUpper === 'READY_FOR_SUBMISSION') {
+    logMessage = `Claim marked ready for submission`;
   } else if (sUpper === 'SUBMITTED') {
     logMessage = `Claim submitted`;
   } else if (sUpper === 'APPROVED') {

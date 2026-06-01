@@ -1,12 +1,11 @@
 import fs from 'fs';
 import path from 'path';
 import { ClaimPacket, ClaimSession, ValidationError, RepairSuggestion, PageText, ClassifiedPage } from './types';
-import { getWorkflowSettings } from '../workflowSettings';
 import { extractPdfTextFirst } from './pdf';
 import { classifyPages } from './classification';
 import { saveClaimState } from './db';
 import { logger } from './logger';
-import { calculateLifecycleStatus } from '../claimLifecycle';
+import { calculateLifecycleStatus } from '@/lib/claimLifecycle';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -438,19 +437,10 @@ export async function processDemoClaimPipeline(
   }
 
   const rejectionRisk = pathCategory === 'green' ? 'low' : pathCategory === 'yellow' ? 'medium' : 'high';
-  
-  let threshold = 85;
-  try {
-    const settings = await getWorkflowSettings();
-    threshold = settings.aiThreshold;
-  } catch {
-    // ignore
-  }
-
   const finalState = calculateLifecycleStatus({
     validationIssueCount: validationErrors.length,
     readinessScore: readiness,
-    threshold,
+    threshold: 0,
   });
 
   // Apply scores
@@ -474,11 +464,14 @@ export async function processDemoClaimPipeline(
     { stage: 'EXTRACTED', timestamp: new Date(now - 40000).toISOString(), message: `Completeness assessed: ${completenessScore}%. Routed to ${pathCategory.toUpperCase()} PATH.` }
   ];
 
-  if (finalState === 'READY_TO_SUBMIT') {
-    auditLogs.push({ stage: 'READY_TO_SUBMIT', timestamp: new Date(now - 20000).toISOString(), message: 'Validation complete. All required nodes resolved. Ready to submit.' });
-  } else {
-    auditLogs.push({ stage: 'VALIDATION_REQUIRED', timestamp: new Date(now - 20000).toISOString(), message: `Validation flagged ${validationErrors.length} issues (rejection risk: ${rejectionRisk.toUpperCase()}).` });
-  }
+  auditLogs.push({
+    stage: finalState,
+    timestamp: new Date(now - 20000).toISOString(),
+    message:
+      validationErrors.length > 0
+        ? `Validation flagged ${validationErrors.length} issues (rejection risk: ${rejectionRisk.toUpperCase()}).`
+        : 'AI checks completed. No issues found. Claim moved directly to the submission queue.',
+  });
 
   mockPacket.auditLogs = auditLogs;
 

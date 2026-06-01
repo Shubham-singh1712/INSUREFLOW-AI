@@ -121,7 +121,7 @@ export default function ClaimConfirmation({
           </div>
           <div className="flex items-center gap-2">
             <span className="badge-warning">
-              <Clock size={10} /> Repairs Pending
+              <Clock size={10} /> Under Review
             </span>
           </div>
         </div>

@@ -6,8 +6,10 @@ export type ClaimState =
   | 'EXTRACTED'
   | 'REVIEW_REQUIRED'
   | 'VALIDATION_REQUIRED'
+  | 'UNDER_REVIEW'
   | 'READY'
   | 'READY_TO_SUBMIT'
+  | 'READY_FOR_SUBMISSION'
   | 'SUBMITTED'
   | 'APPROVED'
   | 'REJECTED';

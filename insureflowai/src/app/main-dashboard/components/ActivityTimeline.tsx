@@ -69,10 +69,10 @@ export default async function ActivityTimeline() {
     ) {
       return { icon: FileText, iconClass: 'text-muted-foreground', bgClass: 'bg-muted' };
     }
-    if (act.includes('VALIDATION_REQUIRED') || act.includes('REVIEW') || act.includes('VALIDATION REQUIRED')) {
+    if (act.includes('UNDER_REVIEW') || act.includes('VALIDATION_REQUIRED') || act.includes('REVIEW') || act.includes('VALIDATION REQUIRED')) {
       return { icon: AlertTriangle, iconClass: 'text-warning', bgClass: 'bg-warning-bg' };
     }
-    if (act.includes('READY_TO_SUBMIT') || act.includes('READY')) {
+    if (act.includes('READY_FOR_SUBMISSION') || act.includes('READY_TO_SUBMIT') || act.includes('READY')) {
       return { icon: CheckCircle2, iconClass: 'text-success', bgClass: 'bg-success-bg' };
     }
     if (act.includes('SUBMIT')) {
@@ -110,10 +110,10 @@ export default async function ActivityTimeline() {
     if (act === 'EXTRACTED' || act === 'AI PROCESSING COMPLETED') {
       return `${claimPart}: AI processing completed`;
     }
-    if (act === 'VALIDATION_REQUIRED' || act === 'REVIEW_REQUIRED') {
-      return `${claimPart}: Validation required - ${event.details || 'issues detected'}`;
+    if (act === 'UNDER_REVIEW' || act === 'VALIDATION_REQUIRED' || act === 'REVIEW_REQUIRED') {
+      return `${claimPart}: Under review - ${event.details || 'waiting for validation desk'}`;
     }
-    if (act === 'READY_TO_SUBMIT' || act === 'READY') {
+    if (act === 'READY_FOR_SUBMISSION' || act === 'READY_TO_SUBMIT' || act === 'READY') {
       return `${claimPart} ready for submission`;
     }
     if (act === 'SUBMITTED' || act === 'CLAIM SUBMITTED') {

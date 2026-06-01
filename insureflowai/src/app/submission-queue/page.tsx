@@ -5,7 +5,7 @@ import QueueActionButton from '@/components/QueueActionButton';
 import SectionShell, { MetricCard, StatusPill } from '@/components/SectionShell';
 import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
-import { isApproved, isReadyToSubmit, isRejected, isSubmitted } from '@/lib/claimLifecycle';
+import { isApproved, isReadyForSubmission, isRejected, isSubmitted } from '@/lib/claimLifecycle';
 
 export default async function SubmissionQueuePage() {
   let user: any = null;
@@ -30,7 +30,7 @@ export default async function SubmissionQueuePage() {
     }
   }
 
-  const liveReadyCount = liveClaims.filter((claim) => isReadyToSubmit(claim.status)).length;
+  const liveReadyCount = liveClaims.filter((claim) => isReadyForSubmission(claim.status)).length;
   const liveSubmittedCount = liveClaims.filter(
     (claim) => isSubmitted(claim.status) || isApproved(claim.status) || isRejected(claim.status)
   ).length;
@@ -41,9 +41,9 @@ export default async function SubmissionQueuePage() {
   }).length;
 
   const submissionItems = liveClaims
-    .filter((claim) => isReadyToSubmit(claim.status))
+    .filter((claim) => isReadyForSubmission(claim.status))
     .map((claim) => {
-      const status = 'Ready';
+      const status = 'Ready for Submission';
       const detail = 'UB-04 + EDI ready for TPA dispatch';
 
       return {
@@ -75,7 +75,7 @@ export default async function SubmissionQueuePage() {
         <MetricCard
           label="Ready Now"
           value={String(liveReadyCount)}
-          helper="Passed all checks"
+          helper="Cleared by AI or repaired by the team and waiting for insurer submission"
           tone={liveReadyCount > 0 ? 'success' : 'muted'}
         />
         <MetricCard
@@ -105,7 +105,7 @@ export default async function SubmissionQueuePage() {
               className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border hover:bg-muted/50 transition-colors"
             >
               <div className="w-10 h-10 rounded-xl bg-info-bg flex items-center justify-center shrink-0">
-                {item.status === 'Ready' ? (
+                {item.status === 'Ready for Submission' ? (
                   <UploadCloud size={18} className="text-info" />
                 ) : item.status === 'Submitted' ? (
                   <Clock size={18} className="text-warning" />
@@ -123,7 +123,7 @@ export default async function SubmissionQueuePage() {
               </div>
               <StatusPill
                 tone={
-                  item.status === 'Ready' || item.status === 'Approved'
+                  item.status === 'Ready for Submission' || item.status === 'Approved'
                     ? 'success'
                     : item.status === 'Submitted'
                       ? 'info'
@@ -142,7 +142,7 @@ export default async function SubmissionQueuePage() {
           ))}
           {submissionItems.length === 0 && (
             <div className="p-8 text-center text-muted-foreground">
-              No claims in the submission queue. Please upload and resolve errors to add claims here.
+              No claims are ready for submission yet. Approve validation in the review workspace to add claims here.
             </div>
           )}
         </div>

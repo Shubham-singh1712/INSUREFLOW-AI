@@ -11,8 +11,7 @@ import { logger } from './logger';
 import { runPythonExtraction } from './python-bridge';
 import { runOcrWorkerSubprocess, runLlmExtraction } from './node-bridge';
 import { buildDocumentChecklist, getDocumentChecklistErrors } from './document-checklist';
-import { getWorkflowSettings } from '../workflowSettings';
-import { calculateLifecycleStatus } from '../claimLifecycle';
+import { calculateLifecycleStatus } from '@/lib/claimLifecycle';
 
 export async function processClaimPipeline(
   buffer: Buffer,
@@ -176,18 +175,10 @@ export async function processClaimPipeline(
     ); // // MODIFIED
 
     // 6. Final State Update // // MODIFIED
-    let threshold = 85;
-    try {
-      const settings = await getWorkflowSettings();
-      threshold = settings.aiThreshold;
-    } catch {
-      // ignore
-    }
-
     const nextState = calculateLifecycleStatus({
       validationIssueCount: validationErrors.length,
       readinessScore: readiness,
-      threshold,
+      threshold: 0,
     });
 
     await saveClaimState(claimId, nextState, { // // MODIFIED
