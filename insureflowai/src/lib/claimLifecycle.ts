@@ -87,7 +87,7 @@ export const getClaimStatusLabel = (status?: string | null) => {
   const normalizedStatus = normalizeClaimStatus(status);
 
   if (normalizedStatus === 'PROCESSING') return 'AI Processing';
-  if (normalizedStatus === 'UNDER_REVIEW') return 'Under Review';
+  if (normalizedStatus === 'UNDER_REVIEW') return 'Requires Repair';
   if (normalizedStatus === 'READY_FOR_SUBMISSION') return 'Ready for Submission';
   if (normalizedStatus === 'SUBMITTED') return 'Submitted';
   if (normalizedStatus === 'APPROVED') return 'Approved';

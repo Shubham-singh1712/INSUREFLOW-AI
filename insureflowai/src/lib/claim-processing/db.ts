@@ -260,9 +260,22 @@ export const saveClaimState = async (
             principal_diagnosis: fields.clinical?.diagnosis?.value || confirmedData.clinical.principal_diagnosis,
           },
           coding: {
-            icd10_codes: (fields.clinical?.icd10_codes?.value || []).map((code: string) => ({
-              code, description: '', confidence: 100
-            })),
+            icd10_codes: (() => {
+              const val = fields.clinical?.icd10_codes?.value;
+              if (Array.isArray(val)) {
+                return val.map((code: any) => ({
+                  code: typeof code === 'object' && code !== null ? String(code.code || '') : String(code),
+                  description: typeof code === 'object' && code !== null ? String(code.description || '') : '',
+                  confidence: typeof code === 'object' && code !== null && typeof code.confidence === 'number' ? code.confidence : 100
+                }));
+              }
+              if (typeof val === 'string') {
+                return val.split(',').map((s: string) => s.trim()).filter(Boolean).map((code: string) => ({
+                  code, description: '', confidence: 100
+                }));
+              }
+              return [];
+            })(),
             cpt_codes: confirmedData.coding.cpt_codes,
           },
           billing: {

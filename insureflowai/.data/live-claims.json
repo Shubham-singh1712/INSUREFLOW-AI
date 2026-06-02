@@ -104,10 +104,10 @@
     "id": "CLM-4023",
     "userId": "0d00e1b4-8c4e-4adf-a03f-5777fe6009b1",
     "claimId": "CLM-4023",
-    "patient": "Ramesh Kumar Iy er",
+    "patient": "Aditya Sharma",
     "tpa": "Apollo Munich Optima Restore",
     "amount": "INR 1,84,500",
-    "aiConfidence": 82,
+    "aiConfidence": 95,
     "submissionScore": 96,
     "documentsTotal": 6,
     "documentsPassed": 6,
@@ -116,17 +116,17 @@
     "submittedAt": "2026-05-10T12:27:16.622Z",
     "confirmedData": {
       "patient": {
-        "full_name": "Ramesh Kumar Iy er",
-        "date_of_birth": "1958-03-14",
+        "full_name": "Aditya Sharma",
+        "date_of_birth": "1974-05-15",
         "gender": "Male",
-        "address": "14, Poes Garden, Chennai",
-        "contact_phone": "+91 98765 43210",
-        "contact_email": "ramesh.iyer@email.com"
+        "address": "Flat 4B, Shanti Apartments, Alwarpet, Chennai - 600018",
+        "contact_phone": "+91 98400 12345",
+        "contact_email": "aditya.sharma@email.com"
       },
       "insurance": {
-        "policyholder_name": "Ramesh Kumar Iy er",
-        "group_number": "GRP-APM-2024-0048",
-        "member_id": "MEM-7748291034",
+        "policyholder_name": "Aditya Sharma",
+        "group_number": "CORP-CTS-2026",
+        "member_id": "MED-7782109",
         "payer_id": "APMH-PAYER-001",
         "plan_name": "Apollo Munich Optima Restore"
       },
@@ -138,7 +138,7 @@
       "clinical": {
         "admission_date": "2026-05-01",
         "discharge_date": "2026-05-06",
-        "attending_physician": "Dr. Suresh Bab u, Cardiologist",
+        "attending_physician": "Dr. Suresh Babu, Cardiologist",
         "hospital_npi": "1234567890",
         "hospital_tax_id": "33-AAACH1234C1Z5",
         "facility_name": "Apollo Hospitals, Greams Road, Chennai",
@@ -150,11 +150,6 @@
             "code": "I21.0",
             "description": "Acute transmural myocardial infarction of anterior wall",
             "confidence": 0.9
-          },
-          {
-            "code": "I25.10",
-            "description": "Atherosclerotic heart disease of native coronary artery",
-            "confidence": 0.86
           }
         ],
         "cpt_codes": [
@@ -162,47 +157,17 @@
             "code": "92928",
             "description": "Percutaneous transcatheter placement of intracoronary stent",
             "confidence": 0.9
-          },
-          {
-            "code": "93510",
-            "description": "Left heart catheterization",
-            "confidence": 0.86
           }
         ]
       },
       "billing": {
         "total_billed_amount": "184500",
-        "line_items": [
-          {
-            "description": "ICU Charges (5 days)",
-            "quantity": 5,
-            "unit_price": "12000",
-            "gross_charge": "60000"
-          },
-          {
-            "description": "Coronary Angioplasty Procedure",
-            "quantity": 1,
-            "unit_price": "85000",
-            "gross_charge": "85000"
-          },
-          {
-            "description": "Stent (Drug Eluting)",
-            "quantity": 1,
-            "unit_price": "28000",
-            "gross_charge": "28000"
-          },
-          {
-            "description": "Pharmacy & Consumables",
-            "quantity": 1,
-            "unit_price": "11500",
-            "gross_charge": "11500"
-          }
-        ]
+        "line_items": []
       },
       "extraction_meta": {
-        "overall_confidence": 82,
+        "overall_confidence": 95,
         "low_confidence_fields": [],
-        "requires_manual_review": true
+        "requires_manual_review": false
       }
     }
   },
@@ -210,10 +175,10 @@
     "id": "CLM-3236",
     "userId": "0d00e1b4-8c4e-4adf-a03f-5777fe6009b1",
     "claimId": "CLM-3236",
-    "patient": "Ramesh Kumar Iy er",
-    "tpa": "Apollo Munich Optima Restore",
-    "amount": "INR 1,84,500",
-    "aiConfidence": 82,
+    "patient": "Amitabh Verma",
+    "tpa": "HDFC ERGO Health Insurance",
+    "amount": "INR 1,46,500",
+    "aiConfidence": 88,
     "submissionScore": 96,
     "documentsTotal": 6,
     "documentsPassed": 6,
@@ -222,93 +187,52 @@
     "submittedAt": "2026-05-10T12:24:44.257Z",
     "confirmedData": {
       "patient": {
-        "full_name": "Ramesh Kumar Iy er",
-        "date_of_birth": "1958-03-14",
+        "full_name": "Amitabh Verma",
+        "date_of_birth": "1968-04-19",
         "gender": "Male",
-        "address": "14, Poes Garden, Chennai",
-        "contact_phone": "+91 98765 43210",
-        "contact_email": "ramesh.iyer@email.com"
+        "address": "88/1, 4th Main, JP Nagar 3rd Phase, Bangalore - 560078",
+        "contact_phone": "+91 98860 67543",
+        "contact_email": "amitabh.verma@email.com"
       },
       "insurance": {
-        "policyholder_name": "Ramesh Kumar Iy er",
-        "group_number": "GRP-APM-2024-0048",
-        "member_id": "MEM-7748291034",
-        "payer_id": "APMH-PAYER-001",
-        "plan_name": "Apollo Munich Optima Restore"
+        "policyholder_name": "Amitabh Verma",
+        "group_number": "GRP-HDFC-99",
+        "member_id": "PAR-HE-90823",
+        "payer_id": "HDFC-PAYER-002",
+        "plan_name": "HDFC ERGO Health Insurance"
       },
       "pre_authorization": {
-        "approval_code": "PA-2026-00847",
+        "approval_code": "PA-2026-00848",
         "authorized_from": "2026-05-01",
         "authorized_to": "2026-05-10"
       },
       "clinical": {
         "admission_date": "2026-05-01",
         "discharge_date": "2026-05-06",
-        "attending_physician": "Dr. Suresh Bab u, Cardiologist",
-        "hospital_npi": "1234567890",
-        "hospital_tax_id": "33-AAACH1234C1Z5",
-        "facility_name": "Apollo Hospitals, Greams Road, Chennai",
-        "principal_diagnosis": "I21.0"
+        "attending_physician": "Dr. Vivek Murthy",
+        "hospital_npi": "1234567891",
+        "hospital_tax_id": "33-AAACH1234C1Z6",
+        "facility_name": "Fortis Hospital, Bannerghatta Road, Bangalore",
+        "principal_diagnosis": "K80.20"
       },
       "coding": {
         "icd10_codes": [
           {
-            "code": "I21.0",
-            "description": "Acute transmural myocardial infarction of anterior wall",
+            "code": "K80.20",
+            "description": "Calculus of gallbladder",
             "confidence": 0.9
-          },
-          {
-            "code": "I25.10",
-            "description": "Atherosclerotic heart disease of native coronary artery",
-            "confidence": 0.86
           }
         ],
-        "cpt_codes": [
-          {
-            "code": "92928",
-            "description": "Percutaneous transcatheter placement of intracoronary stent",
-            "confidence": 0.9
-          },
-          {
-            "code": "93510",
-            "description": "Left heart catheterization",
-            "confidence": 0.86
-          }
-        ]
+        "cpt_codes": []
       },
       "billing": {
-        "total_billed_amount": "184500",
-        "line_items": [
-          {
-            "description": "ICU Charges (5 days)",
-            "quantity": 5,
-            "unit_price": "12000",
-            "gross_charge": "60000"
-          },
-          {
-            "description": "Coronary Angioplasty Procedure",
-            "quantity": 1,
-            "unit_price": "85000",
-            "gross_charge": "85000"
-          },
-          {
-            "description": "Stent (Drug Eluting)",
-            "quantity": 1,
-            "unit_price": "28000",
-            "gross_charge": "28000"
-          },
-          {
-            "description": "Pharmacy & Consumables",
-            "quantity": 1,
-            "unit_price": "11500",
-            "gross_charge": "11500"
-          }
-        ]
+        "total_billed_amount": "146500",
+        "line_items": []
       },
       "extraction_meta": {
-        "overall_confidence": 82,
+        "overall_confidence": 88,
         "low_confidence_fields": [],
-        "requires_manual_review": true
+        "requires_manual_review": false
       }
     }
   },
@@ -316,10 +240,10 @@
     "id": "CLM-9572",
     "userId": "0d00e1b4-8c4e-4adf-a03f-5777fe6009b1",
     "claimId": "CLM-9572",
-    "patient": "Ramesh Kumar Iy er",
-    "tpa": "Apollo Munich Optima Restore",
-    "amount": "INR 1,84,500",
-    "aiConfidence": 82,
+    "patient": "Priya Nair",
+    "tpa": "Star Health Assurance",
+    "amount": "INR 72,000",
+    "aiConfidence": 96,
     "submissionScore": 96,
     "documentsTotal": 6,
     "documentsPassed": 6,
@@ -328,93 +252,52 @@
     "submittedAt": "2026-05-10T12:21:13.748Z",
     "confirmedData": {
       "patient": {
-        "full_name": "Ramesh Kumar Iy er",
-        "date_of_birth": "1958-03-14",
-        "gender": "Male",
-        "address": "14, Poes Garden, Chennai",
-        "contact_phone": "+91 98765 43210",
-        "contact_email": "ramesh.iyer@email.com"
+        "full_name": "Priya Nair",
+        "date_of_birth": "1983-09-02",
+        "gender": "Female",
+        "address": "23, Indira Nagar, Bangalore",
+        "contact_phone": "+91 99890 54321",
+        "contact_email": "priya.nair@email.com"
       },
       "insurance": {
-        "policyholder_name": "Ramesh Kumar Iy er",
-        "group_number": "GRP-APM-2024-0048",
-        "member_id": "MEM-7748291034",
-        "payer_id": "APMH-PAYER-001",
-        "plan_name": "Apollo Munich Optima Restore"
+        "policyholder_name": "Priya Nair",
+        "group_number": "CORP-INFY-99",
+        "member_id": "MEM-SH-09321",
+        "payer_id": "STAR-PAYER-003",
+        "plan_name": "Star Health Assurance"
       },
       "pre_authorization": {
-        "approval_code": "PA-2026-00847",
+        "approval_code": "PA-2026-00849",
         "authorized_from": "2026-05-01",
         "authorized_to": "2026-05-10"
       },
       "clinical": {
         "admission_date": "2026-05-01",
         "discharge_date": "2026-05-06",
-        "attending_physician": "Dr. Suresh Bab u, Cardiologist",
-        "hospital_npi": "1234567890",
-        "hospital_tax_id": "33-AAACH1234C1Z5",
-        "facility_name": "Apollo Hospitals, Greams Road, Chennai",
-        "principal_diagnosis": "I21.0"
+        "attending_physician": "Dr. Ananya Reddy",
+        "hospital_npi": "1234567892",
+        "hospital_tax_id": "33-AAACH1234C1Z7",
+        "facility_name": "CARE Hospitals, Banjara Hills",
+        "principal_diagnosis": "O80"
       },
       "coding": {
         "icd10_codes": [
           {
-            "code": "I21.0",
-            "description": "Acute transmural myocardial infarction of anterior wall",
+            "code": "O80",
+            "description": "Single spontaneous delivery",
             "confidence": 0.9
-          },
-          {
-            "code": "I25.10",
-            "description": "Atherosclerotic heart disease of native coronary artery",
-            "confidence": 0.86
           }
         ],
-        "cpt_codes": [
-          {
-            "code": "92928",
-            "description": "Percutaneous transcatheter placement of intracoronary stent",
-            "confidence": 0.9
-          },
-          {
-            "code": "93510",
-            "description": "Left heart catheterization",
-            "confidence": 0.86
-          }
-        ]
+        "cpt_codes": []
       },
       "billing": {
-        "total_billed_amount": "184500",
-        "line_items": [
-          {
-            "description": "ICU Charges (5 days)",
-            "quantity": 5,
-            "unit_price": "12000",
-            "gross_charge": "60000"
-          },
-          {
-            "description": "Coronary Angioplasty Procedure",
-            "quantity": 1,
-            "unit_price": "85000",
-            "gross_charge": "85000"
-          },
-          {
-            "description": "Stent (Drug Eluting)",
-            "quantity": 1,
-            "unit_price": "28000",
-            "gross_charge": "28000"
-          },
-          {
-            "description": "Pharmacy & Consumables",
-            "quantity": 1,
-            "unit_price": "11500",
-            "gross_charge": "11500"
-          }
-        ]
+        "total_billed_amount": "72000",
+        "line_items": []
       },
       "extraction_meta": {
-        "overall_confidence": 82,
+        "overall_confidence": 96,
         "low_confidence_fields": [],
-        "requires_manual_review": true
+        "requires_manual_review": false
       }
     }
   },
@@ -422,10 +305,10 @@
     "id": "CLM-2852",
     "userId": "0d00e1b4-8c4e-4adf-a03f-5777fe6009b1",
     "claimId": "CLM-2852",
-    "patient": "Ramesh Kumar Iy er",
-    "tpa": "Apollo Munich Optima Restore",
-    "amount": "INR 1,84,500",
-    "aiConfidence": 82,
+    "patient": "Arjun Mehta",
+    "tpa": "Max Bupa Health Insurance",
+    "amount": "INR 95,500",
+    "aiConfidence": 61,
     "submissionScore": 96,
     "documentsTotal": 6,
     "documentsPassed": 6,
@@ -434,93 +317,52 @@
     "submittedAt": "2026-05-10T10:11:09.975Z",
     "confirmedData": {
       "patient": {
-        "full_name": "Ramesh Kumar Iy er",
-        "date_of_birth": "1958-03-14",
+        "full_name": "Arjun Mehta",
+        "date_of_birth": "1987-11-23",
         "gender": "Male",
-        "address": "14, Poes Garden, Chennai",
-        "contact_phone": "+91 98765 43210",
-        "contact_email": "ramesh.iyer@email.com"
+        "address": "Flat 102, Green Glen Layout, Bangalore",
+        "contact_phone": "+91 98450 99887",
+        "contact_email": "arjun.mehta@email.com"
       },
       "insurance": {
-        "policyholder_name": "Ramesh Kumar Iy er",
-        "group_number": "GRP-APM-2024-0048",
-        "member_id": "MEM-7748291034",
-        "payer_id": "APMH-PAYER-001",
-        "plan_name": "Apollo Munich Optima Restore"
+        "policyholder_name": "Arjun Mehta",
+        "group_number": "GRP-MAX-007",
+        "member_id": "MEM-MB-87321",
+        "payer_id": "MAXB-PAYER-004",
+        "plan_name": "Max Bupa Health Insurance"
       },
       "pre_authorization": {
-        "approval_code": "PA-2026-00847",
+        "approval_code": "PA-2026-00850",
         "authorized_from": "2026-05-01",
         "authorized_to": "2026-05-10"
       },
       "clinical": {
         "admission_date": "2026-05-01",
         "discharge_date": "2026-05-06",
-        "attending_physician": "Dr. Suresh Bab u, Cardiologist",
-        "hospital_npi": "1234567890",
-        "hospital_tax_id": "33-AAACH1234C1Z5",
-        "facility_name": "Apollo Hospitals, Greams Road, Chennai",
-        "principal_diagnosis": "I21.0"
+        "attending_physician": "Dr. Amit Verma",
+        "hospital_npi": "1234567893",
+        "hospital_tax_id": "33-AAACH1234C1Z8",
+        "facility_name": "Max Healthcare, Delhi",
+        "principal_diagnosis": "K35.80"
       },
       "coding": {
         "icd10_codes": [
           {
-            "code": "I21.0",
-            "description": "Acute transmural myocardial infarction of anterior wall",
+            "code": "K35.80",
+            "description": "Acute appendicitis",
             "confidence": 0.9
-          },
-          {
-            "code": "I25.10",
-            "description": "Atherosclerotic heart disease of native coronary artery",
-            "confidence": 0.86
           }
         ],
-        "cpt_codes": [
-          {
-            "code": "92928",
-            "description": "Percutaneous transcatheter placement of intracoronary stent",
-            "confidence": 0.9
-          },
-          {
-            "code": "93510",
-            "description": "Left heart catheterization",
-            "confidence": 0.86
-          }
-        ]
+        "cpt_codes": []
       },
       "billing": {
-        "total_billed_amount": "184500",
-        "line_items": [
-          {
-            "description": "ICU Charges (5 days)",
-            "quantity": 5,
-            "unit_price": "12000",
-            "gross_charge": "60000"
-          },
-          {
-            "description": "Coronary Angioplasty Procedure",
-            "quantity": 1,
-            "unit_price": "85000",
-            "gross_charge": "85000"
-          },
-          {
-            "description": "Stent (Drug Eluting)",
-            "quantity": 1,
-            "unit_price": "28000",
-            "gross_charge": "28000"
-          },
-          {
-            "description": "Pharmacy & Consumables",
-            "quantity": 1,
-            "unit_price": "11500",
-            "gross_charge": "11500"
-          }
-        ]
+        "total_billed_amount": "95500",
+        "line_items": []
       },
       "extraction_meta": {
-        "overall_confidence": 82,
+        "overall_confidence": 95,
         "low_confidence_fields": [],
-        "requires_manual_review": true
+        "requires_manual_review": false
       }
     }
   }
