@@ -1,0 +1,460 @@
+{
+  "success": true,
+  "extractionMethod": "mixed",
+  "claimId": "CLM-2861",
+  "uploadSessionId": "",
+  "pageCount": 4,
+  "classifiedPages": [
+    {
+      "page": 1,
+      "type": "preauth",
+      "confidence": 98
+    },
+    {
+      "page": 2,
+      "type": "hospital invoice",
+      "confidence": 95
+    },
+    {
+      "page": 4,
+      "type": "clinical note",
+      "confidence": 92
+    },
+    {
+      "page": 5,
+      "type": "aadhaar_card",
+      "confidence": 96
+    }
+  ],
+  "extractedFields": {
+    "patient": {
+      "full_name": {
+        "value": "Harish Chandra",
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Harish Chandra"
+      },
+      "dob": {
+        "value": "1959-12-05",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 1959-12-05"
+      },
+      "gender": {
+        "value": "Male",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Male"
+      },
+      "age": {
+        "value": 66,
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 66"
+      },
+      "phone": {
+        "value": "+91 98100 99887",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: +91 98100 99887"
+      },
+      "address": {
+        "value": "Qtr No. 12, Sector 3, RK Puram, New Delhi - 110022",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Qtr No. 12, Sector 3, RK Puram, New Delhi - 110022"
+      }
+    },
+    "insurance": {
+      "provider_name": {
+        "value": "Apollo Munich Health Insurance",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Apollo Munich Health Insurance"
+      },
+      "tpa_name": {
+        "value": "Medi Assist TPA",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Medi Assist TPA"
+      },
+      "policy_number": {
+        "value": "AP-22119-08",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: AP-22119-08"
+      },
+      "member_id": {
+        "value": "MED-AP-44310",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: MED-AP-44310"
+      },
+      "corporate_or_group_id": {
+        "value": "GOVT-CGHS-99",
+        "confidence": 94,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: GOVT-CGHS-99"
+      },
+      "insurance_id": {
+        "value": "INS-AP-1144",
+        "confidence": 92,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: INS-AP-1144"
+      }
+    },
+    "hospital": {
+      "facility_name": {
+        "value": "AIIMS, New Delhi",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: AIIMS, New Delhi"
+      },
+      "doctor_name": {
+        "value": "Dr. Randeep Guleria",
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Dr. Randeep Guleria"
+      },
+      "registration_number": {
+        "value": "REG-HOSP-8809",
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: REG-HOSP-8809"
+      },
+      "admission_date": {
+        "value": "2026-05-25",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-25"
+      },
+      "discharge_date": {
+        "value": "2026-05-28",
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 2026-05-28"
+      }
+    },
+    "clinical": {
+      "diagnosis": {
+        "value": "Lobar Pneumonia - Streptococcus pneumoniae",
+        "confidence": 97,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: Lobar Pneumonia - Streptococcus pneumoniae"
+      },
+      "icd10_codes": {
+        "value": [
+          "J13"
+        ],
+        "confidence": 96,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: J13"
+      },
+      "symptoms": {
+        "value": "High fever, shaking chills, productive rusty sputum, pleuritic chest pain",
+        "confidence": 92,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: High fever, shaking chills, productive rusty sputum, pleuritic chest pain"
+      },
+      "surgery": {
+        "value": "None",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: None"
+      },
+      "procedure": {
+        "value": "Intensive antibiotic therapy, bronchodilators, nebulization",
+        "confidence": 93,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: Intensive antibiotic therapy, bronchodilators, nebulization"
+      },
+      "length_of_stay": {
+        "value": 5,
+        "confidence": 95,
+        "page": 4,
+        "docType": "clinical note",
+        "method": "pdf_text",
+        "raw": "Document Details: 5"
+      },
+      "emergency_case": {
+        "value": false,
+        "confidence": 90,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      }
+    },
+    "financial": {
+      "room_rent": {
+        "value": 5000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 5000"
+      },
+      "icu_charges": {
+        "value": 20000,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 20000"
+      },
+      "ot_charges": {
+        "value": 0,
+        "confidence": 97,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 0"
+      },
+      "medicine": {
+        "value": 32000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 32000"
+      },
+      "investigations": {
+        "value": 18000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 18000"
+      },
+      "professional_fees": {
+        "value": 12000,
+        "confidence": 96,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 12000"
+      },
+      "final_bill": {
+        "value": 92000,
+        "confidence": 98,
+        "page": 2,
+        "docType": "invoice",
+        "method": "pdf_text",
+        "raw": "Document Details: 92000"
+      },
+      "total_claimed": {
+        "value": 92000,
+        "confidence": 98,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: 92000"
+      }
+    },
+    "authorization": {
+      "patient_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "doctor_signature": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      },
+      "hospital_seal": {
+        "value": false,
+        "confidence": 0,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: false"
+      },
+      "approval_stamp": {
+        "value": true,
+        "confidence": 95,
+        "page": 1,
+        "docType": "preauth",
+        "method": "pdf_text",
+        "raw": "Patient Details: true"
+      }
+    }
+  },
+  "validationErrors": [
+    {
+      "field": "authorization.hospital_seal",
+      "issue": "Hospital seal or stamp was not detected on page 1 of Preauth form",
+      "severity": "high",
+      "pages": [
+        1
+      ],
+      "suggestedAction": "Affix the official hospital stamp and signature in Part B, then re-upload or mark verified if physically checked."
+    },
+    {
+      "field": "documents.discharge_summary",
+      "issue": "Missing required document: Discharge Summary. The hospital relief and billing summary was not detected in the document stream.",
+      "severity": "high",
+      "pages": [],
+      "suggestedAction": "Upload the treating doctor's signed Discharge Summary showing final outcomes and discharge vitals."
+    }
+  ],
+  "claimHealth": 71,
+  "readiness": 68,
+  "ocrConfidence": 98,
+  "extractionConfidence": 95,
+  "rejectionRisk": "medium",
+  "repairSuggestions": [
+    {
+      "fieldId": "authorization.hospital_seal",
+      "suggestion": "Hospital Seal missing. Mark Verified if verified offline.",
+      "confidence": 80,
+      "reason": "The seal block is empty. Hospital desk seal validation required."
+    },
+    {
+      "fieldId": "documents.discharge_summary",
+      "suggestion": "Upload a signed Discharge Summary.",
+      "confidence": 85,
+      "reason": "A signed summary must confirm final recovery status before cashless adjudication."
+    }
+  ],
+  "pdfType": "text_layer",
+  "state": "REVIEW_REQUIRED",
+  "documentChecklist": {
+    "items": [
+      {
+        "id": "preauth_form",
+        "label": "Pre-Authorization Form",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 98
+      },
+      {
+        "id": "insurance_card_member",
+        "label": "Insurance / TPA Membership Card",
+        "required": true,
+        "present": true,
+        "page": 1,
+        "confidence": 97
+      },
+      {
+        "id": "aadhaar_card",
+        "label": "Aadhaar Card",
+        "required": true,
+        "present": true,
+        "page": 5,
+        "confidence": 96
+      },
+      {
+        "id": "pan_card",
+        "label": "PAN Card",
+        "required": true,
+        "present": false,
+        "page": null,
+        "confidence": 0
+      },
+      {
+        "id": "clinical_note_doctor",
+        "label": "Doctor's Clinical Note",
+        "required": true,
+        "present": true,
+        "page": 4,
+        "confidence": 92
+      },
+      {
+        "id": "policy_schedule",
+        "label": "Insurance Policy Schedule",
+        "required": false,
+        "present": true,
+        "page": 4,
+        "confidence": 90
+      }
+    ],
+    "allRequiredPresent": false,
+    "missingRequired": [
+      "pan_card"
+    ]
+  },
+  "auditLogs": [
+    {
+      "stage": "UPLOADED",
+      "timestamp": "2026-05-30T07:44:43.985Z",
+      "message": "PDF document uploaded: AIIMS_Pneumonia_Claim.pdf"
+    },
+    {
+      "stage": "PROCESSING",
+      "timestamp": "2026-05-30T07:44:55.986Z",
+      "message": "OCR process initiated. Running Tesseract layout analysis."
+    },
+    {
+      "stage": "OCR_COMPLETE",
+      "timestamp": "2026-05-30T07:45:13.986Z",
+      "message": "OCR extraction complete. Text layers identified. Confidence: 98%"
+    },
+    {
+      "stage": "CLASSIFIED",
+      "timestamp": "2026-05-30T07:45:43.986Z",
+      "message": "Classified pages: preauth (p.1), hospital invoice (p.2), clinical note (p.4), aadhaar_card (p.5)"
+    },
+    {
+      "stage": "EXTRACTED",
+      "timestamp": "2026-05-30T07:46:13.986Z",
+      "message": "Entities extracted. Found patient Harish Chandra, provider Apollo Munich Health Insurance, hospital AIIMS, New Delhi"
+    },
+    {
+      "stage": "REVIEW_REQUIRED",
+      "timestamp": "2026-05-30T07:46:43.986Z",
+      "message": "Validation flagged 2 errors. Review & repair required."
+    }
+  ]
+}

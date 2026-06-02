@@ -1,15 +1,6 @@
 {
   "framework": "nextjs",
-  "installCommand": "npm install",
-  "buildCommand": "npm run build",
-  "experimentalServices": {
-    "frontend": {
-      "routePrefix": "/",
-      "framework": "nextjs"
-    },
-    "backend": {
-      "entrypoint": "backend",
-      "routePrefix": "/_/backend"
-    }
-  }
+  "installCommand": "cd insureflowai && npm install",
+  "buildCommand": "cd insureflowai && npm run build",
+  "outputDirectory": "insureflowai/.next"
 }

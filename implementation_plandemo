@@ -1,0 +1,39 @@
+# Implementation Plan: Smart Demo Engine with Dynamic Analysis & Outcomes
+
+This plan redesigns the `INSUREFLOW-AI` Demo Mode to function as a smart analysis engine. Rather than matching filenames to hardcoded outcomes, the system evaluates the uploaded document, calculates a Completeness Score, and maps the results to dynamic validation errors, repair suggestions, and lifecycle states.
+
+## User Review Required
+
+Documenting key behavior and parameters:
+- **Lightweight Analysis:** We will execute the real native PDF text parser (`extractPdfTextFirst`) and document classifier (`classifyPages`) on the uploaded buffer.
+- **Completeness Score:** Calculated by checking for the presence of 9 key elements (Patient Name, Policy Number, Diagnosis, Admission/Discharge Dates, Hospital Seal, Doctor/Patient Signatures, and Discharge Summary).
+- **Deterministic Presentation (Forced Paths):** To support reliable live pitches, the system will check for filename keywords (`healthy`/`green` for Green path, `review`/`pending` for Yellow path, `highrisk`/`red` for Red path) before falling back to the completeness score.
+- **Dynamic Error Injection:** Based on the selected category, the system will dynamically set mock fields, validation errors, and checklist statuses.
+
+## Proposed Changes
+
+### Component 1: Smart Demo Pipeline
+
+#### [MODIFY] [demo-pipeline.ts](file:///c:/Users/SHUBHAM/OneDrive/Documents/INFLOW/insureflowai/src/lib/claim-processing/demo-pipeline.ts)
+- Import `extractPdfTextFirst`, `classifyPages`, `buildDocumentChecklist`, and `getDocumentChecklistErrors` from their respective files.
+- In `processDemoClaimPipeline`:
+  1. Perform lightweight text parsing using `extractPdfTextFirst(buffer)`.
+  2. Compute `fileSize` and analyze page count.
+  3. Determine if the document has a native text layer or requires simulated OCR (text length < 180 chars).
+  4. Perform page classification using `classifyPages(textPages)`.
+  5. Check for key term occurrences using regex keyword checks.
+  6. Calculate a Completeness Score.
+  7. Route the claim to one of three paths (Green, Yellow, Red) using keyword overrides (for presentation safety) or falling back to the Completeness Score.
+  8. Fetch the closest matched template JSON file from `src/demo-data/`.
+  9. Dynamically alter the template's fields, validation errors, repair suggestions, and checklist:
+     - **Green Path:** Empty errors/suggestions, 95% health, 98% readiness, Low risk, state = `READY`.
+     - **Yellow Path:** Hospital seal & discharge summary missing, 71% health, 68% readiness, Medium risk, state = `REVIEW_REQUIRED`.
+     - **Red Path:** DOB, signatures, and document gaps, LOS & billing mismatches, 35% health, 30% readiness, High risk, state = `REVIEW_REQUIRED`.
+  10. Populate relative timestamps in the audit logs and progress through the simulated delay states in the database.
+
+## Verification Plan
+
+### Manual Verification
+- **Test Scanned / Missing Data (Red Path):** Upload a small or completely blank PDF (or a file with `"red"` in the name). Verify it reports low completeness, displays critical missing fields (e.g. missing Aadhaar card, missing DOB), and is automatically rejected after submission in 6s.
+- **Test Incomplete Data (Yellow Path):** Upload a PDF with `"pending"` in the name. Verify it detects missing hospital stamp and discharge summary. Update the stamp in the form, check that the health score jumps to 92%, submit it, and verify it is approved after 6s.
+- **Test Complete Data (Green Path):** Upload a PDF with `"approved"` in the name. Verify it displays high health and readiness, has no validation errors, and is approved automatically in 6s.
