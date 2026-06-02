@@ -12,9 +12,8 @@ import {
 } from 'recharts';
 
 const data = [
-  { status: 'Ready', count: 18, color: 'var(--success)' },
-  { status: 'In Review', count: 12, color: 'var(--info)' },
-  { status: 'Repairs Pending', count: 5, color: 'var(--warning)' },
+  { status: 'Ready for Submission', count: 18, color: 'var(--success)' },
+  { status: 'Under Review', count: 12, color: 'var(--warning)' },
   { status: 'OCR Failed', count: 2, color: 'var(--danger)' },
   { status: 'Submitted', count: 31, color: 'var(--muted-foreground)' },
   { status: 'Approved', count: 24, color: 'var(--primary)' },

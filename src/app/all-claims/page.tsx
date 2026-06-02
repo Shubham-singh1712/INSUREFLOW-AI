@@ -4,6 +4,15 @@ import { Filter, Search, SlidersHorizontal } from 'lucide-react';
 import SectionShell, { MetricCard, StatusPill } from '@/components/SectionShell';
 import { listLiveClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
+import {
+  getClaimStatusLabel,
+  getClaimStatusTone,
+  isReadyForSubmission,
+  isUnderReview,
+} from '@/lib/claimLifecycle';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function AllClaimsPage() {
   let user: any = null;
@@ -28,8 +37,8 @@ export default async function AllClaimsPage() {
     }
   }
 
-  const needsAttention = liveClaims.filter((claim) => claim.status === 'repairs_pending').length;
-  const readyCount = liveClaims.filter((claim) => claim.status === 'ready').length;
+  const needsAttention = liveClaims.filter((claim) => isUnderReview(claim.status)).length;
+  const readyCount = liveClaims.filter((claim) => isReadyForSubmission(claim.status)).length;
   const highRiskCount = liveClaims.filter((claim) => claim.rejectionRisk === 'high').length;
 
   return (
@@ -50,15 +59,15 @@ export default async function AllClaimsPage() {
           helper="Across active hospital workspace"
         />
         <MetricCard
-          label="Need Attention"
+          label="Pending Review"
           value={String(needsAttention)}
-          helper="OCR, signature, or compliance issues"
+          helper="Claims in the validation working queue"
           tone={needsAttention > 0 ? 'warning' : 'muted'}
         />
         <MetricCard
-          label="Ready"
+          label="Ready To Submit"
           value={String(readyCount)}
-          helper="Validated and submission-ready"
+          helper="Approved by validation and waiting for submission"
           tone="success"
         />
         <MetricCard
@@ -127,28 +136,8 @@ export default async function AllClaimsPage() {
                   <td className="px-5 py-4 text-foreground font-semibold">{claim.patient}</td>
                   <td className="px-5 py-4 text-muted-foreground">{claim.hospitalName || 'Unknown Hospital'}</td>
                   <td className="px-5 py-4">
-                    <StatusPill
-                      tone={
-                        claim.status === 'approved' || claim.status === 'ready'
-                          ? 'success'
-                          : claim.status === 'rejected'
-                            ? 'danger'
-                            : claim.status === 'repairs_pending'
-                              ? 'warning'
-                              : 'info'
-                      }
-                    >
-                      {claim.status === 'ai_processing'
-                        ? 'AI Processing'
-                        : claim.status === 'repairs_pending'
-                          ? 'Repairs Pending'
-                          : claim.status === 'ready'
-                            ? 'Ready'
-                            : claim.status === 'submitted'
-                              ? 'Queued'
-                              : claim.status === 'approved'
-                                ? 'Approved'
-                                : 'Rejected'}
+                    <StatusPill tone={getClaimStatusTone(claim.status)}>
+                      {getClaimStatusLabel(claim.status)}
                     </StatusPill>
                   </td>
                   <td className="px-5 py-4 font-tabular font-semibold text-foreground">

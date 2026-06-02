@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ClaimPacket, UiClaimField, ClaimState } from '@/lib/claim-processing/types';
+import { isReadyForSubmission, isUnderReview } from '@/lib/claimLifecycle';
 import {
   UploadCloud,
   CheckCircle,
@@ -224,7 +225,7 @@ export default function ClaimIntakeFlow() {
     })
       .then((res) => res.json())
       .then((data) => {
-        if (data.success && data.data) {
+        if ((data.success || data.ok) && data.data) {
           setClaimData((prev) => {
             if (!prev || prev.packet.claimId !== updatedPacket.claimId) return prev;
             return {
@@ -247,9 +248,14 @@ export default function ClaimIntakeFlow() {
 
   const handleSubmit = async () => {
     if (!claimData) return;
-    setStep('submitted');
+    if (!isReadyForSubmission(claimData.packet.state) || claimData.packet.validationErrors.length > 0) {
+      setError('Resolve all validation issues before submitting this claim.');
+      return;
+    }
+
     try {
-      await fetch('/api/claims/submit', {
+      setError(null);
+      const response = await fetch('/api/claims/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -258,8 +264,63 @@ export default function ClaimIntakeFlow() {
           finalData: claimData.packet,
         }),
       });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Submission failed.');
+      }
+
+      setStep('submitted');
     } catch (err) {
       console.error('Submission failed:', err);
+      setError(err instanceof Error ? err.message : 'Submission failed.');
+    }
+  };
+
+  const handleCompleteValidation = async () => {
+    if (!claimData) return;
+    if (claimData.packet.validationErrors.length > 0) {
+      setError('Resolve all validation issues before completing validation.');
+      return;
+    }
+
+    try {
+      setError(null);
+      const response = await fetch('/api/claims/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claimId: claimData.packet.claimId,
+          extractedFields: claimData.packet.extractedFields,
+          action: 'approve-validation',
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || (!result.success && !result.ok)) {
+        throw new Error(result.error || 'Validation completion failed.');
+      }
+
+      if (result.data) {
+        setClaimData((prev) => {
+          if (!prev) return prev;
+          return {
+            packet: {
+              ...prev.packet,
+              claimHealth: result.data.claimHealth,
+              readiness: result.data.readiness,
+              rejectionRisk: result.data.rejectionRisk,
+              validationErrors: result.data.validationErrors,
+              repairSuggestions: result.data.repairSuggestions,
+              state: result.data.state,
+            },
+            uiFields: prev.uiFields,
+          };
+        });
+      }
+    } catch (err) {
+      console.error('Validation completion failed:', err);
+      setError(err instanceof Error ? err.message : 'Validation completion failed.');
     }
   };
 
@@ -381,6 +442,14 @@ export default function ClaimIntakeFlow() {
   // Review Step
   if (step === 'review' && claimData) {
     const { packet, uiFields } = claimData;
+    const isInValidationStage = isUnderReview(packet.state);
+    const isReadyStage = isReadyForSubmission(packet.state);
+    const canApproveValidation = packet.validationErrors.length === 0;
+    const actionLabel = isInValidationStage
+      ? 'Approve Validation'
+      : isReadyStage
+        ? 'Submit Claim'
+        : 'Under Review';
 
     // Categorized items mapper
     const categories = [
@@ -454,10 +523,11 @@ export default function ClaimIntakeFlow() {
               </div>
             </div>
             <button
-              onClick={handleSubmit}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm hover:shadow-md transition-all text-sm"
+              onClick={isInValidationStage ? handleCompleteValidation : isReadyStage ? handleSubmit : undefined}
+              disabled={isInValidationStage ? !canApproveValidation : !isReadyStage}
+              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm hover:shadow-md transition-all text-sm"
             >
-              Submit Claim
+              {actionLabel}
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>

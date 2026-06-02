@@ -3,6 +3,11 @@ import { ClaimState, ClaimPacket } from './types';
 import { logger } from './logger';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
+import {
+  getRepairStatusFromClaimStatus,
+  normalizeClaimStatus,
+  shouldRequireManualReview,
+} from '@/lib/claimLifecycle';
 
 const storePath = path.join(process.cwd(), '.data', 'live-claims.json');
 
@@ -82,7 +87,7 @@ export const createClaim = async (
       upload_session_id: uploadSessionId,
       file_name: fileName,
       file_size: fileSize,
-      status: 'UPLOADED' satisfies ClaimState,
+      status: 'PROCESSING' satisfies ClaimState,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       health_score: 0,
@@ -113,7 +118,7 @@ export const createClaim = async (
       submissionScore: 0,
       documentsTotal: 6,
       documentsPassed: 0,
-      status: 'ai_processing',
+      status: 'PROCESSING',
       repairStatus: 'repairs_pending',
       submittedAt: new Date().toISOString(),
       confirmedData: {
@@ -156,8 +161,10 @@ export const saveClaimState = async (
   // 1. Update Supabase
   try {
     const supabase = await createClient();
+    const coreStatus = normalizeClaimStatus(state);
+
     const updatePayload: any = {
-      status: state,
+      status: coreStatus,
       updated_at: new Date().toISOString(),
     };
 
@@ -207,28 +214,8 @@ export const saveClaimState = async (
     const claims = await readAllClaimsCache();
     const existing = claims.find((c) => c.claimId === claimId);
     if (existing) {
-      // Map ClaimState to UI status
-      let uiStatus = existing.status;
-      if (state === 'UPLOADED' || state === 'PROCESSING' || state === 'OCR_COMPLETE' || state === 'CLASSIFIED' || state === 'EXTRACTED') {
-        uiStatus = 'ai_processing';
-      } else if (state === 'REVIEW_REQUIRED') {
-        uiStatus = 'repairs_pending';
-      } else if (state === 'READY') {
-        uiStatus = 'ready';
-      } else if (state === 'SUBMITTED') {
-        uiStatus = 'submitted';
-      } else if (state === 'APPROVED') {
-        uiStatus = 'approved';
-      } else if (state === 'REJECTED') {
-        uiStatus = 'rejected';
-      }
-
-      let repairStatus = existing.repairStatus;
-      if (state === 'READY' || state === 'APPROVED' || state === 'SUBMITTED') {
-        repairStatus = 'clean';
-      } else if (state === 'REVIEW_REQUIRED') {
-        repairStatus = 'repairs_pending';
-      }
+      const uiStatus = normalizeClaimStatus(state);
+      const repairStatus = getRepairStatusFromClaimStatus(uiStatus);
 
       // Extract patient/hospital/amount info from incoming extractedFields if present
       let patient = existing.patient;
@@ -273,9 +260,22 @@ export const saveClaimState = async (
             principal_diagnosis: fields.clinical?.diagnosis?.value || confirmedData.clinical.principal_diagnosis,
           },
           coding: {
-            icd10_codes: (fields.clinical?.icd10_codes?.value || []).map((code: string) => ({
-              code, description: '', confidence: 100
-            })),
+            icd10_codes: (() => {
+              const val = fields.clinical?.icd10_codes?.value;
+              if (Array.isArray(val)) {
+                return val.map((code: any) => ({
+                  code: typeof code === 'object' && code !== null ? String(code.code || '') : String(code),
+                  description: typeof code === 'object' && code !== null ? String(code.description || '') : '',
+                  confidence: typeof code === 'object' && code !== null && typeof code.confidence === 'number' ? code.confidence : 100
+                }));
+              }
+              if (typeof val === 'string') {
+                return val.split(',').map((s: string) => s.trim()).filter(Boolean).map((code: string) => ({
+                  code, description: '', confidence: 100
+                }));
+              }
+              return [];
+            })(),
             cpt_codes: confirmedData.coding.cpt_codes,
           },
           billing: {
@@ -287,7 +287,7 @@ export const saveClaimState = async (
           extraction_meta: {
             overall_confidence: data.ocrConfidence || confirmedData.extraction_meta.overall_confidence,
             low_confidence_fields: confirmedData.extraction_meta.low_confidence_fields,
-            requires_manual_review: state !== 'READY',
+            requires_manual_review: shouldRequireManualReview(uiStatus),
           }
         };
       }
@@ -323,24 +323,25 @@ export const saveClaimState = async (
 
   // 3. Add transition audit log
   let logMessage = '';
-  if (state === 'PROCESSING') {
-    logMessage = `Smart analyzer running native text extraction. Pages identified.`;
-  } else if (state === 'OCR_COMPLETE') {
-    logMessage = `OCR scan completed. Confidence: ${data?.ocrConfidence || 90}%.`;
-  } else if (state === 'CLASSIFIED') {
-    logMessage = `Document classifications parsed. Pages classified: ${(data?.classifiedPages || []).map((p: any) => `${p.type} (p.${p.page})`).join(', ')}`;
-  } else if (state === 'EXTRACTED') {
-    logMessage = `Field extraction complete. Completeness score: ${data?.readiness || 0}%.`;
-  } else if (state === 'REVIEW_REQUIRED') {
-    logMessage = `Validation flagged ${data?.validationErrors?.length || 0} issues (rejection risk: ${data?.rejectionRisk?.toUpperCase() || 'LOW'}).`;
-  } else if (state === 'READY') {
-    logMessage = `Validation complete. All required nodes resolved. Ready to submit.`;
-  } else if (state === 'SUBMITTED') {
-    logMessage = `Claim submitted to TPA queue.`;
-  } else if (state === 'APPROVED') {
-    logMessage = `Claim approved by TPA.`;
-  } else if (state === 'REJECTED') {
-    logMessage = `Claim rejected by TPA.`;
+  const sUpper = String(state || '').toUpperCase();
+  if (sUpper === 'PROCESSING') {
+    logMessage = `AI processing initiated`;
+  } else if (sUpper === 'EXTRACTED') {
+    logMessage = `AI processing completed`;
+  } else if (sUpper === 'REVIEW_REQUIRED' || sUpper === 'VALIDATION_REQUIRED' || sUpper === 'UNDER_REVIEW') {
+    const errCount = data?.validationErrors?.length || 0;
+    logMessage =
+      errCount > 0
+        ? `Under review: ${errCount} issue${errCount === 1 ? '' : 's'}`
+        : 'Queued for manual validation';
+  } else if (sUpper === 'READY' || sUpper === 'READY_TO_SUBMIT' || sUpper === 'READY_FOR_SUBMISSION') {
+    logMessage = `Claim marked ready for submission`;
+  } else if (sUpper === 'SUBMITTED') {
+    logMessage = `Claim submitted`;
+  } else if (sUpper === 'APPROVED') {
+    logMessage = `Claim approved`;
+  } else if (sUpper === 'REJECTED') {
+    logMessage = `Claim rejected`;
   }
 
   if (logMessage) {
@@ -392,7 +393,7 @@ export const getClaimById = async (claimId: string) => {
           upload_session_id: cached.claimId,
           file_name: cached.confirmedData?.patient?.full_name ? `${cached.confirmedData.patient.full_name}.pdf` : 'claim.pdf',
           file_size: 1024 * 1024,
-          status: cached.status === 'ai_processing' ? 'PROCESSING' : cached.status === 'repairs_pending' ? 'REVIEW_REQUIRED' : cached.status === 'ready' ? 'READY' : cached.status === 'submitted' ? 'SUBMITTED' : cached.status === 'approved' ? 'APPROVED' : 'REJECTED',
+          status: normalizeClaimStatus(cached.status),
           created_at: cached.submittedAt,
           updated_at: cached.updatedAt || cached.submittedAt,
           extracted_data: cached.confirmedData ? {

@@ -12,23 +12,14 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import type { DashboardClaim as Claim } from '@/lib/demoData';
+import { getClaimStatusLabel, getClaimStatusTone, isUnderReview } from '@/lib/claimLifecycle';
 
 const repairStatusConfig = {
   clean: { label: 'AI Verified', className: 'badge-success' },
   ready: { label: 'Ready to Submit', className: 'badge-success' },
-  repairs_pending: { label: 'Repairs Pending', className: 'badge-warning' },
+  repairs_pending: { label: 'Under Review', className: 'badge-warning' },
   signature_missing: { label: 'Signature Missing', className: 'badge-danger' },
   ocr_failed: { label: 'OCR Failed', className: 'badge-danger' },
-};
-
-const claimStatusConfig = {
-  ai_processing: { label: 'AI Processing', className: 'badge-info' },
-  validation_complete: { label: 'Validation Done', className: 'badge-info' },
-  repairs_pending: { label: 'Repairs Pending', className: 'badge-warning' },
-  ready: { label: 'Ready', className: 'badge-success' },
-  submitted: { label: 'Submitted', className: 'badge-muted' },
-  approved: { label: 'Approved', className: 'badge-success' },
-  rejected: { label: 'Rejected', className: 'badge-danger' },
 };
 
 export default function RecentClaimsTable({ claims }: { claims: Claim[] }) {
@@ -104,10 +95,7 @@ export default function RecentClaimsTable({ claims }: { claims: Claim[] }) {
           <p className="text-xs text-muted-foreground mt-0.5">
             {filtered.length} claims -{' '}
             {
-              claims.filter(
-                (claim) =>
-                  claim.repairStatus === 'ocr_failed' || claim.repairStatus === 'signature_missing'
-              ).length
+              claims.filter((claim) => isUnderReview(claim.status)).length
             }{' '}
             need attention
           </p>
@@ -188,10 +176,8 @@ export default function RecentClaimsTable({ claims }: { claims: Claim[] }) {
           <tbody className="divide-y divide-border">
             {paginated.map((claim) => {
               const repairCfg = repairStatusConfig[claim.repairStatus];
-              const statusCfg = claimStatusConfig[claim.status];
               const isSelected = selectedRows.has(claim.id);
-              const isAlert =
-                claim.repairStatus === 'ocr_failed' || claim.repairStatus === 'signature_missing';
+              const isAlert = isUnderReview(claim.status);
 
               return (
                 <tr
@@ -295,7 +281,9 @@ export default function RecentClaimsTable({ claims }: { claims: Claim[] }) {
                     {claim.amount}
                   </td>
                   <td className="px-4 py-3.5">
-                    <span className={statusCfg.className}>{statusCfg.label}</span>
+                    <span className={`badge-${getClaimStatusTone(claim.status)}`}>
+                      {getClaimStatusLabel(claim.status)}
+                    </span>
                   </td>
                    <td className="px-4 py-3.5">
                     <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">

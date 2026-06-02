@@ -2,10 +2,15 @@ import React from 'react';
 import AppLayout from '@/components/AppLayout';
 import DashboardMetricsGrid from './components/DashboardMetricsGrid';
 import RecentClaimsTable from './components/RecentClaimsTable';
+import ActivityTimeline from './components/ActivityTimeline';
 import { emptyDashboardMetrics } from '@/lib/demoData';
 import { buildLiveDashboardMetrics, listLiveClaims, toDashboardClaims } from '@/lib/liveClaims';
 import { createClient } from '@/lib/supabase/server';
 import { getTimeOfDayGreeting, getUserDisplayName } from '@/lib/serverGreeting';
+import { isUnderReview } from '@/lib/claimLifecycle';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function MainDashboardPage() {
   let user: any = null;
@@ -36,7 +41,7 @@ export default async function MainDashboardPage() {
       ? buildLiveDashboardMetrics(liveClaims)
       : emptyDashboardMetrics;
 
-  const attentionCount = liveClaims.filter((claim) => claim.status === 'repairs_pending').length;
+  const attentionCount = liveClaims.filter((claim) => isUnderReview(claim.status)).length;
   const heading = `${getTimeOfDayGreeting()}, ${getUserDisplayName(user)}`;
 
   return (
@@ -64,8 +69,13 @@ export default async function MainDashboardPage() {
 
         <DashboardMetricsGrid metrics={metrics} />
 
-        <div className="grid grid-cols-1 gap-6">
-          <RecentClaimsTable claims={claims} />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <RecentClaimsTable claims={claims} />
+          </div>
+          <div>
+            <ActivityTimeline />
+          </div>
         </div>
       </div>
     </AppLayout>

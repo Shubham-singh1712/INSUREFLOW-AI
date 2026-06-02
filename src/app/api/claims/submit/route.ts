@@ -5,6 +5,9 @@ import { logger } from '@/lib/claim-processing/logger';
 import { getDemoModeState } from '@/lib/demoMode';
 import { saveSubmittedClaim, updateLiveClaimStatus } from '@/lib/liveClaims';
 import type { ExtractedClaimData } from '@/lib/claims';
+import { getClaimById } from '@/lib/claim-processing/db';
+import { isReadyForSubmission, normalizeClaimStatus } from '@/lib/claimLifecycle';
+import { revalidateClaimViews } from '@/lib/claimViewRevalidation';
 
 export const runtime = 'nodejs';
 
@@ -29,6 +32,19 @@ export async function POST(request: Request) {
     const demoMode = await getDemoModeState();
 
     if (action === 'submit') {
+      const existingClaim = await getClaimById(claimId);
+      const currentStatus = normalizeClaimStatus(existingClaim?.status);
+
+      if (!isReadyForSubmission(currentStatus)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Claim must be in READY_FOR_SUBMISSION before submission. Current status: ${currentStatus}.`,
+          },
+          { status: 409 }
+        );
+      }
+
       await saveClaimState(claimId, 'SUBMITTED', {
         extractedFields: finalData?.extractedFields,
       });
@@ -68,11 +84,22 @@ export async function POST(request: Request) {
             principal_diagnosis: deepExtracted?.clinical?.diagnosis?.value || '',
           },
           coding: {
-            icd10_codes: (deepExtracted?.clinical?.icd10_codes?.value || []).map((code: string) => ({
-              code,
-              description: '',
-              confidence: 100,
-            })),
+            icd10_codes: (() => {
+              const val = deepExtracted?.clinical?.icd10_codes?.value;
+              if (Array.isArray(val)) {
+                return val.map((code: any) => ({
+                  code: typeof code === 'object' && code !== null ? String(code.code || '') : String(code),
+                  description: typeof code === 'object' && code !== null ? String(code.description || '') : '',
+                  confidence: typeof code === 'object' && code !== null && typeof code.confidence === 'number' ? code.confidence : 100
+                }));
+              }
+              if (typeof val === 'string') {
+                return val.split(',').map((s: string) => s.trim()).filter(Boolean).map((code: string) => ({
+                  code, description: '', confidence: 100
+                }));
+              }
+              return [];
+            })(),
             cpt_codes: [],
           },
           billing: {
@@ -106,19 +133,19 @@ export async function POST(request: Request) {
           try {
             if (rejectionRisk === 'low') {
               await saveClaimState(claimId, 'APPROVED');
-              await updateLiveClaimStatus(user.id, claimId, 'approved');
+              await updateLiveClaimStatus(user.id, claimId, 'APPROVED');
               logger.info('API', `Demo Mode: Claim ${claimId} automatically APPROVED`);
             } else if (rejectionRisk === 'medium') {
               if (errorsCount === 0) {
                 await saveClaimState(claimId, 'APPROVED');
-                await updateLiveClaimStatus(user.id, claimId, 'approved');
+                await updateLiveClaimStatus(user.id, claimId, 'APPROVED');
                 logger.info('API', `Demo Mode: Repaired Claim ${claimId} automatically APPROVED`);
               } else {
                 logger.info('API', `Demo Mode: Claim ${claimId} remains in SUBMITTED state because validation errors (${errorsCount}) are not resolved.`);
               }
             } else if (rejectionRisk === 'high') {
               await saveClaimState(claimId, 'REJECTED');
-              await updateLiveClaimStatus(user.id, claimId, 'rejected');
+              await updateLiveClaimStatus(user.id, claimId, 'REJECTED');
               logger.info('API', `Demo Mode: Claim ${claimId} automatically REJECTED due to high rejection risk`);
             }
           } catch (apprErr) {
@@ -127,17 +154,19 @@ export async function POST(request: Request) {
         }, 6000);
       }
 
+      revalidateClaimViews();
       return NextResponse.json({ success: true, message: 'Claim submitted successfully' });
     } else if (action === 'reject') {
       await saveClaimState(claimId, 'REJECTED');
       
       try {
-        await updateLiveClaimStatus(user.id, claimId, 'rejected');
+        await updateLiveClaimStatus(user.id, claimId, 'REJECTED');
       } catch (cacheErr) {
         logger.error('API', `Failed to update reject status in cache for ${claimId}`, cacheErr);
       }
 
       logger.info('API', `Claim ${claimId} rejected`);
+      revalidateClaimViews();
       return NextResponse.json({ success: true, message: 'Claim rejected' });
     }
 

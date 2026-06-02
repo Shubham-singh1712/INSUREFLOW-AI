@@ -42,3 +42,4 @@ jest-test-results.json
 turbo/
 
 .vercel
+node_modules

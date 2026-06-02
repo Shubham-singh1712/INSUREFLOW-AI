@@ -5,6 +5,7 @@ import { extractPdfTextFirst } from './pdf';
 import { classifyPages } from './classification';
 import { saveClaimState } from './db';
 import { logger } from './logger';
+import { calculateLifecycleStatus } from '@/lib/claimLifecycle';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -180,6 +181,58 @@ export async function processDemoClaimPipeline(
   mockPacket.uploadSessionId = session.uploadSessionId;
   mockPacket.pageCount = pageCount;
   mockPacket.intake = session;
+
+  // Try to extract actual patient name from the text
+  let extractedPatientName = '';
+  const patientMatch = combinedText.match(/(?:patient\s*name|name\s*of\s*(?:the\s*)?patient|patient['\'s]*\s*(?:\/\s*insured['\'s]*)?\s*name)\s*[:\-_]*\s*([A-Za-z][A-Za-z\s._-]{2,50})/i);
+  if (patientMatch && patientMatch[1]) {
+    extractedPatientName = patientMatch[1].trim();
+  } else if (session.originalFileName) {
+    // Fallback to the file name
+    const fn = session.originalFileName.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ').trim();
+    if (fn) {
+      extractedPatientName = fn.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    }
+  }
+
+  // Try to extract actual hospital name
+  let extractedHospitalName = '';
+  const hospitalMatch = combinedText.match(/(?:hospital\s*name|name\s*of\s*hospital|facility\s*name)\s*[:\-_]*\s*([A-Za-z0-9][A-Za-z0-9\s._-]{2,50})/i);
+  if (hospitalMatch && hospitalMatch[1]) {
+    extractedHospitalName = hospitalMatch[1].trim();
+  }
+
+  // Try to extract amount
+  let extractedAmount = '';
+  const amountMatch = combinedText.match(/(?:total\s*sum|expected\s*cost|final\s*bill|total\s*claimed|amount)\s*[:\-_]*\s*(?:inr|rs\.?|₹)?\s*([\d,]+)/i);
+  if (amountMatch && amountMatch[1]) {
+    extractedAmount = amountMatch[1].trim().replace(/,/g, '');
+  }
+
+  // Try to extract TPA/Insurance company
+  let extractedTpa = '';
+  const tpaMatch = combinedText.match(/(?:insurance\s*provider|insurance\s*company|tpa|plan\s*name|insurer)\s*[:\-_]*\s*([A-Za-z0-9][A-Za-z0-9\s._-]{2,50})/i);
+  if (tpaMatch && tpaMatch[1]) {
+    extractedTpa = tpaMatch[1].trim();
+  }
+
+  // Override template fields dynamically with actual PDF data
+  if (extractedPatientName && mockPacket.extractedFields?.patient?.full_name) {
+    mockPacket.extractedFields.patient.full_name.value = extractedPatientName;
+    mockPacket.extractedFields.patient.full_name.raw = `Patient Name: ${extractedPatientName}`;
+  }
+  if (extractedHospitalName && mockPacket.extractedFields?.hospital?.facility_name) {
+    mockPacket.extractedFields.hospital.facility_name.value = extractedHospitalName;
+    mockPacket.extractedFields.hospital.facility_name.raw = `Hospital Name: ${extractedHospitalName}`;
+  }
+  if (extractedAmount && mockPacket.extractedFields?.financial?.final_bill) {
+    mockPacket.extractedFields.financial.final_bill.value = parseFloat(extractedAmount) || 0;
+    mockPacket.extractedFields.financial.final_bill.raw = `Final Bill: ${extractedAmount}`;
+  }
+  if (extractedTpa && mockPacket.extractedFields?.insurance?.provider_name) {
+    mockPacket.extractedFields.insurance.provider_name.value = extractedTpa;
+    mockPacket.extractedFields.insurance.provider_name.raw = `Provider: ${extractedTpa}`;
+  }
 
   // Dynamic Validation Errors and Repair Suggestions
   const validationErrors: ValidationError[] = [];
@@ -436,7 +489,11 @@ export async function processDemoClaimPipeline(
   }
 
   const rejectionRisk = pathCategory === 'green' ? 'low' : pathCategory === 'yellow' ? 'medium' : 'high';
-  const finalState = pathCategory === 'green' ? 'READY' : 'REVIEW_REQUIRED';
+  const finalState = calculateLifecycleStatus({
+    validationIssueCount: validationErrors.length,
+    readinessScore: readiness,
+    threshold: 0,
+  });
 
   // Apply scores
   mockPacket.claimHealth = claimHealth;
@@ -459,11 +516,14 @@ export async function processDemoClaimPipeline(
     { stage: 'EXTRACTED', timestamp: new Date(now - 40000).toISOString(), message: `Completeness assessed: ${completenessScore}%. Routed to ${pathCategory.toUpperCase()} PATH.` }
   ];
 
-  if (finalState === 'READY') {
-    auditLogs.push({ stage: 'READY', timestamp: new Date(now - 20000).toISOString(), message: 'Validation complete. All required nodes resolved. Ready to submit.' });
-  } else {
-    auditLogs.push({ stage: 'REVIEW_REQUIRED', timestamp: new Date(now - 20000).toISOString(), message: `Validation flagged ${validationErrors.length} issues (rejection risk: ${rejectionRisk.toUpperCase()}).` });
-  }
+  auditLogs.push({
+    stage: finalState,
+    timestamp: new Date(now - 20000).toISOString(),
+    message:
+      validationErrors.length > 0
+        ? `Validation flagged ${validationErrors.length} issues (rejection risk: ${rejectionRisk.toUpperCase()}).`
+        : 'AI checks completed. No issues found. Claim moved directly to the submission queue.',
+  });
 
   mockPacket.auditLogs = auditLogs;
 

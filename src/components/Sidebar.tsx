@@ -1,8 +1,10 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import AppLogo from './ui/AppLogo';
 import { useAuth } from '@/contexts/AuthContext';
+import { isReadyForSubmission, isUnderReview } from '@/lib/claimLifecycle';
 import {
   LayoutDashboard,
   FileText,
@@ -89,7 +91,7 @@ export default function Sidebar({
           ${collapsed ? 'w-16' : 'w-60'}
         `}
       >
-        <SidebarContent collapsed={collapsed} isActive={isActive} />
+        <SidebarContent collapsed={collapsed} isActive={isActive} currentPath={currentPath} />
       </aside>
 
       {/* Mobile sidebar */}
@@ -113,7 +115,7 @@ export default function Sidebar({
             <ChevronRight size={16} />
           </button>
         </div>
-        <SidebarContent collapsed={false} isActive={isActive} />
+        <SidebarContent collapsed={false} isActive={isActive} currentPath={currentPath} />
       </aside>
     </>
   );
@@ -122,12 +124,21 @@ export default function Sidebar({
 function SidebarContent({
   collapsed,
   isActive,
+  currentPath,
 }: {
   collapsed: boolean;
   isActive: (href: string) => boolean;
+  currentPath: string;
 }) {
+  const router = useRouter();
   const { user } = useAuth();
   const [demoModeEnabled, setDemoModeEnabled] = useState(false);
+  const [counts, setCounts] = useState<{
+    all: number | null;
+    validation: number | null;
+    submission: number | null;
+  }>({ all: null, validation: null, submission: null });
+
   const profileName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Profile';
   const profileRole = user?.user_metadata?.role
     ? String(user.user_metadata.role).replace(/_/g, ' ')
@@ -147,6 +158,24 @@ function SidebarContent({
       })
       .catch(() => setDemoModeEnabled(false));
   }, []);
+
+  useEffect(() => {
+    fetch('/api/dashboard', { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.ok && resData.data) {
+          const claims = resData.data.claims || [];
+          const validation = claims.filter((c: any) => isUnderReview(c.status)).length;
+          const submission = claims.filter((c: any) => isReadyForSubmission(c.status)).length;
+          setCounts({
+            all: claims.length,
+            validation,
+            submission,
+          });
+        }
+      })
+      .catch((err) => console.error('Failed to fetch sidebar counts:', err));
+  }, [currentPath]);
 
   return (
     <>
@@ -183,12 +212,25 @@ function SidebarContent({
             )}
             {group.items.map((item) => {
               const active = isActive(item.href);
-              const badge = item.demoOnly && !demoModeEnabled ? null : item.badge;
+              let badge = item.demoOnly && !demoModeEnabled ? null : item.badge;
+              if (item.href === '/all-claims' && counts.all !== null) {
+                badge = String(counts.all);
+              } else if (item.href === '/validation-queue' && counts.validation !== null) {
+                badge = String(counts.validation);
+              } else if (item.href === '/submission-queue' && counts.submission !== null) {
+                badge = String(counts.submission);
+              }
               return (
                 <Link
                   key={`nav-${item.href}-${item.label}`}
                   href={item.href}
                   title={collapsed ? item.label : undefined}
+                  prefetch={false}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    router.push(item.href);
+                    router.refresh();
+                  }}
                   className={`
                     flex items-center gap-3 px-2.5 py-2 rounded-xl mb-0.5
                     transition-all duration-150 group relative
@@ -233,6 +275,12 @@ function SidebarContent({
         <div className="p-3 border-t border-white/15">
           <Link
             href="/profile"
+            prefetch={false}
+            onClick={(e) => {
+              e.preventDefault();
+              router.push('/profile');
+              router.refresh();
+            }}
             className={`flex items-center gap-3 px-2 py-2 rounded-xl transition-colors ${
               isActive('/profile') ? 'bg-sidebar-active-bg text-white' : 'hover:bg-sidebar-hover-bg'
             }`}
