@@ -184,9 +184,9 @@ export async function processDemoClaimPipeline(
 
   // Try to extract actual patient name from the text
   let extractedPatientName = '';
-  const patientMatch = combinedText.match(/(?:patient\s*name|name\s*of\s*(?:the\s*)?patient|patient['\'s]*\s*(?:\/\s*insured['\'s]*)?\s*name)\s*[:\-_]*\s*([A-Za-z][A-Za-z\s._-]{2,50})/i);
+  const patientMatch = combinedText.match(/(?:patient\s*name|name\s*of\s*(?:the\s*)?patient|patient['\'s]*\s*(?:\/\s*insured['\'s]*)?\s*name)\s*[:\-_]*\s*([^\n\r]+)/i);
   if (patientMatch && patientMatch[1]) {
-    extractedPatientName = patientMatch[1].trim();
+    extractedPatientName = patientMatch[1].replace(/(?:gender|age|dob|date|sex).*/i, '').trim();
   } else if (session.originalFileName) {
     // Fallback to the file name
     const fn = session.originalFileName.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ').trim();
@@ -197,9 +197,9 @@ export async function processDemoClaimPipeline(
 
   // Try to extract actual hospital name
   let extractedHospitalName = '';
-  const hospitalMatch = combinedText.match(/(?:hospital\s*name|name\s*of\s*hospital|facility\s*name)\s*[:\-_]*\s*([A-Za-z0-9][A-Za-z0-9\s._-]{2,50})/i);
+  const hospitalMatch = combinedText.match(/(?:hospital\s*name|name\s*of\s*hospital|facility\s*name)\s*[:\-_]*\s*([^\n\r]+)/i);
   if (hospitalMatch && hospitalMatch[1]) {
-    extractedHospitalName = hospitalMatch[1].trim();
+    extractedHospitalName = hospitalMatch[1].replace(/(?:attending\s*physician|doctor|address).*/i, '').trim();
   }
 
   // Try to extract amount

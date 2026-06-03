@@ -43,6 +43,10 @@ export const createClaim = async (
   // 1. Insert into Supabase
   try {
     const supabase = await createClient();
+
+    // Delete existing claims with the same file name for this user to prevent duplicates
+    await supabase.from('claims').delete().eq('user_id', userId).eq('file_name', fileName);
+
     const { error } = await supabase.from('claims').insert({
       id: claimId,
       user_id: userId,
