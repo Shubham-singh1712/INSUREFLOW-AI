@@ -398,7 +398,7 @@ export const toDashboardClaims = (claims: LiveClaim[]): DashboardClaim[] =>
     status: claim.status as any,
   }));
 
-export const toClaimRegisterRows = (claims: LiveClaim[]): ClaimRegisterRow[] =>
+export const toClaimRegisterRows = (claims: LiveClaim[]): any[] =>
   claims.map((claim) => ({
     id: claim.claimId,
     patient: claim.patient,

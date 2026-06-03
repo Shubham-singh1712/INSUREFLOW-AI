@@ -46,20 +46,7 @@ export type LiveClaim = {
   auditLogs?: Array<{ action: string; details?: string; timestamp: string }>;
 };
 
-const storePath = path.join(process.cwd(), '.data', 'live-claims.json');
-
-const readAllClaims = async (): Promise<LiveClaim[]> => {
-  try {
-    return JSON.parse(await readFile(storePath, 'utf8')) as LiveClaim[];
-  } catch {
-    return [];
-  }
-};
-
-const writeAllClaims = async (claims: LiveClaim[]) => {
-  await mkdir(path.dirname(storePath), { recursive: true });
-  await writeFile(storePath, JSON.stringify(claims, null, 2), 'utf8');
-};
+// Cache functions removed as Supabase is the single source of truth
 
 const confidencePercent = (data: ExtractedClaimData) =>
   Math.max(0, Math.min(100, Math.round(calculateExtractionConfidence(data))));
@@ -288,7 +275,6 @@ const mergeClaimsById = (claims: LiveClaim[]) => {
 };
 
 export const listLiveClaims = async (userId?: string | null): Promise<LiveClaim[]> => {
-  const localClaims = (await readAllClaims()).map(normalizeStoredClaim);
   let supabaseClaims: LiveClaim[] = [];
 
   try {
@@ -301,21 +287,22 @@ export const listLiveClaims = async (userId?: string | null): Promise<LiveClaim[
     if (!error && data) {
       supabaseClaims = data.map(mapDbClaimToLiveClaim);
     } else if (error) {
-      console.error('Supabase listLiveClaims failed, using local cache too:', error.message);
+      console.error('Supabase listLiveClaims failed:', error.message);
     }
   } catch (err: any) {
-    console.error('Supabase listLiveClaims failed, using local cache too:', err.message);
+    console.error('Supabase listLiveClaims failed:', err.message);
   }
 
-  const scopedLocalClaims = userId
-    ? localClaims.filter((claim) => claim.userId === userId)
-    : localClaims;
-  const mergedClaims = mergeClaimsById([...scopedLocalClaims, ...supabaseClaims]);
-  return mergedClaims;
+  // Production source of truth is strictly Supabase. Do not merge with local JSON cache.
+  // We deduplicate by claimId just in case Supabase returns duplicate rows
+  const byId = new Map<string, LiveClaim>();
+  for (const claim of supabaseClaims) {
+    byId.set(claim.claimId, claim);
+  }
+  return Array.from(byId.values());
 };
 
 export const getLiveClaim = async (userId: string, claimId: string): Promise<LiveClaim | null> => {
-  // 1. Try Supabase
   try {
     const supabase = await createClient();
     const { data, error } = await supabase
@@ -329,12 +316,11 @@ export const getLiveClaim = async (userId: string, claimId: string): Promise<Liv
       return mapDbClaimToLiveClaim(data);
     }
   } catch (err: any) {
-    console.error('Supabase getLiveClaim failed, falling back to cache:', err.message);
+    console.error('Supabase getLiveClaim failed:', err.message);
   }
 
-  // 2. Fall back to local JSON
-  const claims = (await readAllClaims()).map(normalizeStoredClaim);
-  return claims.find((claim) => claim.userId === userId && claim.claimId === claimId) ?? null;
+  // Do not fallback to local JSON
+  return null;
 };
 
 export const saveSubmittedClaim = async ({
@@ -346,44 +332,9 @@ export const saveSubmittedClaim = async ({
   claimId: string;
   confirmedData: ExtractedClaimData;
 }) => {
-  const claims = await readAllClaims();
-  const existingClaim = claims.find(c => c.claimId === claimId);
-  const resolvedClaimId = existingClaim?.claimId || claimId;
-  const liveClaim: LiveClaim = {
-    id: resolvedClaimId,
-    userId,
-    claimId: resolvedClaimId,
-    patient: confirmedData.patient.full_name || 'Unknown Patient',
-    tpa: confirmedData.insurance.plan_name || 'Unknown TPA',
-    amount: confirmedData.billing.total_billed_amount 
-      ? `INR ${Number(confirmedData.billing.total_billed_amount).toLocaleString('en-IN')}`
-      : 'INR 0',
-    aiConfidence: confidencePercent(confirmedData),
-    submissionScore: 96,
-    documentsTotal: 6,
-    documentsPassed: 6,
-    status: 'SUBMITTED',
-    repairStatus: getRepairStatusFromClaimStatus('SUBMITTED'),
-    submittedAt: new Date().toISOString(),
-    confirmedData,
-    hospitalName: confirmedData.clinical.facility_name || 'Unknown Hospital',
-    claimHealth: confidencePercent(confirmedData),
-    readiness: 96,
-    rejectionRisk: 'low',
-    createdAt: existingClaim?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    validationCount: 0,
-    repairSuggestionCount: 0,
-    assignedReviewer: 'Desk Agent',
-    auditLogs: existingClaim?.auditLogs || []
-  };
-
-  const nextClaims = [
-    liveClaim,
-    ...claims.filter(c => c.claimId !== claimId)
-  ];
-  await writeAllClaims(nextClaims);
-  return liveClaim;
+  // Production source of truth is strictly Supabase.
+  // The state transition is handled by submitReadyClaims and db.ts
+  return null;
 };
 
 export const saveReviewClaim = async ({
@@ -401,59 +352,12 @@ export const saveReviewClaim = async ({
   readiness?: number;
   threshold?: number;
 }) => {
-  const claims = await readAllClaims();
-  const existingClaim = claims.find(c => c.claimId === claimId);
-  const resolvedClaimId = existingClaim?.claimId || claimId;
-  const aiConfidence = confidencePercent(confirmedData);
-  
-  const validationIssuesCount = reviewReasons?.length || 0;
-  const readinessScore = readiness !== undefined ? readiness : Math.max(0, Math.min(100, aiConfidence - 20));
-  const status: LiveClaim['status'] = calculateLifecycleStatus({
-    validationIssueCount: validationIssuesCount,
-    readinessScore,
-    threshold,
-  });
-
-  const liveClaim: LiveClaim = {
-    id: resolvedClaimId,
-    userId,
-    claimId: resolvedClaimId,
-    patient: confirmedData.patient.full_name || 'Unknown Patient',
-    tpa: confirmedData.insurance.plan_name || 'Unknown TPA',
-    amount: confirmedData.billing.total_billed_amount 
-      ? `INR ${Number(confirmedData.billing.total_billed_amount).toLocaleString('en-IN')}`
-      : 'INR 0',
-    aiConfidence,
-    submissionScore: readinessScore,
-    documentsTotal: 6,
-    documentsPassed: Math.max(0, 6 - validationIssuesCount),
-    status,
-    repairStatus: getRepairStatusFromClaimStatus(status),
-    submittedAt: new Date().toISOString(),
-    confirmedData,
-    reviewReasons,
-    hospitalName: confirmedData.clinical.facility_name || 'Unknown Hospital',
-    claimHealth: aiConfidence,
-    readiness: readinessScore,
-    rejectionRisk: (reviewReasons && reviewReasons.length > 3) ? 'high' : (reviewReasons && reviewReasons.length > 0) ? 'medium' : 'low',
-    createdAt: existingClaim?.createdAt || new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    validationCount: reviewReasons?.length || 0,
-    repairSuggestionCount: reviewReasons?.length || 0,
-    assignedReviewer: 'Desk Agent',
-    auditLogs: existingClaim?.auditLogs || []
-  };
-
-  const nextClaims = [
-    liveClaim,
-    ...claims.filter(c => c.claimId !== claimId)
-  ];
-  await writeAllClaims(nextClaims);
-  return liveClaim;
+  // Handled entirely by Supabase updates in db.ts
+  return null;
 };
 
 export const submitReadyClaims = async (userId: string) => {
-  // 1. Update Supabase claims that are READY_FOR_SUBMISSION
+  let submitted = 0;
   try {
     const supabase = await createClient();
     const { data: readyClaims } = await supabase
@@ -465,45 +369,16 @@ export const submitReadyClaims = async (userId: string) => {
     if (readyClaims && readyClaims.length > 0) {
       for (const rc of readyClaims) {
         await saveClaimState(rc.id, 'SUBMITTED');
+        submitted += 1;
       }
     }
   } catch (err: any) {
     console.error('Supabase submitReadyClaims failed:', err.message);
   }
 
-  // 2. Update local cache
-  const claims = await readAllClaims();
-  const submittedAt = new Date().toISOString();
-  let submitted = 0;
-
-  const nextClaims = claims.map((claim) => {
-    if (claim.userId !== userId || !isReadyForSubmission(claim.status)) {
-      return claim;
-    }
-
-    submitted += 1;
-    
-    const updatedLogs = [...(claim.auditLogs || [])];
-    updatedLogs.push({
-      action: 'Claim Submitted',
-      details: 'Claim submitted to TPA queue via batch run.',
-      timestamp: submittedAt
-    });
-
-    return {
-      ...claim,
-      status: 'SUBMITTED' as const,
-      submittedAt,
-      repairStatus: getRepairStatusFromClaimStatus('SUBMITTED'),
-      auditLogs: updatedLogs
-    };
-  });
-
-  await writeAllClaims(nextClaims);
-
   return {
     submitted,
-    queued: nextClaims.filter((claim) => claim.userId === userId && isSubmitted(claim.status)).length,
+    queued: submitted,
   };
 };
 
@@ -523,7 +398,7 @@ export const toDashboardClaims = (claims: LiveClaim[]): DashboardClaim[] =>
     status: claim.status as any,
   }));
 
-export const toClaimRegisterRows = (claims: LiveClaim[]): ClaimRegisterRow[] =>
+export const toClaimRegisterRows = (claims: LiveClaim[]): any[] =>
   claims.map((claim) => ({
     id: claim.claimId,
     patient: claim.patient,
@@ -682,17 +557,5 @@ export const updateLiveClaimStatus = async (
   claimId: string,
   status: LiveClaim['status']
 ) => {
-  const claims = await readAllClaims();
-  const nextClaims = claims.map((claim) => {
-    if (claim.userId === userId && claim.claimId === claimId) {
-      return {
-        ...claim,
-        status: normalizeClaimStatus(status),
-        repairStatus: getRepairStatusFromClaimStatus(status),
-        updatedAt: new Date().toISOString(),
-      };
-    }
-    return claim;
-  });
-  await writeAllClaims(nextClaims);
+  // Handled by saveClaimState in db.ts
 };

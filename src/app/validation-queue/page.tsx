@@ -112,7 +112,7 @@ export default async function ValidationQueuePage() {
               </div>
               <div className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-100 mb-4">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Unresolved Errors</p>
-                {item.issues.map((issue: string, idx: number) => (
+                {item.issues.map((issue: any, idx: any) => (
                   <div key={idx} className="flex items-start gap-2">
                     <AlertTriangle size={13} className="text-warning shrink-0 mt-0.5" />
                     <span className="text-xs text-slate-700 leading-snug font-medium truncate max-w-[220px]" title={issue}>

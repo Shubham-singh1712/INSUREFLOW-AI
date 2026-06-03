@@ -113,7 +113,7 @@ export async function POST(request: Request) {
               }));
             }
             if (typeof val === 'string') {
-              return val.split(',').map((s: string) => s.trim()).filter(Boolean).map((code: string) => ({
+              return (val as any).split(',').map((s: string) => s.trim()).filter(Boolean).map((code: string) => ({
                 code, description: '', confidence: 100
               }));
             }
