@@ -42,3 +42,11 @@ CREATE TABLE IF NOT EXISTS public.claim_validation_items (
     resolved BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- IMPORTANT: Grant privileges to allow Next.js client to access the tables
+GRANT ALL ON TABLE public.claims TO anon, authenticated;
+GRANT ALL ON TABLE public.claim_audit_logs TO anon, authenticated;
+GRANT ALL ON TABLE public.claim_validation_items TO anon, authenticated;
+
+-- Force PostgREST schema cache reload
+NOTIFY pgrst, 'reload schema';
