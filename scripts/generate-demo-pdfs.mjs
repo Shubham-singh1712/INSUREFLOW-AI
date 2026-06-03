@@ -72,6 +72,74 @@ function createPDF(filename, pagesData) {
 // ---------------------------------------------------------------------------
 
 const claimsData = [
+  // GUARANTEED PERFECT CLAIM (GREEN PATH BYPASS): Perfect_Claim_healthy.pdf
+  {
+    filename: 'Perfect_Claim_healthy.pdf',
+    pages: [
+      `REQUEST FOR CASHLESS HOSPITALISATION - PRE-AUTHORIZATION FORM (ANNEXURE A)
+
+PATIENT DETAILS
+Name of the Patient: Rahul Desai
+Date of Birth: 1981-06-12
+Gender: Male
+Age: 45
+
+POLICY DETAILS
+Policy Number: HDFC-44521-88
+TPA / Member ID: MED-881299
+Provider Name: HDFC Ergo Health
+
+HOSPITAL DETAILS
+Hospital Name: Breach Candy Hospital
+Attending Physician: Dr. Anjali Mehta
+Date of Admission: 2026-06-15
+Date of Discharge: 2026-06-18
+
+MEDICAL CONDITION
+Provisional Diagnosis: Acute Appendicitis
+ICD-10 Code: K35.80
+Patient Name: Rahul Desai
+Bill Date: 2026-06-04
+Billed Items:
+1. Room Rent (Single Room, 3 Days): INR 15,000
+2. OT Charges: INR 50,000
+3. Medicine & Pharmacy: INR 35,000
+4. Professional Fees: INR 20,000
+Grand Total / Net Billed Amount: INR 120,000`,
+
+      `UNIQUE IDENTIFICATION AUTHORITY OF INDIA (UIDAI) - GOVERNMENT OF INDIA
+MY AADHAAR, MY IDENTITY (AADHAAR CARD)
+Aadhaar Number: 1122 3344 5566
+Name: Rahul Desai
+DOB: 12/06/1981
+Gender: Male`,
+
+      `INCOME TAX DEPARTMENT - GOVERNMENT OF INDIA
+PERMANENT ACCOUNT NUMBER CARD (PAN CARD)
+PAN Number: ABCPD1234E
+Name: Rahul Desai
+DOB: 12/06/1981`,
+
+      `DOCTOR CLINICAL REFERRAL NOTE
+Hospital Name: Breach Candy Hospital
+Treating Doctor: Dr. Anjali Mehta
+Registration No: REG-HOSP-9900
+Patient Name: Rahul Desai, Age: 45
+Patient c/o severe abdominal pain.
+Provisional Diagnosis: Appendicitis.
+Advised procedure: Appendectomy.
+Stay: 3 Days.`,
+
+      `DISCHARGE SUMMARY
+Hospital Name: Breach Candy Hospital
+Patient Name: Rahul Desai
+Admission Date: 2026-06-01, Discharge Date: 2026-06-04
+Diagnosis: Appendicitis
+Course in Hospital: Appendectomy performed.
+Discharge Vitals: Stable. Discharged.`
+    ]
+  },
+
   // 1. HEALTHY CLAIM (GREEN PATH): Apollo_Cashless_Cardiology_PreAuth.pdf
   {
     filename: 'Apollo_Cashless_Cardiology_PreAuth.pdf',
