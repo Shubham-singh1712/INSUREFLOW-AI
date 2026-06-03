@@ -530,16 +530,42 @@ export default function ClaimIntakeFlow() {
             </button>
           </div>
 
-          {/* Dismissible Error Banner */}
+          {/* Error Banner */}
           {!hideErrorBanner && activeTab !== 'audit_trail' && packet.validationErrors.length > 0 && (
-            <div className="mx-5 mt-5 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg flex items-center justify-between shadow-sm">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                {packet.validationErrors.length} Logical Validation{packet.validationErrors.length > 1 ? 's' : ''} require review
+            <div className="mx-5 mt-5 px-4 py-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-lg shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-sm font-bold">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  {packet.validationErrors.length} Validation Issue{packet.validationErrors.length > 1 ? 's' : ''} require review
+                </div>
+                <button onClick={() => setHideErrorBanner(true)} className="text-amber-500 hover:text-amber-700 p-1">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button onClick={() => setHideErrorBanner(true)} className="text-amber-500 hover:text-amber-700 p-1">
-                <X className="w-4 h-4" />
-              </button>
+              <ul className="list-disc pl-8 space-y-1 text-xs text-amber-800">
+                {packet.validationErrors.map((err: any, idx: number) => (
+                  <li key={idx} className="flex items-center justify-between group">
+                    <div>
+                      <span className="font-semibold text-amber-900">{err.field}:</span> {err.issue}
+                    </div>
+                    {err.field.startsWith('documents.') && (
+                      <button 
+                        onClick={() => {
+                          const updatedErrors = packet.validationErrors.filter((e: any) => e.field !== err.field);
+                          setClaimData((prev) => {
+                            if (!prev) return null;
+                            return { ...prev, packet: { ...prev.packet, validationErrors: updatedErrors } };
+                          });
+                          // The backend will persist this on the next autosave
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-amber-600 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all"
+                      >
+                        Override
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
