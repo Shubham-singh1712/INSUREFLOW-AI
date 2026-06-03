@@ -186,6 +186,7 @@ export type ClaimPacket = {
   pdfType: PdfKind;
   state: ClaimState;
   documentChecklist: DocumentChecklist; // NEW — supporting document presence report
+  auditLogs?: any[];
 };
 
 export type Pattern<T> = {

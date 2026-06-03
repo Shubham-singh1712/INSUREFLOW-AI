@@ -48,7 +48,7 @@ export type ClaimRegisterRow = {
   tpa: string;
   issue: string;
   score: string;
-  status: 'Needs Repair' | 'Ready' | 'Blocked' | 'Queued';
+  status: 'Needs Repair' | 'Ready' | 'Blocked' | 'Queued' | 'Ready for Submission' | 'Submitted' | 'Approved' | 'Rejected' | 'Under Review' | 'Processing';
 };
 
 export const demoDashboardMetrics: DashboardMetric[] = [
