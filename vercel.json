@@ -9,7 +9,7 @@
       "root": ".",
       "routePrefix": "/",
       "framework": "nextjs",
-      "buildCommand": "npm install && npm run build"
+      "buildCommand": "npm run build"
     },
     "insureflowai-api": {
       "type": "web",
