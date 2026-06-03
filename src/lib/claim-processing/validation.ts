@@ -158,15 +158,17 @@ export function validateExtractedData(
     }
   }
 
-  // 5. Financial validations (Billing mismatch) // MODIFIED
+  // 5. Financial validations (Billing mismatch and missing breakdowns) // MODIFIED
   const financial = extracted?.financial || {};
   const total_claimed = financial.total_claimed || {};
   const final_bill = financial.final_bill || {};
   const room_rent = financial.room_rent || {};
   const icu_charges = financial.icu_charges || {};
+  const ot_charges = financial.ot_charges || {};
   const medicine = financial.medicine || {};
   const investigations = financial.investigations || {};
   const professional_fees = financial.professional_fees || {};
+
   if (!total_claimed.value && !final_bill.value) {
     addError(
       'financial.total_claimed',
@@ -181,6 +183,26 @@ export function validateExtractedData(
       'high',
       [total_claimed.page || 1, final_bill.page || 1].filter(Boolean) as number[]
     );
+  }
+
+  // Strict financial breakdown validations
+  if (room_rent.value === null || room_rent.value === undefined) {
+    addError('financial.room_rent', 'Room Rent charges are missing from the breakdown', 'high', []);
+  }
+  if (icu_charges.value === null || icu_charges.value === undefined) {
+    addError('financial.icu_charges', 'ICU Charges are missing from the breakdown', 'medium', []);
+  }
+  if (ot_charges.value === null || ot_charges.value === undefined) {
+    addError('financial.ot_charges', 'OT Charges are missing from the breakdown', 'medium', []);
+  }
+  if (medicine.value === null || medicine.value === undefined) {
+    addError('financial.medicine', 'Medicine charges are missing from the breakdown', 'high', []);
+  }
+  if (investigations.value === null || investigations.value === undefined) {
+    addError('financial.investigations', 'Investigations charges are missing from the breakdown', 'high', []);
+  }
+  if (professional_fees.value === null || professional_fees.value === undefined) {
+    addError('financial.professional_fees', 'Professional Fees are missing from the breakdown', 'high', []);
   }
 
   // Calculate sum of parts // MODIFIED

@@ -31,9 +31,16 @@ export function calculateScores( // MODIFIED
     extracted?.hospital?.facility_name?.value,
     extracted?.clinical?.diagnosis?.value,
     extracted?.financial?.total_claimed?.value || extracted?.financial?.final_bill?.value,
+    // Detailed financial breakdown is now strictly required for 100% readiness
+    extracted?.financial?.room_rent?.value,
+    extracted?.financial?.icu_charges?.value,
+    extracted?.financial?.ot_charges?.value,
+    extracted?.financial?.medicine?.value,
+    extracted?.financial?.investigations?.value,
+    extracted?.financial?.professional_fees?.value,
   ];
 
-  const presentRequired = requiredFields.filter(Boolean).length;
+  const presentRequired = requiredFields.filter(f => f !== null && f !== undefined).length;
   const readiness = Math.round((presentRequired / requiredFields.length) * 100);
 
   // Extraction Confidence Calculation (average confidence of populated fields) // MODIFIED
